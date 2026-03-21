@@ -3,917 +3,1234 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Vistto</title>
+<title>COBRASQ</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <style>
 :root{
   --azul:#002060;--azul2:#003080;--amarelo:#FABE44;--amarelo2:#e6a820;
   --bg:#f5f6fa;--surface:#fff;--border:#e0e0e8;
-  --text:#1a1a2e;--text2:#555570;--text3:#888;
-  --success:#1D9E75;--danger:#D85A30;--warning:#FABE44;
-  --card-shadow:0 1px 4px rgba(0,32,96,0.07);
+  --text:#1a1a2e;--text2:#555570;--text3:#999;
+  --success:#1D9E75;--danger:#D85A30;--warning:#e6a820;
   --radius:10px;--radius-sm:7px;
 }
-.dark{
-  --bg:#0d0f1a;--surface:#161828;--border:#252740;
-  --text:#e8eaf6;--text2:#9fa3c0;--text3:#666;
-  --card-shadow:0 1px 4px rgba(0,0,0,0.3);
-}
+.dark{--bg:#0d0f1a;--surface:#161828;--border:#252740;--text:#e8eaf6;--text2:#9fa3c0;--text3:#555;}
 *{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;transition:background .2s,color .2s;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;transition:background .2s,color .2s;}
 
-/* SIDEBAR */
-.sidebar{width:220px;min-height:100vh;background:var(--azul);display:flex;flex-direction:column;position:fixed;left:0;top:0;bottom:0;z-index:100;transition:width .2s;}
-.sidebar.collapsed{width:60px;}
-.logo{padding:20px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(255,255,255,0.1);}
-.logo-icon{width:32px;height:32px;background:var(--amarelo);border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:var(--azul);flex-shrink:0;}
-.logo-text{font-size:18px;font-weight:700;color:#fff;letter-spacing:1px;white-space:nowrap;overflow:hidden;}
-.sidebar.collapsed .logo-text{display:none;}
-.nav{flex:1;padding:12px 0;}
-.nav-item{display:flex;align-items:center;gap:12px;padding:11px 16px;cursor:pointer;color:rgba(255,255,255,0.65);font-size:13.5px;border-left:3px solid transparent;transition:all .15s;white-space:nowrap;}
-.nav-item:hover{background:rgba(255,255,255,0.07);color:#fff;}
-.nav-item.active{background:rgba(250,190,68,0.15);color:var(--amarelo);border-left-color:var(--amarelo);}
-.nav-icon{font-size:16px;flex-shrink:0;width:20px;text-align:center;}
-.nav-label{overflow:hidden;}
-.sidebar.collapsed .nav-label{display:none;}
-.sidebar-footer{padding:12px 0;border-top:1px solid rgba(255,255,255,0.1);}
-.toggle-btn{display:flex;align-items:center;gap:12px;padding:11px 16px;cursor:pointer;color:rgba(255,255,255,0.5);font-size:13px;}
-.toggle-btn:hover{color:#fff;}
+/* TOPBAR */
+.topbar{background:var(--azul);padding:0 24px;height:60px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
+.logo-area{display:flex;align-items:center;gap:10px;}
+.logo-img{height:36px;width:36px;object-fit:contain;border-radius:6px;background:#fff;padding:2px;}
+.logo-name{font-size:17px;font-weight:700;color:#fff;letter-spacing:1px;}
+.logo-sub{font-size:9px;color:rgba(255,255,255,0.6);letter-spacing:2px;display:block;margin-top:-2px;}
+.topbar-right{display:flex;align-items:center;gap:14px;}
+.theme-btn{background:none;border:1px solid rgba(255,255,255,0.3);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px;color:rgba(255,255,255,0.8);}
+.bell{position:relative;cursor:pointer;font-size:18px;color:rgba(255,255,255,0.8);}
+.bell-badge{position:absolute;top:-4px;right:-4px;background:var(--danger);color:#fff;border-radius:50%;width:16px;height:16px;font-size:9px;display:flex;align-items:center;justify-content:center;}
+.avatar-btn{width:34px;height:34px;border-radius:50%;background:var(--amarelo);color:var(--azul);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;cursor:pointer;border:none;}
 
-/* MAIN */
-.main{margin-left:220px;flex:1;min-height:100vh;transition:margin-left .2s;}
-.main.expanded{margin-left:60px;}
-.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;}
-.topbar-left{display:flex;align-items:center;gap:8px;}
-.page-title{font-size:15px;font-weight:600;color:var(--text);}
-.topbar-right{display:flex;align-items:center;gap:12px;}
-.theme-btn{background:none;border:1px solid var(--border);border-radius:6px;padding:5px 10px;cursor:pointer;font-size:12px;color:var(--text2);}
-.alert-bell{position:relative;cursor:pointer;font-size:18px;}
-.alert-badge{position:absolute;top:-4px;right:-4px;background:var(--danger);color:#fff;border-radius:50%;width:16px;height:16px;font-size:9px;display:flex;align-items:center;justify-content:center;}
-.avatar{width:32px;height:32px;border-radius:50%;background:var(--azul);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;}
-.content{padding:24px;}
+/* NAVBAR */
+.navbar{background:var(--surface);border-bottom:2px solid var(--border);padding:0 24px;display:flex;align-items:center;gap:0;}
+.nav-tab{padding:14px 20px;font-size:13px;font-weight:500;color:var(--text2);cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;white-space:nowrap;transition:all .15s;}
+.nav-tab:hover{color:var(--azul);}
+.nav-tab.active{color:var(--azul);border-bottom-color:var(--amarelo);}
+
+/* CONTENT */
+.content{padding:22px 24px;max-width:1200px;margin:0 auto;}
 
 /* CARDS */
 .cards-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:20px;}
-.kcard{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;box-shadow:var(--card-shadow);}
+.kcard{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;border-top:3px solid var(--azul);}
+.kcard.am{border-top-color:var(--amarelo);}
+.kcard.gr{border-top-color:var(--success);}
+.kcard.rd{border-top-color:var(--danger);}
 .kcard-label{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;}
-.kcard-val{font-size:22px;font-weight:600;color:var(--text);}
+.kcard-val{font-size:22px;font-weight:700;color:var(--text);}
 .kcard-sub{font-size:11px;margin-top:4px;}
-.kcard-accent{border-top:3px solid var(--azul);}
-.kcard-accent.amarelo{border-top-color:var(--amarelo);}
-.kcard-accent.green{border-top-color:var(--success);}
-.kcard-accent.red{border-top-color:var(--danger);}
 .up{color:var(--success);} .down{color:var(--danger);}
 
 /* SECTION */
-.section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;margin-bottom:16px;box-shadow:var(--card-shadow);}
-.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
-.section-title{font-size:13px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;}
-.btn{font-size:12px;padding:6px 14px;border-radius:var(--radius-sm);border:none;cursor:pointer;font-weight:500;transition:all .15s;}
+.section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;margin-bottom:16px;}
+.sec-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;}
+.sec-title{font-size:12px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;}
+
+/* BUTTONS */
+.btn{font-size:12px;padding:7px 14px;border-radius:var(--radius-sm);border:none;cursor:pointer;font-weight:500;transition:all .15s;display:inline-flex;align-items:center;gap:5px;}
 .btn-primary{background:var(--azul);color:#fff;}
 .btn-primary:hover{background:var(--azul2);}
-.btn-amarelo{background:var(--amarelo);color:var(--azul);}
-.btn-amarelo:hover{background:var(--amarelo2);}
+.btn-am{background:var(--amarelo);color:var(--azul);}
+.btn-am:hover{background:var(--amarelo2);}
 .btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text2);}
 .btn-ghost:hover{background:var(--bg);}
+.btn-danger{background:#fdecea;color:var(--danger);border:1px solid #f7c1c1;}
+.btn-sm{padding:4px 10px;font-size:11px;}
 
 /* TABLE */
+.tbl-wrap{overflow-x:auto;}
 table{width:100%;border-collapse:collapse;font-size:13px;}
-th{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);color:var(--text3);font-weight:500;font-size:11px;text-transform:uppercase;}
-td{padding:9px 10px;border-bottom:1px solid var(--border);color:var(--text);}
+th{text-align:left;padding:9px 10px;border-bottom:1px solid var(--border);color:var(--text3);font-weight:500;font-size:11px;text-transform:uppercase;white-space:nowrap;}
+td{padding:9px 10px;border-bottom:1px solid var(--border);color:var(--text);vertical-align:middle;}
 tr:last-child td{border-bottom:none;}
 tr:hover td{background:var(--bg);}
-.badge{display:inline-block;font-size:11px;padding:2px 8px;border-radius:20px;font-weight:500;}
-.badge-green{background:#edfaf4;color:#0F6E56;}
-.badge-red{background:#fdecea;color:#993C1D;}
-.badge-yellow{background:#fdf6e8;color:#854F0B;}
-.badge-blue{background:#e8f0fb;color:#185FA5;}
-.badge-gray{background:#f0efea;color:#555;}
-.dark .badge-green{background:#0a2e20;color:#5DCAA5;}
-.dark .badge-red{background:#2e0a0a;color:#F09595;}
-.dark .badge-yellow{background:#2e1f0a;color:#FAC775;}
-.dark .badge-blue{background:#0a1a2e;color:#85B7EB;}
 
-/* GRID 2COL */
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
-.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
-
-/* ALERT ITEMS */
-.alert-item{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);}
-.alert-item:last-child{border-bottom:none;}
-.alert-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
-.alert-text{font-size:13px;color:var(--text);flex:1;}
-.alert-time{font-size:11px;color:var(--text3);}
-
-/* PROGRESS */
-.progress-bar{height:6px;background:var(--border);border-radius:3px;overflow:hidden;margin-top:6px;}
-.progress-fill{height:100%;border-radius:3px;background:var(--azul);transition:width .3s;}
+/* BADGE */
+.badge{display:inline-block;font-size:11px;padding:2px 9px;border-radius:20px;font-weight:500;white-space:nowrap;}
+.bg-green{background:#edfaf4;color:#0F6E56;} .bg-red{background:#fdecea;color:#993C1D;}
+.bg-yellow{background:#fdf6e8;color:#854F0B;} .bg-blue{background:#e8f0fb;color:#185FA5;}
+.bg-gray{background:#f0efea;color:#555;}
+.dark .bg-green{background:#0a2e20;color:#5DCAA5;} .dark .bg-red{background:#2e0a0a;color:#F09595;}
+.dark .bg-yellow{background:#2e1f0a;color:#FAC775;} .dark .bg-blue{background:#0a1a2e;color:#85B7EB;}
 
 /* MODAL */
-.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:200;align-items:center;justify-content:center;}
-.modal-overlay.open{display:flex;}
-.modal{background:var(--surface);border-radius:var(--radius);padding:24px;width:460px;max-width:95vw;box-shadow:0 8px 32px rgba(0,0,0,0.18);}
-.modal-title{font-size:15px;font-weight:600;margin-bottom:16px;color:var(--text);}
-.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;}
-.form-group{display:flex;flex-direction:column;gap:4px;margin-bottom:12px;}
-.form-group label{font-size:12px;color:var(--text2);font-weight:500;}
-.form-group input,.form-group select,.form-group textarea{padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;background:var(--bg);color:var(--text);outline:none;}
-.form-group input:focus,.form-group select:focus{border-color:var(--azul);}
-.modal-footer{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;}
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:300;align-items:center;justify-content:center;}
+.overlay.open{display:flex;}
+.modal{background:var(--surface);border-radius:var(--radius);padding:24px;width:500px;max-width:96vw;max-height:90vh;overflow-y:auto;}
+.modal-title{font-size:15px;font-weight:600;margin-bottom:18px;color:var(--text);}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.fg{display:flex;flex-direction:column;gap:4px;margin-bottom:12px;}
+.fg label{font-size:12px;color:var(--text2);font-weight:500;}
+.fg input,.fg select,.fg textarea{padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;background:var(--bg);color:var(--text);outline:none;width:100%;}
+.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:var(--azul);}
+.mfooter{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);}
 
-/* PROJETO CARD */
-.proj-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;box-shadow:var(--card-shadow);}
-.proj-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
-.proj-name{font-size:14px;font-weight:600;color:var(--text);}
-.proj-client{font-size:12px;color:var(--text3);margin-bottom:10px;}
-.proj-meta{display:flex;gap:14px;font-size:12px;color:var(--text2);margin-bottom:10px;}
-.task-item{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:12px;color:var(--text2);}
-.task-check{width:14px;height:14px;border-radius:3px;border:1.5px solid var(--border);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;}
-.task-check.done{background:var(--success);border-color:var(--success);color:#fff;}
+/* PROGRESS */
+.pbar{height:6px;background:var(--border);border-radius:3px;overflow:hidden;}
+.pfill{height:100%;border-radius:3px;background:var(--azul);transition:width .3s;}
 
 /* TABS */
-.tabs{display:flex;gap:4px;background:var(--bg);border-radius:var(--radius-sm);padding:3px;margin-bottom:16px;width:fit-content;}
+.tabs{display:flex;gap:4px;background:var(--bg);border-radius:var(--radius-sm);padding:3px;margin-bottom:16px;width:fit-content;flex-wrap:wrap;}
 .tab{font-size:12px;padding:5px 14px;border-radius:6px;border:none;background:transparent;color:var(--text2);cursor:pointer;}
 .tab.active{background:var(--surface);color:var(--text);font-weight:500;box-shadow:0 0 0 1px var(--border);}
 
-/* META CARD */
-.meta-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;}
-.meta-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;}
-.meta-name{font-size:13px;font-weight:600;color:var(--text);}
-.meta-pct{font-size:20px;font-weight:700;color:var(--azul);}
+/* TASK */
+.task-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);}
+.task-row:last-child{border-bottom:none;}
+.chk{width:16px;height:16px;border-radius:4px;border:2px solid var(--border);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s;}
+.chk.done{background:var(--success);border-color:var(--success);color:#fff;font-size:10px;}
+.subtask{margin-left:24px;font-size:12px;}
 
-/* KPI */
-.kpi-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;}
-.kpi-card{background:var(--bg);border-radius:var(--radius-sm);padding:14px;text-align:center;}
-.kpi-val{font-size:20px;font-weight:700;color:var(--azul);}
-.kpi-label{font-size:11px;color:var(--text3);margin-top:3px;}
+/* FILTER BAR */
+.filter-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px;padding:12px;background:var(--bg);border-radius:var(--radius-sm);}
+.filter-bar input,.filter-bar select{padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;background:var(--surface);color:var(--text);}
 
-@media(max-width:768px){
-  .sidebar{width:60px;}
-  .sidebar .nav-label,.sidebar .logo-text{display:none;}
-  .main{margin-left:60px;}
-  .cards-grid{grid-template-columns:repeat(2,1fr);}
-  .grid2,.grid3{grid-template-columns:1fr;}
-}
+/* SETTINGS */
+.settings-grid{display:grid;grid-template-columns:200px 1fr;gap:0;min-height:400px;}
+.settings-nav{border-right:1px solid var(--border);padding:8px 0;}
+.settings-item{padding:10px 16px;font-size:13px;cursor:pointer;color:var(--text2);border-left:3px solid transparent;}
+.settings-item:hover{background:var(--bg);color:var(--text);}
+.settings-item.active{color:var(--azul);border-left-color:var(--amarelo);font-weight:500;}
+.settings-content{padding:20px 24px;}
+
+/* GRID */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;}
+
+/* PROJ CARD */
+.proj-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;cursor:pointer;transition:box-shadow .15s;}
+.proj-card:hover{box-shadow:0 4px 16px rgba(0,32,96,0.1);}
+.proj-card.add-card{border-style:dashed;display:flex;align-items:center;justify-content:center;min-height:180px;color:var(--text3);}
+
+@media(max-width:700px){.cards-grid{grid-template-columns:1fr 1fr;}.grid2,.grid3{grid-template-columns:1fr;}.frow{grid-template-columns:1fr;}.settings-grid{grid-template-columns:1fr;}}
 </style>
 </head>
 <body>
 
-<!-- SIDEBAR -->
-<nav class="sidebar" id="sidebar">
-  <div class="logo">
-    <div class="logo-icon">V</div>
-    <span class="logo-text">Vistto</span>
-  </div>
-  <div class="nav">
-    <div class="nav-item active" onclick="showPage('visao')">
-      <span class="nav-icon">◉</span><span class="nav-label">Visão Geral</span>
-    </div>
-    <div class="nav-item" onclick="showPage('fiscal')">
-      <span class="nav-icon">📊</span><span class="nav-label">Fiscal</span>
-    </div>
-    <div class="nav-item" onclick="showPage('financeiro')">
-      <span class="nav-icon">💰</span><span class="nav-label">Financeiro</span>
-    </div>
-    <div class="nav-item" onclick="showPage('projetos')">
-      <span class="nav-icon">🎯</span><span class="nav-label">Projetos & Metas</span>
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="logo-area">
+    <img class="logo-img" id="logoImg" src="" alt="COBRASQ" onerror="this.style.display='none';document.getElementById('logoFallback').style.display='flex'"/>
+    <div id="logoFallback" style="width:36px;height:36px;background:var(--amarelo);border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:var(--azul);">C</div>
+    <div>
+      <span class="logo-name" id="topNome">COBRASQ</span>
+      <span class="logo-sub" id="topSub">RECUPERADORA DE CRÉDITO</span>
     </div>
   </div>
-  <div class="sidebar-footer">
-    <div class="toggle-btn" onclick="toggleSidebar()">
-      <span class="nav-icon">◀</span><span class="nav-label">Recolher</span>
+  <div class="topbar-right">
+    <button class="theme-btn" onclick="toggleTheme()">🌙 Tema</button>
+    <div class="bell">🔔<span class="bell-badge" id="bellCount">0</span></div>
+    <button class="avatar-btn" id="avatarBtn" onclick="showPage('config')">GS</button>
+  </div>
+</div>
+
+<!-- NAVBAR -->
+<div class="navbar">
+  <div class="nav-tab active" onclick="showPage('menu')">Menu Principal</div>
+  <div class="nav-tab" onclick="showPage('fat')">Faturamentos</div>
+  <div class="nav-tab" onclick="showPage('fin')">Financeiro</div>
+  <div class="nav-tab" onclick="showPage('proj')">Projetos</div>
+  <div class="nav-tab" onclick="showPage('config')">Configurações</div>
+</div>
+
+<div class="content">
+
+<!-- MENU PRINCIPAL -->
+<div id="page-menu">
+  <div class="cards-grid" id="menuCards"></div>
+  <div class="grid2">
+    <div class="section">
+      <div class="sec-hdr"><span class="sec-title">Alertas</span></div>
+      <div id="alertasList"></div>
+    </div>
+    <div class="section">
+      <div class="sec-hdr"><span class="sec-title">Metas em andamento</span><button class="btn btn-ghost btn-sm" onclick="showPage('proj')">Ver todas</button></div>
+      <div id="metasResume"></div>
     </div>
   </div>
-</nav>
-
-<!-- MAIN -->
-<div class="main" id="main">
-  <div class="topbar">
-    <div class="topbar-left">
-      <span class="page-title" id="pageTitle">Visão Geral</span>
+  <div class="section">
+    <div class="sec-hdr"><span class="sec-title">Atalhos rápidos</span></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <button class="btn btn-primary" onclick="openModal('lancamento')">+ Lançamento</button>
+      <button class="btn btn-primary" onclick="openModal('projeto')">+ Projeto</button>
+      <button class="btn btn-am" onclick="openModal('meta')">+ Meta</button>
+      <button class="btn btn-ghost" onclick="showPage('fat')">Ver Faturamentos</button>
+      <button class="btn btn-ghost" onclick="showPage('fin')">Ver Financeiro</button>
     </div>
-    <div class="topbar-right">
-      <button class="theme-btn" onclick="toggleTheme()">🌙 Tema</button>
-      <div class="alert-bell">🔔<span class="alert-badge">3</span></div>
-      <div class="avatar">GS</div>
+  </div>
+</div>
+
+<!-- FATURAMENTOS -->
+<div id="page-fat" style="display:none;">
+  <div class="cards-grid" id="fatCards"></div>
+  <div class="section">
+    <div class="sec-hdr">
+      <span class="sec-title">Receita mensal</span>
+      <div style="display:flex;gap:6px;" id="fatAnoBtns"></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap;">
+      <label style="font-size:13px;color:var(--text2)">Meta mensal (R$):</label>
+      <input type="number" id="fatMeta" style="width:130px;padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;background:var(--bg);color:var(--text);" oninput="renderFatChart()"/>
+    </div>
+    <div style="position:relative;height:280px;"><canvas id="chartFat"></canvas></div>
+  </div>
+  <div class="grid2">
+    <div class="section">
+      <div class="sec-hdr"><span class="sec-title">Comparativo anual</span></div>
+      <div style="position:relative;height:200px;"><canvas id="chartFatLine"></canvas></div>
+    </div>
+    <div class="section">
+      <div class="sec-hdr"><span class="sec-title">Metas de faturamento</span><button class="btn btn-am btn-sm" onclick="openModal('meta')">+ Meta</button></div>
+      <div id="fatMetas"></div>
+    </div>
+  </div>
+</div>
+
+<!-- FINANCEIRO -->
+<div id="page-fin" style="display:none;">
+  <div class="cards-grid" id="finCards"></div>
+  <div class="tabs">
+    <button class="tab active" onclick="setFinTab('lanc',this)">Lançamentos</button>
+    <button class="tab" onclick="setFinTab('cartoes',this)">Cartões</button>
+    <button class="tab" onclick="setFinTab('func',this)">Funcionários</button>
+    <button class="tab" onclick="setFinTab('rel',this)">Relatório</button>
+  </div>
+
+  <div id="fin-lanc">
+    <div class="filter-bar">
+      <input type="date" id="filtDe" onchange="renderLanc()"/>
+      <span style="font-size:12px;color:var(--text3)">até</span>
+      <input type="date" id="filtAte" onchange="renderLanc()"/>
+      <select id="filtTipo" onchange="renderLanc()">
+        <option value="">Todos os tipos</option>
+        <option value="Receita">Receita</option>
+        <option value="Despesa">Despesa</option>
+      </select>
+      <select id="filtCat" onchange="renderLanc()"><option value="">Todas categorias</option></select>
+      <button class="btn btn-ghost btn-sm" onclick="limparFiltros()">Limpar</button>
+      <button class="btn btn-primary" onclick="openModal('lancamento')" style="margin-left:auto;">+ Lançamento</button>
+    </div>
+    <div class="section">
+      <div class="tbl-wrap"><table id="tblLanc">
+        <tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Tipo</th><th>Valor</th><th>Ações</th></tr>
+      </table></div>
+      <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);display:flex;gap:20px;flex-wrap:wrap;" id="lancTotais"></div>
     </div>
   </div>
 
-  <div class="content">
+  <div id="fin-cartoes" style="display:none;">
+    <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
+      <button class="btn btn-primary" onclick="openModal('cartao')">+ Cartão</button>
+    </div>
+    <div class="grid3" id="cartoesGrid"></div>
+  </div>
 
-    <!-- VISÃO GERAL -->
-    <div id="page-visao">
-      <div class="cards-grid">
-        <div class="kcard kcard-accent">
-          <div class="kcard-label">Faturamento do mês</div>
-          <div class="kcard-val">R$ 37.019</div>
-          <div class="kcard-sub up">▲ 21% vs mês anterior</div>
-        </div>
-        <div class="kcard kcard-accent amarelo">
-          <div class="kcard-label">Meta mensal</div>
-          <div class="kcard-val">R$ 40.000</div>
-          <div class="kcard-sub" style="color:var(--text3)">92% atingido</div>
-        </div>
-        <div class="kcard kcard-accent green">
-          <div class="kcard-label">Saldo em caixa</div>
-          <div class="kcard-val">R$ 18.430</div>
-          <div class="kcard-sub up">▲ Positivo</div>
-        </div>
-        <div class="kcard kcard-accent red">
-          <div class="kcard-label">Contas vencendo</div>
-          <div class="kcard-val">3</div>
-          <div class="kcard-sub down">Próximos 7 dias</div>
-        </div>
-      </div>
+  <div id="fin-func" style="display:none;">
+    <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
+      <button class="btn btn-primary" onclick="openModal('func')">+ Funcionário</button>
+    </div>
+    <div class="section">
+      <div class="tbl-wrap"><table id="tblFunc">
+        <tr><th>Nome</th><th>Cargo</th><th>Salário</th><th>Status</th><th>Ações</th></tr>
+      </table></div>
+      <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);display:flex;gap:20px;" id="funcTotais"></div>
+    </div>
+  </div>
 
-      <div class="grid2">
-        <div class="section">
-          <div class="section-header">
-            <span class="section-title">Alertas ativos</span>
-            <span style="font-size:11px;color:var(--text3)">Hoje</span>
-          </div>
-          <div class="alert-item">
-            <div class="alert-dot" style="background:var(--danger)"></div>
-            <div class="alert-text">Conta Fornecedor XYZ vence em 2 dias — R$ 1.200</div>
-            <span class="alert-time">urgente</span>
-          </div>
-          <div class="alert-item">
-            <div class="alert-dot" style="background:var(--warning)"></div>
-            <div class="alert-text">Faturamento 8% abaixo da meta mensal</div>
-            <span class="alert-time">hoje</span>
-          </div>
-          <div class="alert-item">
-            <div class="alert-dot" style="background:var(--warning)"></div>
-            <div class="alert-text">Tarefa "Proposta Cliente ABC" atrasada 1 dia</div>
-            <span class="alert-time">ontem</span>
-          </div>
-          <div class="alert-item">
-            <div class="alert-dot" style="background:var(--azul)"></div>
-            <div class="alert-text">Resumo semanal disponível</div>
-            <span class="alert-time">seg</span>
-          </div>
-        </div>
-
-        <div class="section">
-          <div class="section-header">
-            <span class="section-title">Metas em andamento</span>
-            <button class="btn btn-ghost" onclick="showPage('projetos')">Ver todas</button>
-          </div>
-          <div style="margin-bottom:14px;">
-            <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;">
-              <span>Faturamento Jan/2026</span><span style="font-weight:600">92%</span>
-            </div>
-            <div class="progress-bar"><div class="progress-fill" style="width:92%;background:var(--success)"></div></div>
-          </div>
-          <div style="margin-bottom:14px;">
-            <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;">
-              <span>Novos clientes B2B</span><span style="font-weight:600">60%</span>
-            </div>
-            <div class="progress-bar"><div class="progress-fill" style="width:60%"></div></div>
-          </div>
-          <div>
-            <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;">
-              <span>Redução de despesas</span><span style="font-weight:600">45%</span>
-            </div>
-            <div class="progress-bar"><div class="progress-fill" style="width:45%;background:var(--warning)"></div></div>
-          </div>
-        </div>
-      </div>
-
-      <div class="grid2">
-        <div class="section">
-          <div class="section-header">
-            <span class="section-title">Projetos recentes</span>
-            <button class="btn btn-ghost" onclick="showPage('projetos')">Ver todos</button>
-          </div>
-          <table>
-            <tr><th>Projeto</th><th>Cliente</th><th>Status</th><th>Valor</th></tr>
-            <tr><td>Recuperação Lote A</td><td>Empresa X</td><td><span class="badge badge-green">Em andamento</span></td><td>R$ 8.500</td></tr>
-            <tr><td>Consultoria B2B</td><td>Empresa Y</td><td><span class="badge badge-yellow">Aguardando</span></td><td>R$ 3.200</td></tr>
-            <tr><td>Cobrança Carteira</td><td>Banco Z</td><td><span class="badge badge-blue">Novo</span></td><td>R$ 12.000</td></tr>
-          </table>
-        </div>
-
-        <div class="section">
-          <div class="section-header">
-            <span class="section-title">Fluxo da semana</span>
-            <button class="btn btn-ghost" onclick="showPage('financeiro')">Ver mais</button>
-          </div>
-          <div style="position:relative;height:160px;"><canvas id="chartVisao"></canvas></div>
-        </div>
-      </div>
-
+  <div id="fin-rel" style="display:none;">
+    <div class="grid2">
       <div class="section">
-        <div class="section-header"><span class="section-title">Atalhos rápidos</span></div>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;">
-          <button class="btn btn-primary" onclick="openModal('lancamento')">+ Lançamento</button>
-          <button class="btn btn-primary" onclick="openModal('projeto')">+ Projeto</button>
-          <button class="btn btn-amarelo" onclick="openModal('meta')">+ Meta</button>
-          <button class="btn btn-ghost" onclick="showPage('fiscal')">📊 Ver Fiscal</button>
-          <button class="btn btn-ghost" onclick="showPage('financeiro')">💰 Ver Financeiro</button>
-        </div>
+        <div class="sec-hdr"><span class="sec-title">Despesas por categoria</span></div>
+        <div style="position:relative;height:220px;"><canvas id="chartDesp"></canvas></div>
       </div>
-    </div>
-
-    <!-- FISCAL -->
-    <div id="page-fiscal" style="display:none;">
-      <div class="cards-grid">
-        <div class="kcard kcard-accent">
-          <div class="kcard-label">Faturamento 2025</div>
-          <div class="kcard-val">R$ 440.950</div>
-          <div class="kcard-sub up">▲ 8,8% vs 2024</div>
-        </div>
-        <div class="kcard kcard-accent amarelo">
-          <div class="kcard-label">Média mensal 2025</div>
-          <div class="kcard-val">R$ 36.746</div>
-          <div class="kcard-sub" style="color:var(--text3)">12 meses</div>
-        </div>
-        <div class="kcard kcard-accent green">
-          <div class="kcard-label">DAS Dez/2025</div>
-          <div class="kcard-val">R$ 4.973</div>
-          <div class="kcard-sub" style="color:var(--text3)">Alíquota ~9,3%</div>
-        </div>
-        <div class="kcard kcard-accent red">
-          <div class="kcard-label">Melhor mês</div>
-          <div class="kcard-val">Dez/2025</div>
-          <div class="kcard-sub up">R$ 53.361</div>
-        </div>
-      </div>
-
       <div class="section">
-        <div class="section-header">
-          <span class="section-title">Receita bruta mensal</span>
-          <div style="display:flex;gap:6px;">
-            <button class="btn btn-ghost" id="fBtn2023" onclick="setFiscalAno(2023)">2023</button>
-            <button class="btn btn-ghost" id="fBtn2024" onclick="setFiscalAno(2024)">2024</button>
-            <button class="btn btn-primary" id="fBtn2025" onclick="setFiscalAno(2025)">2025</button>
-          </div>
-        </div>
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
-          <label style="font-size:13px;color:var(--text2)">Meta mensal (R$):</label>
-          <input type="number" id="fiscalMeta" value="40000" style="width:120px;padding:5px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;background:var(--bg);color:var(--text);" oninput="renderFiscalChart()"/>
-        </div>
-        <div style="position:relative;height:280px;"><canvas id="chartFiscal"></canvas></div>
+        <div class="sec-hdr"><span class="sec-title">Resumo do mês</span></div>
+        <div id="relResumo"></div>
       </div>
-
-      <div class="grid2">
-        <div class="section">
-          <div class="section-header"><span class="section-title">Comparativo anual</span></div>
-          <div style="position:relative;height:200px;"><canvas id="chartFiscalLine"></canvas></div>
-        </div>
-        <div class="section">
-          <div class="section-header">
-            <span class="section-title">Metas de faturamento</span>
-            <button class="btn btn-amarelo" onclick="openModal('meta')">+ Meta</button>
-          </div>
-          <div style="margin-bottom:14px;">
-            <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;">
-              <span style="font-weight:500">Meta Jan/2026 — R$ 40.000</span>
-              <span style="color:var(--success);font-weight:600">92%</span>
-            </div>
-            <div class="progress-bar"><div class="progress-fill" style="width:92%;background:var(--success)"></div></div>
-            <div style="font-size:11px;color:var(--text3);margin-top:3px;">Realizado: R$ 37.019 · Faltam: R$ 2.981</div>
-          </div>
-          <div>
-            <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;">
-              <span style="font-weight:500">Meta Anual 2026 — R$ 600.000</span>
-              <span style="color:var(--azul);font-weight:600">10%</span>
-            </div>
-            <div class="progress-bar"><div class="progress-fill" style="width:10%"></div></div>
-            <div style="font-size:11px;color:var(--text3);margin-top:3px;">Realizado: R$ 59.340 · 2 meses</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- FINANCEIRO -->
-    <div id="page-financeiro" style="display:none;">
-      <div class="cards-grid">
-        <div class="kcard kcard-accent green">
-          <div class="kcard-label">Receitas do mês</div>
-          <div class="kcard-val">R$ 37.019</div>
-          <div class="kcard-sub up">▲ Entradas</div>
-        </div>
-        <div class="kcard kcard-accent red">
-          <div class="kcard-label">Despesas do mês</div>
-          <div class="kcard-val">R$ 18.589</div>
-          <div class="kcard-sub down">▼ Saídas</div>
-        </div>
-        <div class="kcard kcard-accent amarelo">
-          <div class="kcard-label">Saldo líquido</div>
-          <div class="kcard-val">R$ 18.430</div>
-          <div class="kcard-sub up">▲ Positivo</div>
-        </div>
-        <div class="kcard kcard-accent">
-          <div class="kcard-label">Cartões (fatura)</div>
-          <div class="kcard-val">R$ 4.230</div>
-          <div class="kcard-sub down">Vence em 8 dias</div>
-        </div>
-      </div>
-
-      <div class="tabs">
-        <button class="tab active" onclick="setFinTab('lancamentos',this)">Lançamentos</button>
-        <button class="tab" onclick="setFinTab('cartoes',this)">Cartões</button>
-        <button class="tab" onclick="setFinTab('funcionarios',this)">Funcionários</button>
-        <button class="tab" onclick="setFinTab('relatorio',this)">Relatório</button>
-      </div>
-
-      <div id="fin-lancamentos">
-        <div class="section">
-          <div class="section-header">
-            <span class="section-title">Lançamentos recentes</span>
-            <button class="btn btn-primary" onclick="openModal('lancamento')">+ Novo lançamento</button>
-          </div>
-          <table>
-            <tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Tipo</th><th>Valor</th></tr>
-            <tr><td>20/03/2026</td><td>Pagamento Cliente ABC</td><td>Serviços</td><td><span class="badge badge-green">Receita</span></td><td style="color:var(--success);font-weight:500">+R$ 5.200</td></tr>
-            <tr><td>19/03/2026</td><td>Aluguel escritório</td><td>Fixo</td><td><span class="badge badge-red">Despesa</span></td><td style="color:var(--danger);font-weight:500">-R$ 2.800</td></tr>
-            <tr><td>18/03/2026</td><td>Honorários contábeis</td><td>Administrativo</td><td><span class="badge badge-red">Despesa</span></td><td style="color:var(--danger);font-weight:500">-R$ 650</td></tr>
-            <tr><td>17/03/2026</td><td>Recuperação Lote B</td><td>Cobrança</td><td><span class="badge badge-green">Receita</span></td><td style="color:var(--success);font-weight:500">+R$ 8.400</td></tr>
-            <tr><td>15/03/2026</td><td>Internet e telefone</td><td>Fixo</td><td><span class="badge badge-red">Despesa</span></td><td style="color:var(--danger);font-weight:500">-R$ 380</td></tr>
-          </table>
-        </div>
-      </div>
-
-      <div id="fin-cartoes" style="display:none;">
-        <div class="grid3">
-          <div class="kcard" style="border-top:3px solid #002060;">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-              <span style="font-size:13px;font-weight:600">Nubank Empresarial</span>
-              <span class="badge badge-blue">Crédito</span>
-            </div>
-            <div style="font-size:11px;color:var(--text3);margin-bottom:4px;">Fatura atual</div>
-            <div style="font-size:20px;font-weight:700;color:var(--danger)">R$ 2.430</div>
-            <div class="progress-bar" style="margin-top:8px;"><div class="progress-fill" style="width:48%;background:var(--danger)"></div></div>
-            <div style="font-size:11px;color:var(--text3);margin-top:4px;">Limite: R$ 5.000 · Vence 28/03</div>
-          </div>
-          <div class="kcard" style="border-top:3px solid #FABE44;">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-              <span style="font-size:13px;font-weight:600">Itaú PJ</span>
-              <span class="badge badge-yellow">Crédito</span>
-            </div>
-            <div style="font-size:11px;color:var(--text3);margin-bottom:4px;">Fatura atual</div>
-            <div style="font-size:20px;font-weight:700;color:var(--warning)">R$ 1.800</div>
-            <div class="progress-bar" style="margin-top:8px;"><div class="progress-fill" style="width:36%;background:var(--warning)"></div></div>
-            <div style="font-size:11px;color:var(--text3);margin-top:4px;">Limite: R$ 5.000 · Vence 05/04</div>
-          </div>
-          <div class="kcard" style="border-top:3px solid var(--success);">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-              <span style="font-size:13px;font-weight:600">+ Adicionar cartão</span>
-            </div>
-            <div style="font-size:13px;color:var(--text3);margin-top:20px;text-align:center;">Clique para cadastrar um novo cartão</div>
-          </div>
-        </div>
-      </div>
-
-      <div id="fin-funcionarios" style="display:none;">
-        <div class="section">
-          <div class="section-header">
-            <span class="section-title">Funcionários e salários</span>
-            <button class="btn btn-primary">+ Funcionário</button>
-          </div>
-          <table>
-            <tr><th>Nome</th><th>Cargo</th><th>Salário</th><th>Status</th><th>Próx. pagamento</th></tr>
-            <tr><td>Ana Silva</td><td>Analista de Cobrança</td><td>R$ 2.800</td><td><span class="badge badge-green">Ativo</span></td><td>05/04/2026</td></tr>
-            <tr><td>Carlos Mendes</td><td>Assistente Adm.</td><td>R$ 2.200</td><td><span class="badge badge-green">Ativo</span></td><td>05/04/2026</td></tr>
-            <tr><td>Maria Costa</td><td>Negociadora</td><td>R$ 3.100</td><td><span class="badge badge-green">Ativo</span></td><td>05/04/2026</td></tr>
-          </table>
-          <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);display:flex;gap:20px;">
-            <div><div style="font-size:11px;color:var(--text3)">Total folha/mês</div><div style="font-size:16px;font-weight:600;color:var(--danger)">R$ 8.100</div></div>
-            <div><div style="font-size:11px;color:var(--text3)">Encargos estimados</div><div style="font-size:16px;font-weight:600;color:var(--danger)">R$ 2.430</div></div>
-            <div><div style="font-size:11px;color:var(--text3)">Total com encargos</div><div style="font-size:16px;font-weight:600;color:var(--danger)">R$ 10.530</div></div>
-          </div>
-        </div>
-      </div>
-
-      <div id="fin-relatorio" style="display:none;">
-        <div class="grid2">
-          <div class="section">
-            <div class="section-header"><span class="section-title">Despesas por categoria</span></div>
-            <div style="position:relative;height:220px;"><canvas id="chartDespesas"></canvas></div>
-          </div>
-          <div class="section">
-            <div class="section-header"><span class="section-title">Resumo do mês</span></div>
-            <table>
-              <tr><th>Categoria</th><th>Valor</th><th>%</th></tr>
-              <tr><td>Folha de pagamento</td><td style="color:var(--danger)">R$ 10.530</td><td>56,6%</td></tr>
-              <tr><td>Aluguel</td><td style="color:var(--danger)">R$ 2.800</td><td>15,1%</td></tr>
-              <tr><td>Cartões</td><td style="color:var(--danger)">R$ 4.230</td><td>22,7%</td></tr>
-              <tr><td>Outros</td><td style="color:var(--danger)">R$ 1.029</td><td>5,6%</td></tr>
-              <tr><td><strong>Total</strong></td><td><strong style="color:var(--danger)">R$ 18.589</strong></td><td>100%</td></tr>
-            </table>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- PROJETOS & METAS -->
-    <div id="page-projetos" style="display:none;">
-      <div class="tabs">
-        <button class="tab active" onclick="setProjTab('projetos',this)">Projetos</button>
-        <button class="tab" onclick="setProjTab('metas',this)">Metas</button>
-        <button class="tab" onclick="setProjTab('kpis',this)">KPIs</button>
-      </div>
-
-      <div id="proj-projetos">
-        <div style="display:flex;justify-content:flex-end;margin-bottom:14px;gap:8px;">
-          <button class="btn btn-ghost">Filtrar</button>
-          <button class="btn btn-primary" onclick="openModal('projeto')">+ Novo projeto</button>
-        </div>
-        <div class="grid2">
-          <div class="proj-card">
-            <div class="proj-header">
-              <span class="proj-name">Recuperação Lote A</span>
-              <span class="badge badge-green">Em andamento</span>
-            </div>
-            <div class="proj-client">Cliente: Empresa X · Responsável: Ana Silva</div>
-            <div class="proj-meta">
-              <span>💰 R$ 8.500</span>
-              <span>📅 Prazo: 30/03/2026</span>
-            </div>
-            <div style="font-size:12px;color:var(--text3);margin-bottom:8px;">Tarefas</div>
-            <div class="task-item"><div class="task-check done">✓</div>Levantamento de devedores</div>
-            <div class="task-item"><div class="task-check done">✓</div>Envio de notificações</div>
-            <div class="task-item"><div class="task-check"></div>Negociação ativa</div>
-            <div class="task-item"><div class="task-check"></div>Relatório final</div>
-            <div class="progress-bar" style="margin-top:10px;"><div class="progress-fill" style="width:50%;background:var(--success)"></div></div>
-            <div style="font-size:11px;color:var(--text3);margin-top:4px;">2 de 4 tarefas concluídas</div>
-          </div>
-
-          <div class="proj-card">
-            <div class="proj-header">
-              <span class="proj-name">Consultoria B2B</span>
-              <span class="badge badge-yellow">Aguardando</span>
-            </div>
-            <div class="proj-client">Cliente: Empresa Y · Responsável: Carlos Mendes</div>
-            <div class="proj-meta">
-              <span>💰 R$ 3.200</span>
-              <span>📅 Prazo: 15/04/2026</span>
-            </div>
-            <div style="font-size:12px;color:var(--text3);margin-bottom:8px;">Tarefas</div>
-            <div class="task-item"><div class="task-check done">✓</div>Reunião inicial</div>
-            <div class="task-item"><div class="task-check"></div>Elaborar proposta</div>
-            <div class="task-item"><div class="task-check"></div>Apresentação</div>
-            <div class="progress-bar" style="margin-top:10px;"><div class="progress-fill" style="width:33%"></div></div>
-            <div style="font-size:11px;color:var(--text3);margin-top:4px;">1 de 3 tarefas concluídas</div>
-          </div>
-
-          <div class="proj-card">
-            <div class="proj-header">
-              <span class="proj-name">Cobrança Carteira Banco Z</span>
-              <span class="badge badge-blue">Novo</span>
-            </div>
-            <div class="proj-client">Cliente: Banco Z · Responsável: Maria Costa</div>
-            <div class="proj-meta">
-              <span>💰 R$ 12.000</span>
-              <span>📅 Prazo: 30/04/2026</span>
-            </div>
-            <div style="font-size:12px;color:var(--text3);margin-bottom:8px;">Tarefas</div>
-            <div class="task-item"><div class="task-check"></div>Receber carteira</div>
-            <div class="task-item"><div class="task-check"></div>Análise de devedores</div>
-            <div class="task-item"><div class="task-check"></div>Estratégia de cobrança</div>
-            <div class="progress-bar" style="margin-top:10px;"><div class="progress-fill" style="width:0%"></div></div>
-            <div style="font-size:11px;color:var(--text3);margin-top:4px;">0 de 3 tarefas concluídas</div>
-          </div>
-
-          <div class="proj-card" style="display:flex;align-items:center;justify-content:center;min-height:200px;cursor:pointer;border-style:dashed;" onclick="openModal('projeto')">
-            <div style="text-align:center;color:var(--text3);">
-              <div style="font-size:28px;margin-bottom:8px;">+</div>
-              <div style="font-size:13px;">Novo projeto</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div id="proj-metas" style="display:none;">
-        <div style="display:flex;justify-content:flex-end;margin-bottom:14px;">
-          <button class="btn btn-amarelo" onclick="openModal('meta')">+ Nova meta</button>
-        </div>
-        <div class="grid3">
-          <div class="meta-card">
-            <div class="meta-top">
-              <div>
-                <div class="meta-name">Faturamento Jan/2026</div>
-                <div style="font-size:11px;color:var(--text3);margin-top:2px;">Meta: R$ 40.000 · Fiscal</div>
-              </div>
-              <div class="meta-pct" style="color:var(--success)">92%</div>
-            </div>
-            <div class="progress-bar"><div class="progress-fill" style="width:92%;background:var(--success)"></div></div>
-            <div style="font-size:11px;color:var(--text3);margin-top:6px;">R$ 37.019 realizado · Faltam R$ 2.981</div>
-          </div>
-          <div class="meta-card">
-            <div class="meta-top">
-              <div>
-                <div class="meta-name">Faturamento Anual 2026</div>
-                <div style="font-size:11px;color:var(--text3);margin-top:2px;">Meta: R$ 600.000 · Fiscal</div>
-              </div>
-              <div class="meta-pct">10%</div>
-            </div>
-            <div class="progress-bar"><div class="progress-fill" style="width:10%"></div></div>
-            <div style="font-size:11px;color:var(--text3);margin-top:6px;">R$ 59.340 realizado · 2 meses</div>
-          </div>
-          <div class="meta-card">
-            <div class="meta-top">
-              <div>
-                <div class="meta-name">Novos clientes B2B</div>
-                <div style="font-size:11px;color:var(--text3);margin-top:2px;">Meta: 10 clientes · Comercial</div>
-              </div>
-              <div class="meta-pct" style="color:var(--warning)">60%</div>
-            </div>
-            <div class="progress-bar"><div class="progress-fill" style="width:60%;background:var(--warning)"></div></div>
-            <div style="font-size:11px;color:var(--text3);margin-top:6px;">6 conquistados · Faltam 4</div>
-          </div>
-          <div class="meta-card">
-            <div class="meta-top">
-              <div>
-                <div class="meta-name">Redução de despesas</div>
-                <div style="font-size:11px;color:var(--text3);margin-top:2px;">Meta: -20% · Financeiro</div>
-              </div>
-              <div class="meta-pct" style="color:var(--danger)">45%</div>
-            </div>
-            <div class="progress-bar"><div class="progress-fill" style="width:45%;background:var(--danger)"></div></div>
-            <div style="font-size:11px;color:var(--text3);margin-top:6px;">-9% alcançado · Meta: -20%</div>
-          </div>
-        </div>
-      </div>
-
-      <div id="proj-kpis" style="display:none;">
-        <div class="section" style="margin-bottom:16px;">
-          <div class="section-header"><span class="section-title">Indicadores de desempenho — Mar/2026</span></div>
-          <div class="kpi-grid">
-            <div class="kpi-card">
-              <div class="kpi-val">R$ 37k</div>
-              <div class="kpi-label">Faturamento mensal</div>
-            </div>
-            <div class="kpi-card">
-              <div class="kpi-val" style="color:var(--success)">49,8%</div>
-              <div class="kpi-label">Margem líquida</div>
-            </div>
-            <div class="kpi-card">
-              <div class="kpi-val" style="color:var(--warning)">3</div>
-              <div class="kpi-label">Projetos ativos</div>
-            </div>
-            <div class="kpi-card">
-              <div class="kpi-val">R$ 7,9k</div>
-              <div class="kpi-label">Ticket médio por projeto</div>
-            </div>
-            <div class="kpi-card">
-              <div class="kpi-val" style="color:var(--success)">92%</div>
-              <div class="kpi-label">Meta mensal atingida</div>
-            </div>
-            <div class="kpi-card">
-              <div class="kpi-val" style="color:var(--danger)">3</div>
-              <div class="kpi-label">Tarefas atrasadas</div>
-            </div>
-          </div>
-        </div>
-        <div class="section">
-          <div class="section-header"><span class="section-title">Evolução de KPIs — últimos 6 meses</span></div>
-          <div style="position:relative;height:220px;"><canvas id="chartKpi"></canvas></div>
-        </div>
-      </div>
-    </div>
-
-  </div><!-- /content -->
-</div><!-- /main -->
-
-<!-- MODALS -->
-<div class="modal-overlay" id="modal-lancamento">
-  <div class="modal">
-    <div class="modal-title">Novo lançamento</div>
-    <div class="form-row">
-      <div class="form-group"><label>Tipo</label>
-        <select><option>Receita</option><option>Despesa</option></select>
-      </div>
-      <div class="form-group"><label>Data</label><input type="date"/></div>
-    </div>
-    <div class="form-group"><label>Descrição</label><input type="text" placeholder="Ex: Pagamento cliente ABC"/></div>
-    <div class="form-row">
-      <div class="form-group"><label>Valor (R$)</label><input type="number" placeholder="0,00"/></div>
-      <div class="form-group"><label>Categoria</label>
-        <select><option>Serviços</option><option>Cobrança</option><option>Fixo</option><option>Administrativo</option><option>Outros</option></select>
-      </div>
-    </div>
-    <div class="form-group"><label>Observação</label><textarea rows="2" placeholder="Opcional..."></textarea></div>
-    <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('lancamento')">Cancelar</button>
-      <button class="btn btn-primary" onclick="closeModal('lancamento')">Salvar</button>
     </div>
   </div>
 </div>
 
-<div class="modal-overlay" id="modal-projeto">
-  <div class="modal">
-    <div class="modal-title">Novo projeto</div>
-    <div class="form-group"><label>Nome do projeto</label><input type="text" placeholder="Ex: Recuperação Lote C"/></div>
-    <div class="form-row">
-      <div class="form-group"><label>Cliente</label><input type="text" placeholder="Nome do cliente"/></div>
-      <div class="form-group"><label>Valor (R$)</label><input type="number" placeholder="0,00"/></div>
+<!-- PROJETOS -->
+<div id="page-proj" style="display:none;">
+  <div class="tabs">
+    <button class="tab active" onclick="setProjTab('lista',this)">Projetos</button>
+    <button class="tab" onclick="setProjTab('tarefas',this)">Tarefas</button>
+    <button class="tab" onclick="setProjTab('metas',this)">Metas</button>
+  </div>
+
+  <div id="proj-lista">
+    <div style="display:flex;justify-content:flex-end;margin-bottom:14px;gap:8px;">
+      <select id="projFiltStatus" onchange="renderProjetos()" style="padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;background:var(--surface);color:var(--text);">
+        <option value="">Todos os status</option>
+        <option>Novo</option><option>Em andamento</option><option>Aguardando</option><option>Concluído</option>
+      </select>
+      <button class="btn btn-primary" onclick="openModal('projeto')">+ Projeto</button>
     </div>
-    <div class="form-row">
-      <div class="form-group"><label>Prazo</label><input type="date"/></div>
-      <div class="form-group"><label>Responsável</label>
-        <select><option>Ana Silva</option><option>Carlos Mendes</option><option>Maria Costa</option></select>
+    <div class="grid2" id="projGrid"></div>
+  </div>
+
+  <div id="proj-tarefas" style="display:none;">
+    <div style="display:flex;justify-content:flex-end;margin-bottom:14px;gap:8px;">
+      <select id="tarefaFiltProj" onchange="renderTarefas()" style="padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;background:var(--surface);color:var(--text);">
+        <option value="">Todos os projetos</option>
+      </select>
+      <select id="tarefaFiltResp" onchange="renderTarefas()" style="padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;background:var(--surface);color:var(--text);">
+        <option value="">Todos os responsáveis</option>
+      </select>
+      <button class="btn btn-primary" onclick="openModal('tarefa')">+ Tarefa</button>
+    </div>
+    <div class="section" id="tarefasContainer"></div>
+  </div>
+
+  <div id="proj-metas" style="display:none;">
+    <div style="display:flex;justify-content:flex-end;margin-bottom:14px;">
+      <button class="btn btn-am" onclick="openModal('meta')">+ Meta</button>
+    </div>
+    <div class="grid3" id="metasGrid"></div>
+  </div>
+</div>
+
+<!-- CONFIGURAÇÕES -->
+<div id="page-config" style="display:none;">
+  <div class="section" style="padding:0;overflow:hidden;">
+    <div class="settings-grid">
+      <div class="settings-nav">
+        <div class="settings-item active" onclick="setConfigTab('perfil',this)">Perfil</div>
+        <div class="settings-item" onclick="setConfigTab('empresa',this)">Empresa</div>
+        <div class="settings-item" onclick="setConfigTab('colaboradores',this)">Colaboradores</div>
+        <div class="settings-item" onclick="setConfigTab('categorias',this)">Categorias</div>
+        <div class="settings-item" onclick="setConfigTab('notif',this)">Notificações</div>
+        <div class="settings-item" onclick="setConfigTab('senha',this)">Senha e acesso</div>
       </div>
-    </div>
-    <div class="form-group"><label>Status</label>
-      <select><option>Novo</option><option>Em andamento</option><option>Aguardando</option><option>Concluído</option></select>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('projeto')">Cancelar</button>
-      <button class="btn btn-primary" onclick="closeModal('projeto')">Criar projeto</button>
+      <div class="settings-content" id="configContent"></div>
     </div>
   </div>
 </div>
 
-<div class="modal-overlay" id="modal-meta">
-  <div class="modal">
-    <div class="modal-title">Nova meta</div>
-    <div class="form-group"><label>Nome da meta</label><input type="text" placeholder="Ex: Faturamento Fev/2026"/></div>
-    <div class="form-row">
-      <div class="form-group"><label>Valor alvo</label><input type="number" placeholder="0,00"/></div>
-      <div class="form-group"><label>Valor atual</label><input type="number" placeholder="0,00"/></div>
-    </div>
-    <div class="form-row">
-      <div class="form-group"><label>Categoria</label>
-        <select><option>Fiscal</option><option>Comercial</option><option>Financeiro</option><option>Operacional</option></select>
-      </div>
-      <div class="form-group"><label>Prazo</label><input type="date"/></div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('meta')">Cancelar</button>
-      <button class="btn btn-amarelo" onclick="closeModal('meta')">Criar meta</button>
+</div><!-- /content -->
+
+<!-- MODAIS -->
+<div class="overlay" id="modal-lancamento">
+<div class="modal">
+  <div class="modal-title" id="lancTitulo">Novo lançamento</div>
+  <input type="hidden" id="lancId"/>
+  <div class="frow">
+    <div class="fg"><label>Tipo</label><select id="lancTipo"><option>Receita</option><option>Despesa</option></select></div>
+    <div class="fg"><label>Data</label><input type="date" id="lancData"/></div>
+  </div>
+  <div class="fg"><label>Descrição</label><input type="text" id="lancDesc" placeholder="Ex: Pagamento cliente ABC"/></div>
+  <div class="frow">
+    <div class="fg"><label>Valor (R$)</label><input type="number" id="lancValor" placeholder="0.00" step="0.01"/></div>
+    <div class="fg"><label>Categoria</label><select id="lancCat"></select></div>
+  </div>
+  <div class="fg"><label>Observação</label><textarea id="lancObs" rows="2" placeholder="Opcional..."></textarea></div>
+  <div class="mfooter">
+    <button class="btn btn-ghost" onclick="closeModal('lancamento')">Cancelar</button>
+    <button class="btn btn-primary" onclick="salvarLanc()">Salvar</button>
+  </div>
+</div></div>
+
+<div class="overlay" id="modal-projeto">
+<div class="modal">
+  <div class="modal-title" id="projTitulo">Novo projeto</div>
+  <input type="hidden" id="projId"/>
+  <div class="fg"><label>Nome do projeto</label><input type="text" id="projNome" placeholder="Ex: Recuperação Lote C"/></div>
+  <div class="frow">
+    <div class="fg"><label>Cliente</label><input type="text" id="projCliente" placeholder="Nome do cliente"/></div>
+    <div class="fg"><label>Valor (R$)</label><input type="number" id="projValor" placeholder="0.00" step="0.01"/></div>
+  </div>
+  <div class="frow">
+    <div class="fg"><label>Prazo</label><input type="date" id="projPrazo"/></div>
+    <div class="fg"><label>Responsável</label><select id="projResp"></select></div>
+  </div>
+  <div class="fg"><label>Status</label>
+    <select id="projStatus"><option>Novo</option><option>Em andamento</option><option>Aguardando</option><option>Concluído</option></select>
+  </div>
+  <div class="fg"><label>Descrição</label><textarea id="projDesc" rows="2" placeholder="Detalhes do projeto..."></textarea></div>
+  <div class="mfooter">
+    <button class="btn btn-ghost" onclick="closeModal('projeto')">Cancelar</button>
+    <button class="btn btn-primary" onclick="salvarProjeto()">Salvar</button>
+  </div>
+</div></div>
+
+<div class="overlay" id="modal-tarefa">
+<div class="modal">
+  <div class="modal-title" id="tarTitulo">Nova tarefa</div>
+  <input type="hidden" id="tarId"/>
+  <div class="fg"><label>Tarefa</label><input type="text" id="tarNome" placeholder="Descrição da tarefa"/></div>
+  <div class="frow">
+    <div class="fg"><label>Projeto</label><select id="tarProj"></select></div>
+    <div class="fg"><label>Responsável</label><select id="tarResp"></select></div>
+  </div>
+  <div class="frow">
+    <div class="fg"><label>Prazo</label><input type="date" id="tarPrazo"/></div>
+    <div class="fg"><label>Prioridade</label>
+      <select id="tarPrior"><option>Normal</option><option>Alta</option><option>Urgente</option></select>
     </div>
   </div>
-</div>
+  <div class="fg"><label>Subtarefas (uma por linha)</label><textarea id="tarSubs" rows="3" placeholder="Ex:&#10;Contatar cliente&#10;Enviar proposta"></textarea></div>
+  <div class="mfooter">
+    <button class="btn btn-ghost" onclick="closeModal('tarefa')">Cancelar</button>
+    <button class="btn btn-primary" onclick="salvarTarefa()">Salvar</button>
+  </div>
+</div></div>
+
+<div class="overlay" id="modal-meta">
+<div class="modal">
+  <div class="modal-title" id="metaTitulo">Nova meta</div>
+  <input type="hidden" id="metaId"/>
+  <div class="fg"><label>Nome da meta</label><input type="text" id="metaNome" placeholder="Ex: Faturamento Fev/2026"/></div>
+  <div class="frow">
+    <div class="fg"><label>Valor alvo</label><input type="number" id="metaAlvo" placeholder="0.00" step="0.01"/></div>
+    <div class="fg"><label>Valor atual</label><input type="number" id="metaAtual" placeholder="0.00" step="0.01"/></div>
+  </div>
+  <div class="frow">
+    <div class="fg"><label>Categoria</label>
+      <select id="metaCat"><option>Fiscal</option><option>Comercial</option><option>Financeiro</option><option>Operacional</option></select>
+    </div>
+    <div class="fg"><label>Prazo</label><input type="date" id="metaPrazo"/></div>
+  </div>
+  <div class="mfooter">
+    <button class="btn btn-ghost" onclick="closeModal('meta')">Cancelar</button>
+    <button class="btn btn-am" onclick="salvarMeta()">Salvar</button>
+  </div>
+</div></div>
+
+<div class="overlay" id="modal-cartao">
+<div class="modal">
+  <div class="modal-title">Novo cartão</div>
+  <input type="hidden" id="cartaoId"/>
+  <div class="fg"><label>Nome do cartão</label><input type="text" id="cartaoNome" placeholder="Ex: Nubank Empresarial"/></div>
+  <div class="frow">
+    <div class="fg"><label>Limite (R$)</label><input type="number" id="cartaoLimite" placeholder="0.00" step="0.01"/></div>
+    <div class="fg"><label>Fatura atual (R$)</label><input type="number" id="cartaoFatura" placeholder="0.00" step="0.01"/></div>
+  </div>
+  <div class="fg"><label>Vencimento (dia do mês)</label><input type="number" id="cartaoVenc" placeholder="Ex: 28" min="1" max="31"/></div>
+  <div class="mfooter">
+    <button class="btn btn-ghost" onclick="closeModal('cartao')">Cancelar</button>
+    <button class="btn btn-primary" onclick="salvarCartao()">Salvar</button>
+  </div>
+</div></div>
+
+<div class="overlay" id="modal-func">
+<div class="modal">
+  <div class="modal-title" id="funcTitulo">Novo funcionário</div>
+  <input type="hidden" id="funcId"/>
+  <div class="fg"><label>Nome</label><input type="text" id="funcNome" placeholder="Nome completo"/></div>
+  <div class="frow">
+    <div class="fg"><label>Cargo</label><input type="text" id="funcCargo" placeholder="Ex: Analista"/></div>
+    <div class="fg"><label>Salário (R$)</label><input type="number" id="funcSalario" placeholder="0.00" step="0.01"/></div>
+  </div>
+  <div class="fg"><label>Status</label><select id="funcStatus"><option>Ativo</option><option>Inativo</option></select></div>
+  <div class="mfooter">
+    <button class="btn btn-ghost" onclick="closeModal('func')">Cancelar</button>
+    <button class="btn btn-primary" onclick="salvarFunc()">Salvar</button>
+  </div>
+</div></div>
+
+<div class="overlay" id="modal-confirm">
+<div class="modal" style="width:360px;">
+  <div class="modal-title">Confirmar exclusão</div>
+  <p style="font-size:13px;color:var(--text2);margin-bottom:16px;">Deseja realmente excluir este item? Esta ação não pode ser desfeita.</p>
+  <div class="mfooter">
+    <button class="btn btn-ghost" onclick="closeModal('confirm')">Cancelar</button>
+    <button class="btn btn-danger" id="confirmBtn">Excluir</button>
+  </div>
+</div></div>
 
 <script>
-// DADOS FISCAIS
-const dadosFiscais={
-  2023:[9605.90,9143.43,8105.46,12335.28,14146.95,14155.70,10832.38,15140.85,19472.66,17089.77,20131.20,15841.51],
-  2024:[30388.44,50332.62,42429.04,32036.97,43008.49,25627.03,23700.58,35525.80,30457.62,28559.26,29772.95,34346.15],
-  2025:[28068.64,32838.12,34353.96,47475.10,40837.62,39167.29,25809.03,44424.01,27365.92,40598.13,26651.16,53361.39]
+// ========== STATE ==========
+const KEY='cobrasq_v2';
+let S={
+  lancamentos:[],projetos:[],tarefas:[],metas:[],cartoes:[],funcionarios:[],
+  categorias:{receita:['Serviços','Cobrança','Honorários','Outros'],despesa:['Aluguel','Salários','Cartões','Administrativo','Impostos','Outros']},
+  config:{nome:'Gustavo Santos',email:'gustavo@cobrasq.com.br',empresa:'COBRASQ',sub:'RECUPERADORA DE CRÉDITO',avatar:'GS',tema:'light',metaMensal:40000},
+  fatHistorico:{
+    2022:[0,0,0,25482.31,3101.03,24328.10,18354.09,20576.64,12812.26,18352.98,14666.88,16188.13],
+    2023:[9605.90,9143.43,8105.46,12335.28,14146.95,14155.70,10832.38,15140.85,19472.66,17089.77,20131.20,15841.51],
+    2024:[30388.44,50332.62,42429.04,32036.97,43008.49,25627.03,23700.58,35525.80,30457.62,28559.26,29772.95,34346.15],
+    2025:[28068.64,32838.12,34353.96,47475.10,40837.62,39167.29,25809.03,44424.01,27365.92,40598.13,26651.16,53361.39]
+  }
 };
+let fatAno=2025, fatChart=null, fatLineChart=null, despChart=null;
 const MESES=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-let fiscalAno=2025, fiscalChart=null, fiscalLineChart=null, despChart=null, visaoChart=null, kpiChart=null;
-let sidebarCollapsed=false, darkMode=false;
 
-// NAV
+function save(){localStorage.setItem(KEY,JSON.stringify(S));}
+function load(){const d=localStorage.getItem(KEY);if(d){const p=JSON.parse(d);S={...S,...p};}}
+
+// ========== UTILS ==========
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2);
+const fmt=v=>v!=null?(+v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'—';
+const fmtk=v=>'R$ '+(+v>=1000?((+v)/1000).toFixed(1)+'k':(+v).toLocaleString('pt-BR',{minimumFractionDigits:0}));
+const fmtR=v=>'R$ '+fmt(v);
+const hoje=()=>new Date().toISOString().slice(0,10);
+
+// ========== NAV ==========
 function showPage(p){
-  ['visao','fiscal','financeiro','projetos'].forEach(x=>{
-    document.getElementById('page-'+x).style.display=x===p?'block':'none';
-  });
-  document.querySelectorAll('.nav-item').forEach((el,i)=>{
-    el.classList.toggle('active',['visao','fiscal','financeiro','projetos'][i]===p);
-  });
-  const titles={visao:'Visão Geral',fiscal:'Fiscal',financeiro:'Financeiro',projetos:'Projetos & Metas'};
-  document.getElementById('pageTitle').textContent=titles[p];
-  setTimeout(()=>{
-    if(p==='fiscal'){renderFiscalChart();renderFiscalLine();}
-    if(p==='financeiro'){renderDespChart();}
-    if(p==='visao'){renderVisaoChart();}
-  },50);
+  ['menu','fat','fin','proj','config'].forEach(x=>document.getElementById('page-'+x).style.display=x===p?'block':'none');
+  document.querySelectorAll('.nav-tab').forEach((el,i)=>el.classList.toggle('active',['menu','fat','fin','proj','config'][i]===p));
+  if(p==='menu')renderMenu();
+  if(p==='fat'){renderFatCards();renderFatChart();renderFatLine();renderFatMetas();}
+  if(p==='fin'){renderFinCards();renderLanc();renderFiltCat();}
+  if(p==='proj'){renderProjetos();renderTarefaFiltros();}
+  if(p==='config')renderConfig('perfil');
 }
 
-// SIDEBAR
-function toggleSidebar(){
-  sidebarCollapsed=!sidebarCollapsed;
-  document.getElementById('sidebar').classList.toggle('collapsed',sidebarCollapsed);
-  document.getElementById('main').classList.toggle('expanded',sidebarCollapsed);
-}
-
-// THEME
-function toggleTheme(){
-  darkMode=!darkMode;
-  document.body.classList.toggle('dark',darkMode);
-  document.querySelector('.theme-btn').textContent=darkMode?'☀️ Tema':'🌙 Tema';
-}
-
-// MODAL
+// ========== MODAL ==========
 function openModal(id){document.getElementById('modal-'+id).classList.add('open');}
 function closeModal(id){document.getElementById('modal-'+id).classList.remove('open');}
-document.querySelectorAll('.modal-overlay').forEach(el=>el.addEventListener('click',function(e){if(e.target===this)this.classList.remove('open');}));
+document.querySelectorAll('.overlay').forEach(el=>el.addEventListener('click',function(e){if(e.target===this)this.classList.remove('open');}));
 
-// FIN TABS
+function confirm(cb){
+  document.getElementById('modal-confirm').classList.add('open');
+  document.getElementById('confirmBtn').onclick=()=>{cb();closeModal('confirm');};
+}
+
+// ========== LANÇAMENTOS ==========
+function renderFiltCat(){
+  const s=document.getElementById('filtCat');
+  const all=[...S.categorias.receita,...S.categorias.despesa].filter((v,i,a)=>a.indexOf(v)===i);
+  s.innerHTML='<option value="">Todas categorias</option>'+all.map(c=>`<option>${c}</option>`).join('');
+  const sl=document.getElementById('lancCat');
+  sl.innerHTML=all.map(c=>`<option>${c}</option>`).join('');
+}
+
+function renderLanc(){
+  const de=document.getElementById('filtDe').value;
+  const ate=document.getElementById('filtAte').value;
+  const tipo=document.getElementById('filtTipo').value;
+  const cat=document.getElementById('filtCat').value;
+  let items=[...S.lancamentos].sort((a,b)=>b.data.localeCompare(a.data));
+  if(de)items=items.filter(l=>l.data>=de);
+  if(ate)items=items.filter(l=>l.data<=ate);
+  if(tipo)items=items.filter(l=>l.tipo===tipo);
+  if(cat)items=items.filter(l=>l.cat===cat);
+  const tb=document.getElementById('tblLanc');
+  tb.innerHTML='<tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Tipo</th><th>Valor</th><th>Ações</th></tr>';
+  if(!items.length){tb.innerHTML+='<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:20px;">Nenhum lançamento encontrado.</td></tr>';return;}
+  items.forEach(l=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${l.data.split('-').reverse().join('/')}</td><td>${l.desc}</td><td>${l.cat}</td>
+    <td><span class="badge ${l.tipo==='Receita'?'bg-green':'bg-red'}">${l.tipo}</span></td>
+    <td style="font-weight:600;color:${l.tipo==='Receita'?'var(--success)':'var(--danger)'};">${l.tipo==='Receita'?'+':'-'}R$ ${fmt(l.valor)}</td>
+    <td style="display:flex;gap:6px;">
+      <button class="btn btn-ghost btn-sm" onclick="editLanc('${l.id}')">Editar</button>
+      <button class="btn btn-danger btn-sm" onclick="delLanc('${l.id}')">Excluir</button>
+    </td>`;
+    tb.appendChild(tr);
+  });
+  const rec=items.filter(l=>l.tipo==='Receita').reduce((s,l)=>s+(+l.valor),0);
+  const des=items.filter(l=>l.tipo==='Despesa').reduce((s,l)=>s+(+l.valor),0);
+  document.getElementById('lancTotais').innerHTML=`
+    <div><div style="font-size:11px;color:var(--text3)">Total receitas</div><div style="font-size:15px;font-weight:600;color:var(--success)">+R$ ${fmt(rec)}</div></div>
+    <div><div style="font-size:11px;color:var(--text3)">Total despesas</div><div style="font-size:15px;font-weight:600;color:var(--danger)">-R$ ${fmt(des)}</div></div>
+    <div><div style="font-size:11px;color:var(--text3)">Saldo</div><div style="font-size:15px;font-weight:600;color:${rec-des>=0?'var(--success)':'var(--danger)'}">R$ ${fmt(rec-des)}</div></div>`;
+}
+
+function limparFiltros(){
+  ['filtDe','filtAte'].forEach(id=>document.getElementById(id).value='');
+  ['filtTipo','filtCat'].forEach(id=>document.getElementById(id).value='');
+  renderLanc();
+}
+
+function openLancModal(id=null){
+  const l=id?S.lancamentos.find(x=>x.id===id):null;
+  document.getElementById('lancTitulo').textContent=l?'Editar lançamento':'Novo lançamento';
+  document.getElementById('lancId').value=l?l.id:'';
+  document.getElementById('lancTipo').value=l?l.tipo:'Receita';
+  document.getElementById('lancData').value=l?l.data:hoje();
+  document.getElementById('lancDesc').value=l?l.desc:'';
+  document.getElementById('lancValor').value=l?l.valor:'';
+  document.getElementById('lancObs').value=l?l.obs:'';
+  renderFiltCat();
+  setTimeout(()=>{document.getElementById('lancCat').value=l?l.cat:'';},50);
+  openModal('lancamento');
+}
+
+function editLanc(id){openLancModal(id);}
+function delLanc(id){confirm(()=>{S.lancamentos=S.lancamentos.filter(l=>l.id!==id);save();renderLanc();renderFinCards();atualizarFatHistorico();});}
+
+function salvarLanc(){
+  const id=document.getElementById('lancId').value||uid();
+  const lanc={
+    id,tipo:document.getElementById('lancTipo').value,
+    data:document.getElementById('lancData').value,
+    desc:document.getElementById('lancDesc').value,
+    valor:parseFloat(document.getElementById('lancValor').value)||0,
+    cat:document.getElementById('lancCat').value,
+    obs:document.getElementById('lancObs').value
+  };
+  if(!lanc.desc||!lanc.data){alert('Preencha data e descrição.');return;}
+  const idx=S.lancamentos.findIndex(l=>l.id===id);
+  if(idx>=0)S.lancamentos[idx]=lanc; else S.lancamentos.push(lanc);
+  save(); closeModal('lancamento'); renderLanc(); renderFinCards(); atualizarFatHistorico();
+  if(document.getElementById('page-fat').style.display!=='none'){renderFatChart();renderFatCards();}
+}
+
+function atualizarFatHistorico(){
+  const rec=S.lancamentos.filter(l=>l.tipo==='Receita');
+  const anos={};
+  rec.forEach(l=>{
+    if(!l.data)return;
+    const [y,m]=l.data.split('-').map(Number);
+    if(!anos[y])anos[y]=Array(12).fill(0);
+    anos[y][m-1]+=(+l.valor);
+  });
+  Object.keys(anos).forEach(y=>{
+    if(!S.fatHistorico[y])S.fatHistorico[y]=Array(12).fill(0);
+    anos[y].forEach((v,i)=>{if(v>0)S.fatHistorico[y][i]+=v;});
+  });
+}
+
+// ========== CARTÕES ==========
+function salvarCartao(){
+  const id=document.getElementById('cartaoId').value||uid();
+  const c={id,nome:document.getElementById('cartaoNome').value,limite:parseFloat(document.getElementById('cartaoLimite').value)||0,fatura:parseFloat(document.getElementById('cartaoFatura').value)||0,venc:document.getElementById('cartaoVenc').value};
+  if(!c.nome)return;
+  const idx=S.cartoes.findIndex(x=>x.id===id);
+  if(idx>=0)S.cartoes[idx]=c; else S.cartoes.push(c);
+  save();closeModal('cartao');renderCartoes();renderFinCards();
+}
+
+function renderCartoes(){
+  const g=document.getElementById('cartoesGrid');
+  const cores=['#002060','#FABE44','#1D9E75','#D85A30'];
+  let html=S.cartoes.map((c,i)=>{
+    const pct=c.limite>0?Math.min(100,(c.fatura/c.limite)*100):0;
+    return `<div class="kcard" style="border-top:3px solid ${cores[i%cores.length]};">
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+        <span style="font-size:13px;font-weight:600">${c.nome}</span>
+        <div style="display:flex;gap:4px;">
+          <button class="btn btn-ghost btn-sm" onclick="editCartao('${c.id}')">Editar</button>
+          <button class="btn btn-danger btn-sm" onclick="delCartao('${c.id}')">X</button>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--text3)">Fatura atual</div>
+      <div style="font-size:20px;font-weight:700;color:var(--danger)">R$ ${fmt(c.fatura)}</div>
+      <div class="pbar" style="margin-top:8px;"><div class="pfill" style="width:${pct}%;background:var(--danger)"></div></div>
+      <div style="font-size:11px;color:var(--text3);margin-top:4px;">Limite: R$ ${fmt(c.limite)} · Vence dia ${c.venc}</div>
+    </div>`;
+  }).join('');
+  html+=`<div class="proj-card add-card" onclick="openModal('cartao')"><div style="text-align:center"><div style="font-size:24px">+</div><div style="font-size:13px;margin-top:4px;">Novo cartão</div></div></div>`;
+  g.innerHTML=html;
+}
+
+function editCartao(id){
+  const c=S.cartoes.find(x=>x.id===id);
+  if(!c)return;
+  document.getElementById('cartaoId').value=c.id;
+  document.getElementById('cartaoNome').value=c.nome;
+  document.getElementById('cartaoLimite').value=c.limite;
+  document.getElementById('cartaoFatura').value=c.fatura;
+  document.getElementById('cartaoVenc').value=c.venc;
+  openModal('cartao');
+}
+function delCartao(id){confirm(()=>{S.cartoes=S.cartoes.filter(x=>x.id!==id);save();renderCartoes();renderFinCards();});}
+
+// ========== FUNCIONÁRIOS ==========
+function salvarFunc(){
+  const id=document.getElementById('funcId').value||uid();
+  const f={id,nome:document.getElementById('funcNome').value,cargo:document.getElementById('funcCargo').value,salario:parseFloat(document.getElementById('funcSalario').value)||0,status:document.getElementById('funcStatus').value};
+  if(!f.nome)return;
+  const idx=S.funcionarios.findIndex(x=>x.id===id);
+  if(idx>=0)S.funcionarios[idx]=f; else S.funcionarios.push(f);
+  save();closeModal('func');renderFunc();renderFinCards();
+  document.getElementById('funcId').value='';
+  ['funcNome','funcCargo','funcSalario'].forEach(id=>document.getElementById(id).value='');
+}
+
+function renderFunc(){
+  const tb=document.getElementById('tblFunc');
+  tb.innerHTML='<tr><th>Nome</th><th>Cargo</th><th>Salário</th><th>Status</th><th>Ações</th></tr>';
+  if(!S.funcionarios.length){tb.innerHTML+='<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px;">Nenhum funcionário cadastrado.</td></tr>';return;}
+  S.funcionarios.forEach(f=>{
+    tb.innerHTML+=`<tr><td>${f.nome}</td><td>${f.cargo}</td><td>R$ ${fmt(f.salario)}</td>
+    <td><span class="badge ${f.status==='Ativo'?'bg-green':'bg-gray'}">${f.status}</span></td>
+    <td style="display:flex;gap:6px;">
+      <button class="btn btn-ghost btn-sm" onclick="editFunc('${f.id}')">Editar</button>
+      <button class="btn btn-danger btn-sm" onclick="delFunc('${f.id}')">Excluir</button>
+    </td></tr>`;
+  });
+  const tot=S.funcionarios.filter(f=>f.status==='Ativo').reduce((s,f)=>s+(+f.salario),0);
+  document.getElementById('funcTotais').innerHTML=`
+    <div><div style="font-size:11px;color:var(--text3)">Folha mensal</div><div style="font-size:15px;font-weight:600;color:var(--danger)">R$ ${fmt(tot)}</div></div>
+    <div><div style="font-size:11px;color:var(--text3)">Encargos est. (30%)</div><div style="font-size:15px;font-weight:600;color:var(--danger)">R$ ${fmt(tot*0.3)}</div></div>
+    <div><div style="font-size:11px;color:var(--text3)">Total com encargos</div><div style="font-size:15px;font-weight:600;color:var(--danger)">R$ ${fmt(tot*1.3)}</div></div>`;
+}
+
+function editFunc(id){
+  const f=S.funcionarios.find(x=>x.id===id);
+  if(!f)return;
+  document.getElementById('funcTitulo').textContent='Editar funcionário';
+  document.getElementById('funcId').value=f.id;
+  document.getElementById('funcNome').value=f.nome;
+  document.getElementById('funcCargo').value=f.cargo;
+  document.getElementById('funcSalario').value=f.salario;
+  document.getElementById('funcStatus').value=f.status;
+  openModal('func');
+}
+function delFunc(id){confirm(()=>{S.funcionarios=S.funcionarios.filter(x=>x.id!==id);save();renderFunc();renderFinCards();});}
+
+// ========== FIN CARDS ==========
+function renderFinCards(){
+  const mes=new Date().toISOString().slice(0,7);
+  const rec=S.lancamentos.filter(l=>l.tipo==='Receita'&&l.data.startsWith(mes)).reduce((s,l)=>s+(+l.valor),0);
+  const des=S.lancamentos.filter(l=>l.tipo==='Despesa'&&l.data.startsWith(mes)).reduce((s,l)=>s+(+l.valor),0);
+  const fatTot=S.lancamentos.filter(l=>l.tipo==='Fatura cartão'||l.tipo==='Despesa').reduce((s,l)=>s+(+l.valor),0);
+  const cartFat=S.cartoes.reduce((s,c)=>s+(+c.fatura),0);
+  document.getElementById('finCards').innerHTML=`
+    <div class="kcard gr"><div class="kcard-label">Receitas do mês</div><div class="kcard-val">${fmtk(rec)}</div><div class="kcard-sub up">Entradas</div></div>
+    <div class="kcard rd"><div class="kcard-label">Despesas do mês</div><div class="kcard-val">${fmtk(des)}</div><div class="kcard-sub down">Saídas</div></div>
+    <div class="kcard am"><div class="kcard-label">Saldo líquido</div><div class="kcard-val">${fmtk(rec-des)}</div><div class="kcard-sub ${rec-des>=0?'up':'down'}">${rec-des>=0?'Positivo':'Negativo'}</div></div>
+    <div class="kcard"><div class="kcard-label">Cartões (total fatura)</div><div class="kcard-val">${fmtk(cartFat)}</div><div class="kcard-sub down">Total faturas</div></div>`;
+}
+
+// ========== FAT ==========
+function getFatData(ano){
+  const base=[...(S.fatHistorico[ano]||Array(12).fill(0))];
+  const lancRec=S.lancamentos.filter(l=>l.tipo==='Receita'&&l.data.startsWith(ano));
+  lancRec.forEach(l=>{
+    const m=parseInt(l.data.split('-')[1])-1;
+    base[m]+=(+l.valor);
+  });
+  return base;
+}
+
+function renderFatCards(){
+  const d25=getFatData(2025);
+  const d24=getFatData(2024);
+  const t25=d25.reduce((s,v)=>s+v,0);
+  const t24=d24.reduce((s,v)=>s+v,0);
+  const med=d25.filter(v=>v>0).reduce((s,v)=>s+v,0)/d25.filter(v=>v>0).length||0;
+  const cr=t24>0?((t25-t24)/t24*100).toFixed(1):0;
+  const melhorI=d25.indexOf(Math.max(...d25));
+  document.getElementById('fatCards').innerHTML=`
+    <div class="kcard"><div class="kcard-label">Faturamento 2025</div><div class="kcard-val">${fmtk(t25)}</div><div class="kcard-sub up">▲ ${cr}% vs 2024</div></div>
+    <div class="kcard am"><div class="kcard-label">Média mensal 2025</div><div class="kcard-val">${fmtk(med)}</div></div>
+    <div class="kcard gr"><div class="kcard-label">Melhor mês</div><div class="kcard-val">${MESES[melhorI]}/2025</div><div class="kcard-sub up">${fmtk(d25[melhorI])}</div></div>
+    <div class="kcard rd"><div class="kcard-label">Meta mensal</div><div class="kcard-val">${fmtk(S.config.metaMensal)}</div></div>`;
+}
+
+function renderFatAnoBtns(){
+  const anos=[2022,2023,2024,2025,...Object.keys(S.fatHistorico).map(Number)].filter((v,i,a)=>a.indexOf(v)===i).sort();
+  const el=document.getElementById('fatAnoBtns');
+  el.innerHTML=anos.map(a=>`<button class="btn ${a===fatAno?'btn-primary':'btn-ghost'} btn-sm" onclick="setFatAno(${a})">${a}</button>`).join('');
+}
+
+function setFatAno(a){fatAno=a;renderFatAnoBtns();renderFatChart();}
+
+function renderFatChart(){
+  const ctx=document.getElementById('chartFat').getContext('2d');
+  if(fatChart)fatChart.destroy();
+  const meta=parseFloat(document.getElementById('fatMeta').value)||S.config.metaMensal;
+  document.getElementById('fatMeta').value=meta;
+  const d=getFatData(fatAno);
+  fatChart=new Chart(ctx,{type:'bar',data:{labels:MESES,datasets:[
+    {label:'Receita',data:d,backgroundColor:d.map(v=>v>=meta?'rgba(29,158,117,0.8)':'rgba(0,32,96,0.75)'),borderRadius:5,order:2},
+    {label:'Meta',data:MESES.map(()=>meta),type:'line',borderColor:'#FABE44',borderWidth:2,borderDash:[6,4],pointRadius:0,fill:false,order:1}
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:i=>` R$ ${fmt(i.raw)}`}}},scales:{x:{ticks:{autoSkip:false,maxRotation:0,font:{size:11}},grid:{display:false}},y:{ticks:{callback:v=>'R$'+(v/1000).toFixed(0)+'k',font:{size:11}},grid:{color:'rgba(128,128,128,0.1)'}}}}});
+}
+
+function renderFatLine(){
+  const ctx=document.getElementById('chartFatLine').getContext('2d');
+  if(fatLineChart)fatLineChart.destroy();
+  const anos=[2022,2023,2024,2025].filter(a=>S.fatHistorico[a]);
+  const totais=anos.map(a=>getFatData(a).reduce((s,v)=>s+v,0));
+  fatLineChart=new Chart(ctx,{type:'line',data:{labels:anos.map(String),datasets:[{label:'Anual',data:totais,borderColor:'#002060',backgroundColor:'rgba(0,32,96,0.08)',borderWidth:2.5,pointRadius:5,pointBackgroundColor:'#FABE44',fill:true,tension:0.3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:i=>` R$ ${fmt(i.raw)}`}}},scales:{x:{grid:{display:false}},y:{ticks:{callback:v=>'R$'+(v/1000).toFixed(0)+'k',font:{size:11}},grid:{color:'rgba(128,128,128,0.1)'}}}}});
+}
+
+function renderFatMetas(){
+  const metas=S.metas.filter(m=>m.cat==='Fiscal');
+  const el=document.getElementById('fatMetas');
+  if(!metas.length){el.innerHTML='<div style="color:var(--text3);font-size:13px;text-align:center;padding:20px;">Nenhuma meta fiscal. Crie uma!</div>';return;}
+  el.innerHTML=metas.map(m=>{
+    const pct=m.alvo>0?Math.min(100,Math.round((m.atual/m.alvo)*100)):0;
+    const cor=pct>=80?'var(--success)':pct>=50?'var(--warning)':'var(--danger)';
+    return `<div style="margin-bottom:14px;">
+      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;">
+        <span style="font-weight:500">${m.nome}</span><span style="color:${cor};font-weight:600">${pct}%</span>
+      </div>
+      <div class="pbar"><div class="pfill" style="width:${pct}%;background:${cor}"></div></div>
+      <div style="font-size:11px;color:var(--text3);margin-top:3px;">R$ ${fmt(m.atual)} de R$ ${fmt(m.alvo)} · Prazo: ${m.prazo||'—'}</div>
+    </div>`;
+  }).join('');
+}
+
+// ========== PROJETOS ==========
+function getRespOpts(){
+  const colab=S.config.colaboradores||[];
+  return ['—',...colab.map(c=>c.nome)];
+}
+
+function salvarProjeto(){
+  const id=document.getElementById('projId').value||uid();
+  const p={id,nome:document.getElementById('projNome').value,cliente:document.getElementById('projCliente').value,valor:parseFloat(document.getElementById('projValor').value)||0,prazo:document.getElementById('projPrazo').value,resp:document.getElementById('projResp').value,status:document.getElementById('projStatus').value,desc:document.getElementById('projDesc').value};
+  if(!p.nome)return;
+  const idx=S.projetos.findIndex(x=>x.id===id);
+  if(idx>=0)S.projetos[idx]=p; else S.projetos.push(p);
+  save();closeModal('projeto');renderProjetos();
+  document.getElementById('projId').value='';
+}
+
+function editProjeto(id){
+  const p=S.projetos.find(x=>x.id===id);
+  if(!p)return;
+  document.getElementById('projTitulo').textContent='Editar projeto';
+  document.getElementById('projId').value=p.id;
+  document.getElementById('projNome').value=p.nome;
+  document.getElementById('projCliente').value=p.cliente;
+  document.getElementById('projValor').value=p.valor;
+  document.getElementById('projPrazo').value=p.prazo;
+  document.getElementById('projStatus').value=p.status;
+  document.getElementById('projDesc').value=p.desc||'';
+  populateRespSelect('projResp',p.resp);
+  openModal('projeto');
+}
+
+function delProjeto(id){confirm(()=>{S.projetos=S.projetos.filter(x=>x.id!==id);save();renderProjetos();});}
+
+function renderProjetos(){
+  const filtStatus=document.getElementById('projFiltStatus').value;
+  let items=S.projetos.filter(p=>!filtStatus||p.status===filtStatus);
+  const g=document.getElementById('projGrid');
+  const statColors={Novo:'bg-blue','Em andamento':'bg-green',Aguardando:'bg-yellow',Concluído:'bg-gray'};
+  const tarefasPorProj=id=>S.tarefas.filter(t=>t.projId===id);
+  let html=items.map(p=>{
+    const tar=tarefasPorProj(p.id);
+    const done=tar.filter(t=>t.done).length;
+    const pct=tar.length?Math.round((done/tar.length)*100):0;
+    return `<div class="proj-card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
+        <span style="font-size:14px;font-weight:600">${p.nome}</span>
+        <span class="badge ${statColors[p.status]||'bg-gray'}">${p.status}</span>
+      </div>
+      <div style="font-size:12px;color:var(--text3);margin-bottom:8px;">${p.cliente||'—'} · ${p.resp||'—'}</div>
+      <div style="display:flex;gap:14px;font-size:12px;color:var(--text2);margin-bottom:10px;">
+        <span>R$ ${fmt(p.valor)}</span>
+        <span>📅 ${p.prazo?p.prazo.split('-').reverse().join('/'):'—'}</span>
+      </div>
+      ${tar.length?`<div style="font-size:11px;color:var(--text3);margin-bottom:4px;">${done}/${tar.length} tarefas</div>
+      <div class="pbar"><div class="pfill" style="width:${pct}%;background:${pct===100?'var(--success)':'var(--azul)'}"></div></div>`:''}
+      <div style="display:flex;gap:6px;margin-top:10px;">
+        <button class="btn btn-ghost btn-sm" onclick="editProjeto('${p.id}')">Editar</button>
+        <button class="btn btn-danger btn-sm" onclick="delProjeto('${p.id}')">Excluir</button>
+      </div>
+    </div>`;
+  }).join('');
+  html+=`<div class="proj-card add-card" onclick="abrirNovoProjeto()"><div style="text-align:center"><div style="font-size:28px">+</div><div style="font-size:13px;margin-top:6px;">Novo projeto</div></div></div>`;
+  g.innerHTML=html;
+}
+
+function abrirNovoProjeto(){
+  document.getElementById('projTitulo').textContent='Novo projeto';
+  document.getElementById('projId').value='';
+  ['projNome','projCliente','projValor','projPrazo','projDesc'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('projStatus').value='Novo';
+  populateRespSelect('projResp','');
+  openModal('projeto');
+}
+
+// ========== TAREFAS ==========
+function salvarTarefa(){
+  const id=document.getElementById('tarId').value||uid();
+  const subs=document.getElementById('tarSubs').value.split('\n').filter(s=>s.trim()).map(s=>({id:uid(),nome:s.trim(),done:false}));
+  const t={id,nome:document.getElementById('tarNome').value,projId:document.getElementById('tarProj').value,resp:document.getElementById('tarResp').value,prazo:document.getElementById('tarPrazo').value,prior:document.getElementById('tarPrior').value,subtarefas:subs,done:false};
+  if(!t.nome)return;
+  const idx=S.tarefas.findIndex(x=>x.id===id);
+  if(idx>=0)S.tarefas[idx]=t; else S.tarefas.push(t);
+  save();closeModal('tarefa');renderTarefas();renderProjetos();
+  document.getElementById('tarId').value='';
+}
+
+function toggleTarefa(id){
+  const t=S.tarefas.find(x=>x.id===id);
+  if(t){t.done=!t.done;save();renderTarefas();renderProjetos();}
+}
+
+function toggleSub(tarId,subId){
+  const t=S.tarefas.find(x=>x.id===tarId);
+  if(t){const s=t.subtarefas.find(x=>x.id===subId);if(s){s.done=!s.done;save();renderTarefas();}}
+}
+
+function delTarefa(id){confirm(()=>{S.tarefas=S.tarefas.filter(x=>x.id!==id);save();renderTarefas();renderProjetos();});}
+
+function renderTarefaFiltros(){
+  const fp=document.getElementById('tarefaFiltProj');
+  fp.innerHTML='<option value="">Todos os projetos</option>'+S.projetos.map(p=>`<option value="${p.id}">${p.nome}</option>`).join('');
+  const fr=document.getElementById('tarefaFiltResp');
+  const resps=[...new Set(S.tarefas.map(t=>t.resp).filter(Boolean))];
+  fr.innerHTML='<option value="">Todos os responsáveis</option>'+resps.map(r=>`<option>${r}</option>`).join('');
+}
+
+function renderTarefas(){
+  renderTarefaFiltros();
+  const fProj=document.getElementById('tarefaFiltProj').value;
+  const fResp=document.getElementById('tarefaFiltResp').value;
+  let items=S.tarefas.filter(t=>(!fProj||t.projId===fProj)&&(!fResp||t.resp===fResp));
+  const priorCor={Normal:'bg-gray',Alta:'bg-yellow',Urgente:'bg-red'};
+  const projNome=id=>S.projetos.find(p=>p.id===id)?.nome||'Sem projeto';
+  const el=document.getElementById('tarefasContainer');
+  if(!items.length){el.innerHTML='<div style="color:var(--text3);font-size:13px;text-align:center;padding:30px;">Nenhuma tarefa encontrada.</div>';return;}
+  el.innerHTML=items.map(t=>`
+    <div class="task-row" style="${t.done?'opacity:.5':''}">
+      <div class="chk ${t.done?'done':''}" onclick="toggleTarefa('${t.id}')">${t.done?'✓':''}</div>
+      <div style="flex:1;">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <span style="font-size:13px;font-weight:500;${t.done?'text-decoration:line-through;':''}">${t.nome}</span>
+          <span class="badge ${priorCor[t.prior]||'bg-gray'}">${t.prior}</span>
+          <span class="badge bg-blue">${projNome(t.projId)}</span>
+          ${t.resp?`<span style="font-size:11px;color:var(--text3)">👤 ${t.resp}</span>`:''}
+          ${t.prazo?`<span style="font-size:11px;color:var(--text3)">📅 ${t.prazo.split('-').reverse().join('/')}</span>`:''}
+        </div>
+        ${t.subtarefas&&t.subtarefas.length?`<div style="margin-top:6px;">${t.subtarefas.map(s=>`
+          <div class="task-row subtask" style="${s.done?'opacity:.5':''}">
+            <div class="chk ${s.done?'done':''}" onclick="toggleSub('${t.id}','${s.id}')">${s.done?'✓':''}</div>
+            <span style="${s.done?'text-decoration:line-through;':''}">${s.nome}</span>
+          </div>`).join('')}</div>`:''}
+      </div>
+      <div style="display:flex;gap:4px;">
+        <button class="btn btn-ghost btn-sm" onclick="editTarefa('${t.id}')">Editar</button>
+        <button class="btn btn-danger btn-sm" onclick="delTarefa('${t.id}')">X</button>
+      </div>
+    </div>`).join('');
+}
+
+function editTarefa(id){
+  const t=S.tarefas.find(x=>x.id===id);
+  if(!t)return;
+  document.getElementById('tarTitulo').textContent='Editar tarefa';
+  document.getElementById('tarId').value=t.id;
+  document.getElementById('tarNome').value=t.nome;
+  document.getElementById('tarPrazo').value=t.prazo||'';
+  document.getElementById('tarPrior').value=t.prior||'Normal';
+  document.getElementById('tarSubs').value=t.subtarefas.map(s=>s.nome).join('\n');
+  populateTarProj(t.projId);
+  populateRespSelect('tarResp',t.resp);
+  openModal('tarefa');
+}
+
+function populateTarProj(sel=''){
+  const s=document.getElementById('tarProj');
+  s.innerHTML='<option value="">Sem projeto</option>'+S.projetos.map(p=>`<option value="${p.id}" ${p.id===sel?'selected':''}>${p.nome}</option>`).join('');
+}
+
+function populateRespSelect(elId,sel=''){
+  const opts=getRespOpts();
+  document.getElementById(elId).innerHTML=opts.map(o=>`<option ${o===sel?'selected':''}>${o}</option>`).join('');
+}
+
+// ========== METAS ==========
+function salvarMeta(){
+  const id=document.getElementById('metaId').value||uid();
+  const m={id,nome:document.getElementById('metaNome').value,alvo:parseFloat(document.getElementById('metaAlvo').value)||0,atual:parseFloat(document.getElementById('metaAtual').value)||0,cat:document.getElementById('metaCat').value,prazo:document.getElementById('metaPrazo').value};
+  if(!m.nome)return;
+  const idx=S.metas.findIndex(x=>x.id===id);
+  if(idx>=0)S.metas[idx]=m; else S.metas.push(m);
+  save();closeModal('meta');renderMetas();renderFatMetas();renderMenu();
+  document.getElementById('metaId').value='';
+}
+
+function editMeta(id){
+  const m=S.metas.find(x=>x.id===id);
+  if(!m)return;
+  document.getElementById('metaTitulo').textContent='Editar meta';
+  document.getElementById('metaId').value=m.id;
+  document.getElementById('metaNome').value=m.nome;
+  document.getElementById('metaAlvo').value=m.alvo;
+  document.getElementById('metaAtual').value=m.atual;
+  document.getElementById('metaCat').value=m.cat;
+  document.getElementById('metaPrazo').value=m.prazo||'';
+  openModal('meta');
+}
+
+function delMeta(id){confirm(()=>{S.metas=S.metas.filter(x=>x.id!==id);save();renderMetas();});}
+
+function renderMetas(){
+  const g=document.getElementById('metasGrid');
+  if(!S.metas.length){g.innerHTML='<div style="color:var(--text3);font-size:13px;text-align:center;padding:30px;grid-column:1/-1;">Nenhuma meta criada.</div>';return;}
+  g.innerHTML=S.metas.map(m=>{
+    const pct=m.alvo>0?Math.min(100,Math.round((m.atual/m.alvo)*100)):0;
+    const cor=pct>=80?'var(--success)':pct>=50?'var(--warning)':'var(--danger)';
+    return `<div class="kcard">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+        <div><div style="font-size:13px;font-weight:600">${m.nome}</div><div style="font-size:11px;color:var(--text3);margin-top:2px;">${m.cat} · ${m.prazo?m.prazo.split('-').reverse().join('/'):'Sem prazo'}</div></div>
+        <div style="font-size:20px;font-weight:700;color:${cor}">${pct}%</div>
+      </div>
+      <div class="pbar"><div class="pfill" style="width:${pct}%;background:${cor}"></div></div>
+      <div style="font-size:11px;color:var(--text3);margin-top:6px;">R$ ${fmt(m.atual)} de R$ ${fmt(m.alvo)}</div>
+      <div style="display:flex;gap:6px;margin-top:10px;">
+        <button class="btn btn-ghost btn-sm" onclick="editMeta('${m.id}')">Editar</button>
+        <button class="btn btn-danger btn-sm" onclick="delMeta('${m.id}')">Excluir</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ========== MENU PRINCIPAL ==========
+function renderMenu(){
+  const mes=new Date().toISOString().slice(0,7);
+  const rec=S.lancamentos.filter(l=>l.tipo==='Receita'&&l.data.startsWith(mes)).reduce((s,l)=>s+(+l.valor),0);
+  const des=S.lancamentos.filter(l=>l.tipo==='Despesa'&&l.data.startsWith(mes)).reduce((s,l)=>s+(+l.valor),0);
+  const meta=S.config.metaMensal||40000;
+  const pctMeta=meta>0?Math.min(100,Math.round((rec/meta)*100)):0;
+  const projAtivos=S.projetos.filter(p=>p.status==='Em andamento').length;
+  const tarAtr=S.tarefas.filter(t=>!t.done&&t.prazo&&t.prazo<hoje()).length;
+  document.getElementById('menuCards').innerHTML=`
+    <div class="kcard"><div class="kcard-label">Faturamento do mês</div><div class="kcard-val">${fmtk(rec)}</div><div class="kcard-sub up">Receitas lançadas</div></div>
+    <div class="kcard am"><div class="kcard-label">Meta mensal</div><div class="kcard-val">${pctMeta}%</div><div class="kcard-sub">R$ ${fmt(meta)} · ${fmtk(rec)} realizado</div></div>
+    <div class="kcard gr"><div class="kcard-label">Saldo líquido</div><div class="kcard-val">${fmtk(rec-des)}</div><div class="kcard-sub ${rec-des>=0?'up':'down'}">${rec-des>=0?'Positivo':'Negativo'}</div></div>
+    <div class="kcard rd"><div class="kcard-label">Projetos ativos</div><div class="kcard-val">${projAtivos}</div><div class="kcard-sub down">${tarAtr} tarefa(s) atrasada(s)</div></div>`;
+
+  // Alertas
+  const alertas=[];
+  S.lancamentos.filter(l=>l.tipo==='Despesa').forEach(l=>{if(l.data&&l.data<hoje()){}});
+  if(pctMeta<80)alertas.push({cor:'var(--warning)',txt:`Faturamento ${pctMeta}% da meta mensal`});
+  if(tarAtr>0)alertas.push({cor:'var(--danger)',txt:`${tarAtr} tarefa(s) com prazo vencido`});
+  S.cartoes.forEach(c=>{if(c.fatura>0)alertas.push({cor:'var(--azul)',txt:`Fatura ${c.nome}: R$ ${fmt(c.fatura)} · Vence dia ${c.venc}`,});});
+  const el=document.getElementById('alertasList');
+  if(!alertas.length){el.innerHTML='<div style="color:var(--text3);font-size:13px;text-align:center;padding:16px;">Sem alertas no momento.</div>';return;}
+  el.innerHTML=alertas.map(a=>`<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);"><div style="width:8px;height:8px;border-radius:50%;background:${a.cor};flex-shrink:0;"></div><span style="font-size:13px;">${a.txt}</span></div>`).join('');
+  document.getElementById('bellCount').textContent=alertas.length;
+
+  // Metas resumo
+  const mr=document.getElementById('metasResume');
+  if(!S.metas.length){mr.innerHTML='<div style="color:var(--text3);font-size:13px;text-align:center;padding:16px;">Nenhuma meta criada.</div>';return;}
+  mr.innerHTML=S.metas.slice(0,3).map(m=>{
+    const pct=m.alvo>0?Math.min(100,Math.round((m.atual/m.alvo)*100)):0;
+    const cor=pct>=80?'var(--success)':pct>=50?'var(--warning)':'var(--danger)';
+    return `<div style="margin-bottom:12px;"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;"><span>${m.nome}</span><span style="color:${cor};font-weight:600">${pct}%</span></div><div class="pbar"><div class="pfill" style="width:${pct}%;background:${cor}"></div></div></div>`;
+  }).join('');
+}
+
+// ========== RELATÓRIO ==========
+function renderRelatorio(){
+  const mes=new Date().toISOString().slice(0,7);
+  const desp=S.lancamentos.filter(l=>l.tipo==='Despesa'&&l.data.startsWith(mes));
+  const cats={};
+  desp.forEach(l=>{cats[l.cat]=(cats[l.cat]||0)+(+l.valor);});
+  const labels=Object.keys(cats);
+  const vals=labels.map(k=>cats[k]);
+  const tot=vals.reduce((s,v)=>s+v,0);
+  const ctx=document.getElementById('chartDesp')?.getContext('2d');
+  if(ctx){if(despChart)despChart.destroy();
+    despChart=new Chart(ctx,{type:'doughnut',data:{labels,datasets:[{data:vals,backgroundColor:['#002060','#FABE44','#1D9E75','#D85A30','#534AB7','#185FA5'],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:11},padding:10}}}}});}
+  document.getElementById('relResumo').innerHTML=`<table><tr><th>Categoria</th><th>Valor</th><th>%</th></tr>${labels.map(l=>`<tr><td>${l}</td><td style="color:var(--danger)">R$ ${fmt(cats[l])}</td><td>${tot>0?((cats[l]/tot)*100).toFixed(1):0}%</td></tr>`).join('')}<tr><td><strong>Total</strong></td><td><strong style="color:var(--danger)">R$ ${fmt(tot)}</strong></td><td>100%</td></tr></table>`;
+}
+
+// ========== CONFIGURAÇÕES ==========
+function renderConfig(tab){
+  document.querySelectorAll('.settings-item').forEach(el=>el.classList.remove('active'));
+  const el=document.getElementById('configContent');
+  if(tab==='perfil'){
+    el.innerHTML=`<h3 style="font-size:14px;font-weight:600;margin-bottom:16px;">Perfil do usuário</h3>
+      <div class="fg"><label>Nome completo</label><input type="text" id="cfgNome" value="${S.config.nome||''}"/></div>
+      <div class="fg"><label>E-mail</label><input type="email" id="cfgEmail" value="${S.config.email||''}"/></div>
+      <div class="fg"><label>Iniciais do avatar</label><input type="text" id="cfgAvatar" value="${S.config.avatar||''}" maxlength="2"/></div>
+      <button class="btn btn-primary" onclick="savePerfil()">Salvar</button>`;
+  } else if(tab==='empresa'){
+    el.innerHTML=`<h3 style="font-size:14px;font-weight:600;margin-bottom:16px;">Dados da empresa</h3>
+      <div class="fg"><label>Nome da empresa</label><input type="text" id="cfgEmpresa" value="${S.config.empresa||''}"/></div>
+      <div class="fg"><label>Subtítulo</label><input type="text" id="cfgSub" value="${S.config.sub||''}"/></div>
+      <div class="fg"><label>Meta mensal padrão (R$)</label><input type="number" id="cfgMeta" value="${S.config.metaMensal||40000}"/></div>
+      <button class="btn btn-primary" onclick="saveEmpresa()">Salvar</button>`;
+  } else if(tab==='colaboradores'){
+    const cols=S.config.colaboradores||[];
+    el.innerHTML=`<h3 style="font-size:14px;font-weight:600;margin-bottom:16px;">Colaboradores</h3>
+      <div style="margin-bottom:14px;">${cols.map((c,i)=>`<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);">
+        <span style="flex:1;font-size:13px;">${c.nome} — ${c.cargo}</span>
+        <button class="btn btn-danger btn-sm" onclick="delColab(${i})">Remover</button>
+      </div>`).join('')}</div>
+      <div class="frow"><div class="fg"><label>Nome</label><input type="text" id="colabNome" placeholder="Nome"/></div>
+      <div class="fg"><label>Cargo</label><input type="text" id="colabCargo" placeholder="Cargo"/></div></div>
+      <button class="btn btn-primary" onclick="addColab()">+ Adicionar</button>`;
+  } else if(tab==='categorias'){
+    el.innerHTML=`<h3 style="font-size:14px;font-weight:600;margin-bottom:16px;">Categorias</h3>
+      <div style="margin-bottom:16px;"><div style="font-size:12px;font-weight:600;color:var(--text3);margin-bottom:8px;">RECEITAS</div>
+        ${S.categorias.receita.map((c,i)=>`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;">
+          <span style="flex:1;font-size:13px;">${c}</span>
+          <button class="btn btn-danger btn-sm" onclick="delCat('receita',${i})">X</button></div>`).join('')}
+        <div style="display:flex;gap:8px;margin-top:8px;"><input type="text" id="newCatR" placeholder="Nova categoria..." style="flex:1;padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;background:var(--bg);color:var(--text);"/>
+        <button class="btn btn-primary btn-sm" onclick="addCat('receita')">+</button></div></div>
+      <div><div style="font-size:12px;font-weight:600;color:var(--text3);margin-bottom:8px;">DESPESAS</div>
+        ${S.categorias.despesa.map((c,i)=>`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;">
+          <span style="flex:1;font-size:13px;">${c}</span>
+          <button class="btn btn-danger btn-sm" onclick="delCat('despesa',${i})">X</button></div>`).join('')}
+        <div style="display:flex;gap:8px;margin-top:8px;"><input type="text" id="newCatD" placeholder="Nova categoria..." style="flex:1;padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;background:var(--bg);color:var(--text);"/>
+        <button class="btn btn-primary btn-sm" onclick="addCat('despesa')">+</button></div></div>`;
+  } else if(tab==='notif'){
+    const n=S.config.notif||{contasVenc:true,metaBaixa:true,tarefasAtr:true,resumoSem:false};
+    el.innerHTML=`<h3 style="font-size:14px;font-weight:600;margin-bottom:16px;">Notificações</h3>
+      ${[['contasVenc','Alertar contas vencendo'],['metaBaixa','Alertar faturamento abaixo da meta'],['tarefasAtr','Alertar tarefas atrasadas'],['resumoSem','Resumo semanal']].map(([k,l])=>`
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border);">
+        <span style="font-size:13px;">${l}</span>
+        <input type="checkbox" id="notif_${k}" ${n[k]?'checked':''} onchange="saveNotif('${k}',this.checked)" style="width:16px;height:16px;accent-color:var(--azul);cursor:pointer;"/>
+      </div>`).join('')}`;
+  } else if(tab==='senha'){
+    el.innerHTML=`<h3 style="font-size:14px;font-weight:600;margin-bottom:16px;">Senha e acesso</h3>
+      <div class="fg"><label>Senha atual</label><input type="password" id="senhaAtual" placeholder="••••••"/></div>
+      <div class="fg"><label>Nova senha</label><input type="password" id="senhaNova" placeholder="••••••"/></div>
+      <div class="fg"><label>Confirmar nova senha</label><input type="password" id="senhaConf" placeholder="••••••"/></div>
+      <button class="btn btn-primary" onclick="saveSenha()">Alterar senha</button>
+      <div id="senhaMsg" style="margin-top:8px;font-size:13px;"></div>`;
+  }
+}
+
+function setConfigTab(tab,el){
+  document.querySelectorAll('.settings-item').forEach(x=>x.classList.remove('active'));
+  el.classList.add('active');
+  renderConfig(tab);
+}
+
+function savePerfil(){
+  S.config.nome=document.getElementById('cfgNome').value;
+  S.config.email=document.getElementById('cfgEmail').value;
+  S.config.avatar=document.getElementById('cfgAvatar').value.toUpperCase();
+  document.getElementById('avatarBtn').textContent=S.config.avatar;
+  save();alert('Perfil salvo!');
+}
+
+function saveEmpresa(){
+  S.config.empresa=document.getElementById('cfgEmpresa').value;
+  S.config.sub=document.getElementById('cfgSub').value;
+  S.config.metaMensal=parseFloat(document.getElementById('cfgMeta').value)||40000;
+  document.getElementById('topNome').textContent=S.config.empresa;
+  document.getElementById('topSub').textContent=S.config.sub;
+  save();alert('Dados da empresa salvos!');
+}
+
+function addColab(){
+  const n=document.getElementById('colabNome').value.trim();
+  const c=document.getElementById('colabCargo').value.trim();
+  if(!n)return;
+  if(!S.config.colaboradores)S.config.colaboradores=[];
+  S.config.colaboradores.push({nome:n,cargo:c});
+  save();renderConfig('colaboradores');
+}
+
+function delColab(i){S.config.colaboradores.splice(i,1);save();renderConfig('colaboradores');}
+
+function addCat(tipo){
+  const id=tipo==='receita'?'newCatR':'newCatD';
+  const v=document.getElementById(id).value.trim();
+  if(!v)return;
+  S.categorias[tipo].push(v);save();renderConfig('categorias');
+}
+
+function delCat(tipo,i){S.categorias[tipo].splice(i,1);save();renderConfig('categorias');}
+
+function saveNotif(k,v){if(!S.config.notif)S.config.notif={};S.config.notif[k]=v;save();}
+
+function saveSenha(){
+  const nova=document.getElementById('senhaNova').value;
+  const conf=document.getElementById('senhaConf').value;
+  const msg=document.getElementById('senhaMsg');
+  if(nova!==conf){msg.style.color='var(--danger)';msg.textContent='As senhas não coincidem.';return;}
+  if(nova.length<6){msg.style.color='var(--danger)';msg.textContent='Mínimo 6 caracteres.';return;}
+  msg.style.color='var(--success)';msg.textContent='Senha alterada com sucesso!';
+}
+
+// ========== TABS ==========
 function setFinTab(tab,btn){
-  ['lancamentos','cartoes','funcionarios','relatorio'].forEach(t=>{
-    document.getElementById('fin-'+t).style.display=t===tab?'block':'none';
-  });
-  document.querySelectorAll('#page-financeiro .tab').forEach(b=>b.classList.remove('active'));
+  ['lanc','cartoes','func','rel'].forEach(t=>document.getElementById('fin-'+t).style.display=t===tab?'block':'none');
+  document.querySelectorAll('#page-fin .tab').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
-  if(tab==='relatorio')setTimeout(renderDespChart,50);
+  if(tab==='cartoes')renderCartoes();
+  if(tab==='func')renderFunc();
+  if(tab==='rel')setTimeout(renderRelatorio,50);
 }
 
-// PROJ TABS
 function setProjTab(tab,btn){
-  ['projetos','metas','kpis'].forEach(t=>{
-    document.getElementById('proj-'+t).style.display=t===tab?'block':'none';
-  });
-  document.querySelectorAll('#page-projetos .tab').forEach(b=>b.classList.remove('active'));
+  ['lista','tarefas','metas'].forEach(t=>document.getElementById('proj-'+t).style.display=t===tab?'block':'none');
+  document.querySelectorAll('#page-proj .tab').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
-  if(tab==='kpis')setTimeout(renderKpiChart,50);
+  if(tab==='tarefas'){renderTarefas();renderTarefaFiltros();}
+  if(tab==='metas')renderMetas();
 }
 
-// FISCAL ANO
-function setFiscalAno(a){
-  fiscalAno=a;
-  ['2023','2024','2025'].forEach(y=>{
-    const b=document.getElementById('fBtn'+y);
-    b.className=+y===a?'btn btn-primary':'btn btn-ghost';
-  });
-  renderFiscalChart();
+// ========== THEME ==========
+function toggleTheme(){
+  const d=document.body.classList.toggle('dark');
+  S.config.tema=d?'dark':'light';save();
+  document.querySelector('.theme-btn').textContent=d?'☀️ Tema':'🌙 Tema';
 }
 
-function renderFiscalChart(){
-  const ctx=document.getElementById('chartFiscal').getContext('2d');
-  if(fiscalChart)fiscalChart.destroy();
-  const meta=parseFloat(document.getElementById('fiscalMeta').value)||0;
-  const d=dadosFiscais[fiscalAno];
-  fiscalChart=new Chart(ctx,{
-    type:'bar',
-    data:{
-      labels:MESES,
-      datasets:[
-        {label:'Receita',data:d,backgroundColor:d.map(v=>v>=meta?'rgba(29,158,117,0.75)':'rgba(0,32,96,0.75)'),borderRadius:5,order:2},
-        {label:'Meta',data:MESES.map(()=>meta),type:'line',borderColor:'#FABE44',borderWidth:2,borderDash:[6,4],pointRadius:0,fill:false,order:1}
-      ]
-    },
-    options:{responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:false},tooltip:{callbacks:{label:i=>` R$ ${(i.raw||0).toLocaleString('pt-BR',{minimumFractionDigits:0})}`}}},
-      scales:{x:{ticks:{autoSkip:false,maxRotation:0,font:{size:11}},grid:{display:false}},
-        y:{ticks:{callback:v=>'R$'+(v/1000).toFixed(0)+'k',font:{size:11}},grid:{color:'rgba(128,128,128,0.1)'}}}}
-  });
-}
+// ========== INIT ==========
+load();
+if(S.config.tema==='dark'){document.body.classList.add('dark');document.querySelector('.theme-btn').textContent='☀️ Tema';}
+document.getElementById('topNome').textContent=S.config.empresa||'COBRASQ';
+document.getElementById('topSub').textContent=S.config.sub||'RECUPERADORA DE CRÉDITO';
+document.getElementById('avatarBtn').textContent=S.config.avatar||'GS';
+document.getElementById('fatMeta')&&(document.getElementById('fatMeta').value=S.config.metaMensal||40000);
+renderMenu();
+renderFiltCat();
 
-function renderFiscalLine(){
-  const ctx=document.getElementById('chartFiscalLine').getContext('2d');
-  if(fiscalLineChart)fiscalLineChart.destroy();
-  const anos=Object.keys(dadosFiscais);
-  const totais=anos.map(a=>dadosFiscais[a].reduce((s,v)=>s+(v||0),0));
-  fiscalLineChart=new Chart(ctx,{
-    type:'line',
-    data:{labels:anos,datasets:[{label:'Anual',data:totais,borderColor:'#002060',backgroundColor:'rgba(0,32,96,0.08)',borderWidth:2.5,pointRadius:5,pointBackgroundColor:'#FABE44',fill:true,tension:0.3}]},
-    options:{responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:false},tooltip:{callbacks:{label:i=>` R$ ${(i.raw||0).toLocaleString('pt-BR',{minimumFractionDigits:0})}`}}},
-      scales:{x:{grid:{display:false}},y:{ticks:{callback:v=>'R$'+(v/1000).toFixed(0)+'k',font:{size:11}},grid:{color:'rgba(128,128,128,0.1)'}}}}
-  });
-}
-
-function renderDespChart(){
-  const ctx=document.getElementById('chartDespesas').getContext('2d');
-  if(despChart)despChart.destroy();
-  despChart=new Chart(ctx,{
-    type:'doughnut',
-    data:{
-      labels:['Folha','Aluguel','Cartões','Outros'],
-      datasets:[{data:[10530,2800,4230,1029],backgroundColor:['#002060','#FABE44','#1D9E75','#D85A30'],borderWidth:0}]
-    },
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:11},padding:12}}}}
-  });
-}
-
-function renderVisaoChart(){
-  const ctx=document.getElementById('chartVisao').getContext('2d');
-  if(visaoChart)visaoChart.destroy();
-  visaoChart=new Chart(ctx,{
-    type:'bar',
-    data:{
-      labels:['Seg','Ter','Qua','Qui','Sex'],
-      datasets:[
-        {label:'Receitas',data:[5200,0,8400,0,2100],backgroundColor:'rgba(29,158,117,0.75)',borderRadius:4},
-        {label:'Despesas',data:[0,2800,650,0,380],backgroundColor:'rgba(216,90,48,0.75)',borderRadius:4}
-      ]
-    },
-    options:{responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{position:'bottom',labels:{font:{size:11},padding:10}}},
-      scales:{x:{grid:{display:false}},y:{ticks:{callback:v=>'R$'+(v/1000).toFixed(1)+'k',font:{size:10}},grid:{color:'rgba(128,128,128,0.1)'}}}}
-  });
-}
-
-function renderKpiChart(){
-  const ctx=document.getElementById('chartKpi').getContext('2d');
-  if(kpiChart)kpiChart.destroy();
-  kpiChart=new Chart(ctx,{
-    type:'line',
-    data:{
-      labels:['Out','Nov','Dez','Jan','Fev','Mar'],
-      datasets:[
-        {label:'Faturamento (R$k)',data:[40.6,26.7,53.4,37.0,22.3,37.0],borderColor:'#002060',backgroundColor:'rgba(0,32,96,0.08)',borderWidth:2,pointRadius:4,tension:0.3,fill:true},
-        {label:'Margem (%)',data:[48,42,52,50,45,49.8],borderColor:'#FABE44',borderWidth:2,pointRadius:4,tension:0.3,yAxisID:'y2'}
-      ]
-    },
-    options:{responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{position:'bottom',labels:{font:{size:11}}}},
-      scales:{
-        x:{grid:{display:false}},
-        y:{ticks:{callback:v=>'R$'+v+'k',font:{size:10}},grid:{color:'rgba(128,128,128,0.1)'}},
-        y2:{position:'right',ticks:{callback:v=>v+'%',font:{size:10}},grid:{display:false}}
-      }}
-  });
-}
-
-// INIT
-setTimeout(renderVisaoChart,100);
+// Abrir modal de lançamento com categorias corretas
+document.getElementById('modal-lancamento').addEventListener('click',()=>{});
+const origOpenLanc=window.openModal;
+window.openModal=function(id){
+  if(id==='lancamento'){
+    document.getElementById('lancTitulo').textContent='Novo lançamento';
+    document.getElementById('lancId').value='';
+    document.getElementById('lancData').value=hoje();
+    ['lancDesc','lancValor','lancObs'].forEach(x=>document.getElementById(x).value='');
+    document.getElementById('lancTipo').value='Receita';
+    renderFiltCat();
+  }
+  if(id==='tarefa'){
+    document.getElementById('tarTitulo').textContent='Nova tarefa';
+    document.getElementById('tarId').value='';
+    ['tarNome','tarPrazo','tarSubs'].forEach(x=>document.getElementById(x).value='');
+    document.getElementById('tarPrior').value='Normal';
+    populateTarProj();
+    populateRespSelect('tarResp');
+  }
+  if(id==='projeto'){abrirNovoProjeto();return;}
+  if(id==='meta'){
+    document.getElementById('metaTitulo').textContent='Nova meta';
+    document.getElementById('metaId').value='';
+    ['metaNome','metaAlvo','metaAtual','metaPrazo'].forEach(x=>document.getElementById(x).value='');
+  }
+  if(id==='func'){
+    document.getElementById('funcTitulo').textContent='Novo funcionário';
+    document.getElementById('funcId').value='';
+    ['funcNome','funcCargo','funcSalario'].forEach(x=>document.getElementById(x).value='');
+    document.getElementById('funcStatus').value='Ativo';
+  }
+  if(id==='cartao'){
+    document.getElementById('cartaoId').value='';
+    ['cartaoNome','cartaoLimite','cartaoFatura','cartaoVenc'].forEach(x=>document.getElementById(x).value='');
+  }
+  document.getElementById('modal-'+id).classList.add('open');
+};
 </script>
 </body>
 </html>
