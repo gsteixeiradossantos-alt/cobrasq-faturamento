@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>COBRASQ — Análise de Faturamento DAS</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f4f4f0; color: #1a1a18; min-height: 100vh; }
+    header { background: #fff; border-bottom: 0.5px solid #ddd; padding: 16px 24px; display: flex; align-items: center; gap: 12px; }
+    header h1 { font-size: 16px; font-weight: 500; }
+    header span { font-size: 13px; color: #888; }
+    .container { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
+    .cards { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; margin-bottom: 20px; }
+    .card { background: #fff; border-radius: 10px; border: 0.5px solid #e0e0d8; padding: 14px; }
+    .card-label { font-size: 12px; color: #888; margin-bottom: 4px; }
+    .card-val { font-size: 18px; font-weight: 500; }
+    .card-sub { font-size: 11px; margin-top: 3px; }
+    .up { color: #1D9E75; } .down { color: #D85A30; }
+    .section { background: #fff; border: 0.5px solid #e0e0d8; border-radius: 12px; padding: 16px 20px; margin-bottom: 16px; }
+    .section-title { font-size: 12px; font-weight: 500; color: #888; margin: 0 0 14px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .controls { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; align-items: center; }
+    .ano-btn { font-size: 13px; padding: 5px 14px; border-radius: 8px; border: 0.5px solid #ccc; background: transparent; color: #555; cursor: pointer; transition: all .15s; }
+    .ano-btn.active { font-weight: 500; border-width: 2px; }
+    .mes-btn { font-size: 12px; padding: 4px 10px; border-radius: 8px; border: 0.5px solid #ccc; background: transparent; color: #555; cursor: pointer; }
+    .mes-btn.active { background: #e8f0fb; color: #185FA5; border-color: transparent; font-weight: 500; }
+    .tab-group { display: flex; gap: 4px; background: #f0efea; border-radius: 8px; padding: 3px; margin-bottom: 14px; width: fit-content; }
+    .view-tab { font-size: 13px; padding: 5px 14px; border-radius: 6px; border: none; background: transparent; color: #666; cursor: pointer; }
+    .view-tab.active { background: #fff; color: #1a1a18; font-weight: 500; box-shadow: 0 0 0 0.5px #ccc; }
+    .legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; color: #666; margin-bottom: 10px; }
+    .leg-dot { width: 10px; height: 10px; border-radius: 2px; display: inline-block; margin-right: 4px; vertical-align: middle; }
+    .insight { border-left: 3px solid #EF9F27; padding: 9px 13px; font-size: 13px; margin-bottom: 7px; background: #fdf6e8; border-radius: 0 6px 6px 0; }
+    .insight.ok { background: #edfaf4; border-left-color: #1D9E75; }
+    .insight.bad { background: #fdecea; border-left-color: #D85A30; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { text-align: left; padding: 7px 10px; border-bottom: 0.5px solid #ddd; color: #888; font-weight: 500; }
+    td { padding: 7px 10px; border-bottom: 0.5px solid #f0efea; }
+    tr:last-child td { border-bottom: none; }
+    .badge { display: inline-block; font-size: 11px; padding: 2px 7px; border-radius: 6px; font-weight: 500; background: #edfaf4; color: #0F6E56; }
+    .meta-row { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+    .meta-row label { font-size: 13px; color: #666; }
+    .meta-row input { width: 130px; font-size: 13px; padding: 5px 10px; border: 0.5px solid #ccc; border-radius: 8px; outline: none; }
+    @media(max-width:600px){ .cards{grid-template-columns:repeat(2,1fr);} }
+  </style>
+</head>
+<body>
+<header>
+  <h1>COBRASQ — Faturamento DAS</h1>
+  <span>CNPJ 34.626.848/0001-42 · Dois Vizinhos/PR</span>
+</header>
+
+<div class="container">
+  <div class="cards" id="cards"></div>
+
+  <div class="section">
+    <p class="section-title">Receita bruta mensal (R$)</p>
+    <div class="controls" id="anosCtrl"></div>
+    <div class="tab-group">
+      <button class="view-tab active" id="vAll" onclick="setView('all')">Todos os meses</button>
+      <button class="view-tab" id="vMes" onclick="setView('mes')">Filtrar por mês</button>
+    </div>
+    <div id="mesesCtrl" style="display:none; margin-bottom:12px;">
+      <p style="font-size:12px;color:#888;margin-bottom:8px;">Selecione os meses:</p>
+      <div class="controls" id="mesesBtns"></div>
+    </div>
+    <div class="meta-row">
+      <label>Meta mensal (R$):</label>
+      <input type="number" id="metaInput" value="30000" step="1000" />
+    </div>
+    <div class="legend" id="legendaComp"></div>
+    <div style="position:relative;width:100%;height:300px;"><canvas id="chartComp"></canvas></div>
+  </div>
+
+  <div class="section">
+    <p class="section-title">Evolução anual — receita acumulada</p>
+    <div style="position:relative;width:100%;height:220px;"><canvas id="chartLine"></canvas></div>
+  </div>
+
+  <div class="section">
+    <p class="section-title">Tabela comparativa</p>
+    <div class="tab-group">
+      <button class="view-tab active" id="tGraf" onclick="setSubView('grafico')">Gráfico radar</button>
+      <button class="view-tab" id="tTab" onclick="setSubView('tabela')">Tabela</button>
+    </div>
+    <div id="grafDiv">
+      <div class="legend" id="legendaRadar"></div>
+      <div style="position:relative;width:100%;height:260px;"><canvas id="chartRadar"></canvas></div>
+    </div>
+    <div id="tabelaDiv" style="display:none;"></div>
+  </div>
+
+  <div class="section">
+    <p class="section-title">Insights</p>
+    <div id="insights"></div>
+  </div>
+</div>
+
+<script>
+const MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+const MESES_FULL = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+const dados = {
+  2022: [0,0,0,25482.31,3101.03,24328.10,18354.09,20576.64,12812.26,18352.98,14666.88,16188.13],
+  2023: [9605.90,9143.43,8105.46,12335.28,14146.95,14155.70,10832.38,15140.85,19472.66,17089.77,20131.20,15841.51],
+  2024: [30388.44,50332.62,42429.04,32036.97,43008.49,25627.03,23700.58,35525.80,30457.62,28559.26,29772.95,34346.15],
+  2025: [28068.64,32838.12,34353.96,47475.10,40837.62,39167.29,25809.03,44424.01,27365.92,40598.13,26651.16,53361.39],
+  2026: [37019.18,22320.93,null,null,null,null,null,null,null,null,null,null]
+};
+
+const CORES = {
+  2022:{bg:'rgba(127,119,221,0.7)',border:'#534AB7',light:'rgba(127,119,221,0.12)'},
+  2023:{bg:'rgba(55,138,221,0.7)',border:'#185FA5',light:'rgba(55,138,221,0.12)'},
+  2024:{bg:'rgba(29,158,117,0.7)',border:'#0F6E56',light:'rgba(29,158,117,0.12)'},
+  2025:{bg:'rgba(186,117,23,0.7)',border:'#854F0B',light:'rgba(186,117,23,0.12)'},
+  2026:{bg:'rgba(216,90,48,0.7)',border:'#993C1D',light:'rgba(216,90,48,0.12)'}
+};
+
+let anosAtivos=[2023,2024,2025];
+let mesesAtivos=[...Array(12).keys()];
+let viewMode='all', subView='grafico', metaVal=30000;
+let compChart, lineChart, radarChart;
+
+const fmt=v=>v!=null?'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0}):'—';
+const soma=arr=>arr.reduce((a,b)=>a+(b||0),0);
+const media=arr=>{const f=arr.filter(v=>v!=null&&v>0);return f.length?soma(f)/f.length:0;};
+
+function renderCards(){
+  const [t23,t24,t25]=[2023,2024,2025].map(a=>soma(dados[a]));
+  const c2324=((t24-t23)/t23*100).toFixed(1);
+  const c2425=((t25-t24)/t24*100).toFixed(1);
+  const med25=media(dados[2025]);
+  document.getElementById('cards').innerHTML=`
+    <div class="card"><div class="card-label">Total 2023</div><div class="card-val">R$ ${(t23/1000).toFixed(1)}k</div></div>
+    <div class="card"><div class="card-label">Total 2024</div><div class="card-val">R$ ${(t24/1000).toFixed(1)}k</div><div class="card-sub ${+c2324>=0?'up':'down'}">${+c2324>=0?'▲':'▼'} ${Math.abs(c2324)}% vs 2023</div></div>
+    <div class="card"><div class="card-label">Total 2025</div><div class="card-val">R$ ${(t25/1000).toFixed(1)}k</div><div class="card-sub ${+c2425>=0?'up':'down'}">${+c2425>=0?'▲':'▼'} ${Math.abs(c2425)}% vs 2024</div></div>
+    <div class="card"><div class="card-label">Média mensal 2025</div><div class="card-val">R$ ${(med25/1000).toFixed(1)}k</div></div>`;
+}
+
+function renderAnosBtns(){
+  document.getElementById('anosCtrl').innerHTML=Object.keys(dados).map(a=>{
+    const ativo=anosAtivos.includes(+a);
+    const c=CORES[+a];
+    return `<button class="ano-btn${ativo?' active':''}" style="${ativo?`border-color:${c.border};color:${c.border};background:${c.light};`:''}" onclick="toggleAno(${a})">${a}</button>`;
+  }).join('');
+}
+
+function renderMesesBtns(){
+  document.getElementById('mesesBtns').innerHTML=MESES.map((m,i)=>`<button class="mes-btn${mesesAtivos.includes(i)?' active':''}" onclick="toggleMes(${i})">${m}</button>`).join('');
+}
+
+function toggleAno(a){
+  if(anosAtivos.includes(+a)){if(anosAtivos.length>1)anosAtivos=anosAtivos.filter(x=>x!==+a);}
+  else anosAtivos.push(+a);
+  anosAtivos.sort();
+  renderAnosBtns(); render();
+}
+
+function toggleMes(i){
+  if(mesesAtivos.includes(i)){if(mesesAtivos.length>1)mesesAtivos=mesesAtivos.filter(x=>x!==i);}
+  else{mesesAtivos.push(i);mesesAtivos.sort((a,b)=>a-b);}
+  renderMesesBtns(); render();
+}
+
+function setView(v){
+  viewMode=v;
+  document.getElementById('vAll').classList.toggle('active',v==='all');
+  document.getElementById('vMes').classList.toggle('active',v==='mes');
+  document.getElementById('mesesCtrl').style.display=v==='mes'?'block':'none';
+  render();
+}
+
+function setSubView(v){
+  subView=v;
+  document.getElementById('tGraf').classList.toggle('active',v==='grafico');
+  document.getElementById('tTab').classList.toggle('active',v==='tabela');
+  document.getElementById('grafDiv').style.display=v==='grafico'?'block':'none';
+  document.getElementById('tabelaDiv').style.display=v==='tabela'?'block':'none';
+  if(v==='grafico') renderRadar(); else renderTabela();
+}
+
+function getMeses(){return viewMode==='all'?[...Array(12).keys()]:mesesAtivos;}
+
+function renderLegenda(){
+  const html=anosAtivos.map(a=>`<span><span class="leg-dot" style="background:${CORES[a].border}"></span>${a}</span>`).join('');
+  document.getElementById('legendaComp').innerHTML=html;
+  document.getElementById('legendaRadar').innerHTML=html;
+}
+
+function renderCompChart(){
+  const mv=getMeses();
+  const ctx=document.getElementById('chartComp').getContext('2d');
+  if(compChart)compChart.destroy();
+  const med=media(dados[anosAtivos[anosAtivos.length-1]]);
+  compChart=new Chart(ctx,{
+    type:'bar',
+    data:{
+      labels:mv.map(i=>MESES[i]),
+      datasets:[
+        ...anosAtivos.map(a=>({
+          label:String(a),data:mv.map(i=>dados[a][i]??null),
+          backgroundColor:CORES[a].bg,borderColor:CORES[a].border,
+          borderWidth:1.5,borderRadius:4,order:2
+        })),
+        {label:'Meta',data:mv.map(()=>metaVal),type:'line',borderColor:'#D85A30',borderWidth:2,borderDash:[6,4],pointRadius:0,fill:false,order:1},
+        {label:'Média',data:mv.map(()=>med),type:'line',borderColor:'#1D9E75',borderWidth:1.5,borderDash:[3,3],pointRadius:0,fill:false,order:1}
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:i=>` ${i.dataset.label}: ${fmt(i.raw)}`}}},
+      scales:{
+        x:{ticks:{autoSkip:false,maxRotation:0,font:{size:11}},grid:{display:false}},
+        y:{ticks:{callback:v=>'R$'+(v>=1000?(v/1000).toFixed(0)+'k':v),font:{size:11}},grid:{color:'rgba(0,0,0,0.06)'}}
+      }
+    }
+  });
+}
+
+function renderLineChart(){
+  const anos=Object.keys(dados).map(Number);
+  const ctx=document.getElementById('chartLine').getContext('2d');
+  if(lineChart)lineChart.destroy();
+  lineChart=new Chart(ctx,{
+    type:'line',
+    data:{
+      labels:anos.map(String),
+      datasets:[{
+        label:'Receita anual',data:anos.map(a=>soma(dados[a])),
+        borderColor:'#534AB7',backgroundColor:'rgba(127,119,221,0.08)',
+        borderWidth:2.5,pointRadius:5,pointBackgroundColor:'#534AB7',fill:true,tension:0.3
+      }]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:i=>` ${fmt(i.raw)}`}}},
+      scales:{
+        x:{ticks:{font:{size:12}},grid:{display:false}},
+        y:{ticks:{callback:v=>'R$'+(v/1000).toFixed(0)+'k',font:{size:11}},grid:{color:'rgba(0,0,0,0.06)'}}
+      }
+    }
+  });
+}
+
+function renderRadar(){
+  const mv=getMeses();
+  const ctx=document.getElementById('chartRadar').getContext('2d');
+  if(radarChart)radarChart.destroy();
+  radarChart=new Chart(ctx,{
+    type:'radar',
+    data:{
+      labels:mv.map(i=>MESES[i]),
+      datasets:anosAtivos.map(a=>({
+        label:String(a),data:mv.map(i=>dados[a][i]??0),
+        borderColor:CORES[a].border,backgroundColor:CORES[a].light,
+        borderWidth:2,pointRadius:3,pointBackgroundColor:CORES[a].border
+      }))
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:i=>` ${i.dataset.label}: ${fmt(i.raw)}`}}},
+      scales:{r:{ticks:{callback:v=>'R$'+(v/1000).toFixed(0)+'k',font:{size:10}},grid:{color:'rgba(0,0,0,0.08)'}}}
+    }
+  });
+}
+
+function renderTabela(){
+  const mv=getMeses();
+  const maxV=Object.fromEntries(mv.map(i=>{const v=anosAtivos.map(a=>dados[a][i]).filter(x=>x!=null);return[i,Math.max(...v)];}));
+  const minV=Object.fromEntries(mv.map(i=>{const v=anosAtivos.filter(a=>dados[a][i]!=null&&dados[a][i]>0).map(a=>dados[a][i]);return[i,v.length?Math.min(...v):null];}));
+  let html=`<table><thead><tr><th>Mês</th>${anosAtivos.map(a=>`<th style="color:${CORES[a].border}">${a}</th>`).join('')}<th>Variação</th></tr></thead><tbody>`;
+  mv.forEach(i=>{
+    html+=`<tr><td style="font-weight:500">${MESES_FULL[i]}</td>`;
+    anosAtivos.forEach(a=>{
+      const v=dados[a][i];
+      let s='';
+      if(v!=null&&v===maxV[i])s='font-weight:500;color:#0F6E56';
+      else if(v!=null&&v===minV[i])s='color:#993C1D';
+      html+=`<td style="${s}">${fmt(v)}</td>`;
+    });
+    const vals=anosAtivos.map(a=>dados[a][i]).filter(v=>v!=null&&v>0);
+    html+=vals.length>=2?`<td><span class="badge">+${((maxV[i]-minV[i])/minV[i]*100).toFixed(0)}%</span></td>`:`<td>—</td>`;
+    html+=`</tr>`;
+  });
+  html+=`<tr><td style="font-weight:500">Total</td>${anosAtivos.map(a=>`<td style="color:${CORES[a].border};font-weight:500">${fmt(soma(mv.map(i=>dados[a][i]||0)))}</td>`).join('')}<td>—</td></tr></tbody></table>`;
+  document.getElementById('tabelaDiv').innerHTML=html;
+}
+
+function renderInsights(){
+  const mv=getMeses();
+  let html='';
+  for(let i=0;i<anosAtivos.length-1;i++){
+    const a1=anosAtivos[i],a2=anosAtivos[i+1];
+    const t1=soma(mv.map(m=>dados[a1][m]||0)),t2=soma(mv.map(m=>dados[a2][m]||0));
+    if(t1>0){const p=((t2-t1)/t1*100).toFixed(1);html+=`<div class="insight${+p>=0?' ok':' bad'}">${a1} → ${a2}: ${+p>=0?'crescimento':'queda'} de <strong>${Math.abs(p)}%</strong> (${fmt(Math.round(t1))} → ${fmt(Math.round(t2))}).</div>`;}
+  }
+  let bv=0,ba=0,bm=0;
+  anosAtivos.forEach(a=>mv.forEach(m=>{const v=dados[a][m];if(v&&v>bv){bv=v;ba=a;bm=m;}}));
+  if(ba)html+=`<div class="insight ok">Melhor resultado: <strong>${MESES_FULL[bm]}/${ba}</strong> com ${fmt(bv)}.</div>`;
+  if(anosAtivos.length>=2){
+    const a1=anosAtivos[0],aL=anosAtivos[anosAtivos.length-1];
+    let bgm=-1,bgp=-Infinity;
+    mv.forEach(m=>{const v1=dados[a1][m],v2=dados[aL][m];if(v1&&v1>0&&v2){const g=(v2-v1)/v1*100;if(g>bgp){bgp=g;bgm=m;}}});
+    if(bgm>=0)html+=`<div class="insight">Mês com maior crescimento (${a1}→${aL}): <strong>${MESES_FULL[bgm]}</strong> (+${bgp.toFixed(0)}%).</div>`;
+  }
+  document.getElementById('insights').innerHTML=html||'<div class="insight">Selecione ao menos 2 anos para ver insights.</div>';
+}
+
+function render(){
+  renderLegenda(); renderCompChart(); renderTabela(); renderRadar(); renderInsights();
+}
+
+document.getElementById('metaInput').addEventListener('input',function(){
+  metaVal=parseFloat(this.value)||0; renderCompChart();
+});
+
+window.toggleAno=toggleAno; window.toggleMes=toggleMes;
+window.setView=setView; window.setSubView=setSubView;
+
+renderCards(); renderAnosBtns(); renderMesesBtns(); renderLineChart(); render();
+</script>
+</body>
+</html>
