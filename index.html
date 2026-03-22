@@ -863,10 +863,9 @@ function mascaraTel(el){
 function showPage(p){
   ['painel','cobr','fin','relat','plan','config'].forEach(x=>{const el=document.getElementById('page-'+x);if(el)el.style.display=x===p?'block':'none';});
   document.querySelectorAll('.nav-tab').forEach((el,i)=>el.classList.toggle('active',['painel','cobr','fin','relat','plan'][i]===p));
-  if(p==='painel')  // Init período
-  const mOpt=document.getElementById('pMesOpt');
-  if(mOpt)mOpt.textContent=MESES_FULL[new Date().getMonth()];
-  const periodoLabelEl=document.getElementById('periodoLabel');
+  if(p==='painel')  var mOpt2=document.getElementById('pMesOpt');
+  if(mOpt2)mOpt2.textContent=MESES_FULL[new Date().getMonth()];
+  var periodoLabelEl=document.getElementById('periodoLabel');
   if(periodoLabelEl)periodoLabelEl.textContent=MESES_FULL[new Date().getMonth()];
   renderPainel();
   if(p==='cobr'){renderDevedores();renderDevResumoBar();populateDevSelects();}
@@ -1095,8 +1094,10 @@ let notifOpen=false;
 function toggleNotif(){notifOpen=!notifOpen;document.getElementById('notifPanel').classList.toggle('open',notifOpen);if(notifOpen)renderNotifList();}
 document.addEventListener('click',function(e){
   var np=document.getElementById('notifPanel');
-  if(notifOpen&&!np.contains(e.target)&&!e.target.closest('.bell-wrap')){notifOpen=false;np.classList.remove('open');}
-  fecharPeriodoMenu(e);
+  if(notifOpen&&np&&!np.contains(e.target)&&!e.target.closest('.bell-wrap')){notifOpen=false;np.classList.remove('open');}
+  var btnP=document.getElementById('periodoBtn');
+  var menuP=document.getElementById('periodoMenu');
+  if(btnP&&menuP&&!btnP.contains(e.target)&&!menuP.contains(e.target)){window.periodoMenuOpen=false;menuP.style.display='none';}
 });
 
 function buildAlertas(){
