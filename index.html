@@ -383,7 +383,8 @@ tr:hover td{background:var(--azul-light);}
 
   <!-- CLIENTES -->
   <div id="cobr-clientes" style="display:none;">
-    <div style="display:flex;justify-content:flex-end;margin-bottom:14px;">
+    <div style="display:flex;justify-content:flex-end;margin-bottom:14px;gap:8px;">
+      <button class="btn btn-outline" onclick="openModal('importDev');setImportTab('clientes',document.querySelector('#modal-importDev .sub-tab'))">Importar clientes</button>
       <button class="btn btn-primary" onclick="abrirNovoCliente()">Novo cliente</button>
     </div>
     <div class="panel" style="padding:0;overflow:hidden;">
