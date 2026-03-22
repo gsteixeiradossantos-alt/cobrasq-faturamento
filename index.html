@@ -348,10 +348,7 @@ tr:hover td{background:var(--azul-light);}
         <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:1px;margin-bottom:4px;" id="calHeader"></div>
         <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;" id="calGrid"></div>
       </div>
-      <div class="panel">
-        <div class="panel-hdr"><span class="sec-label">Metas em andamento</span><button class="btn btn-ghost btn-sm" onclick="showPage('plan')">Ver todas</button></div>
-        <div id="metasResume"></div>
-      </div>
+
     </div>
   </div>
 </div>
@@ -485,31 +482,79 @@ tr:hover td{background:var(--azul-light);}
 <!-- ===== RELATÓRIOS ===== -->
 <div id="page-relat" style="display:none;">
   <div class="cards4" id="relatCards"></div>
-  <div class="panel">
-    <div class="panel-hdr">
-      <span class="sec-label">Receita mensal</span>
-      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
-        <div id="fatAnoBtns" style="display:flex;gap:4px;"></div>
-        <label style="font-size:12px;color:var(--text2);">Meta:</label>
-        <input type="number" id="fatMeta" style="width:110px;padding:6px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:12px;background:var(--bg);color:var(--text);" oninput="renderFatChart()"/>
-      </div>
-    </div>
-    <div style="position:relative;height:260px;"><canvas id="chartFat"></canvas></div>
+
+  <!-- TABS RELATÓRIO -->
+  <div class="sub-tabs">
+    <div class="sub-tab active" onclick="setRelatTab('mensal',this)">Mensal</div>
+    <div class="sub-tab" onclick="setRelatTab('comparativo',this)">Comparativo</div>
+    <div class="sub-tab" onclick="setRelatTab('despesas',this)">Despesas</div>
+    <div class="sub-tab" onclick="setRelatTab('cobr',this)">Cobranças</div>
   </div>
-  <div class="grid2">
-    <div class="panel"><div class="panel-hdr"><span class="sec-label">Evolução anual</span></div><div style="position:relative;height:200px;"><canvas id="chartLine"></canvas></div></div>
+
+  <!-- MENSAL -->
+  <div id="relat-mensal">
+    <div class="panel">
+      <div class="panel-hdr">
+        <span class="sec-label">Receita mensal</span>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+          <div id="fatAnoBtns" style="display:flex;gap:4px;"></div>
+          <label style="font-size:12px;color:var(--text2);">Meta:</label>
+          <input type="number" id="fatMeta" style="width:110px;padding:6px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:12px;background:var(--bg);color:var(--text);" oninput="renderFatChart()"/>
+        </div>
+      </div>
+      <div style="position:relative;height:260px;"><canvas id="chartFat"></canvas></div>
+    </div>
+    <div class="panel">
+      <div class="panel-hdr"><span class="sec-label">Evolução anual</span></div>
+      <div style="position:relative;height:200px;"><canvas id="chartLine"></canvas></div>
+    </div>
+    <div class="panel">
+      <div class="panel-hdr"><span class="sec-label">Metas fiscais</span><button class="btn btn-am btn-sm" onclick="abrirNovoMeta()">Nova meta</button></div>
+      <div id="fatMetas"></div>
+    </div>
+  </div>
+
+  <!-- COMPARATIVO -->
+  <div id="relat-comparativo" style="display:none;">
+    <div class="panel">
+      <div class="panel-hdr">
+        <span class="sec-label">Comparativo entre anos</span>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+          <span style="font-size:12px;color:var(--text2);">Anos:</span>
+          <div id="compAnoBtns" style="display:flex;gap:4px;flex-wrap:wrap;"></div>
+        </div>
+      </div>
+      <div style="position:relative;height:280px;"><canvas id="chartComp"></canvas></div>
+    </div>
+    <div class="panel">
+      <div class="panel-hdr">
+        <span class="sec-label">Comparar mês específico nos anos</span>
+        <select id="compMesSel" onchange="renderCompMes()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:12px;background:var(--bg);color:var(--text);">
+          <option value="">Selecione o mês</option>
+        </select>
+      </div>
+      <div style="position:relative;height:220px;"><canvas id="chartCompMes"></canvas></div>
+    </div>
+    <div class="panel">
+      <div class="panel-hdr"><span class="sec-label">Tabela comparativa</span></div>
+      <div class="tbl-wrap" id="tblComparativo"></div>
+    </div>
+  </div>
+
+  <!-- DESPESAS -->
+  <div id="relat-despesas" style="display:none;">
+    <div class="grid2">
+      <div class="panel"><div class="panel-hdr"><span class="sec-label">Despesas por categoria</span></div><div style="position:relative;height:260px;"><canvas id="chartDesp"></canvas></div></div>
+      <div class="panel"><div class="panel-hdr"><span class="sec-label">Resumo do mês</span></div><div id="relResumo"></div></div>
+    </div>
+  </div>
+
+  <!-- COBRANÇAS -->
+  <div id="relat-cobr" style="display:none;">
     <div class="panel">
       <div class="panel-hdr"><span class="sec-label">Indicadores de cobrança</span></div>
       <div id="cobrIndicadores"></div>
-      <div style="margin-top:16px;">
-        <div class="panel-hdr"><span class="sec-label">Metas fiscais</span><button class="btn btn-am btn-sm" onclick="abrirNovoMeta()">Nova meta</button></div>
-        <div id="fatMetas"></div>
-      </div>
     </div>
-  </div>
-  <div class="grid2">
-    <div class="panel"><div class="panel-hdr"><span class="sec-label">Despesas por categoria</span></div><div style="position:relative;height:220px;"><canvas id="chartDesp"></canvas></div></div>
-    <div class="panel"><div class="panel-hdr"><span class="sec-label">Resumo do mês</span></div><div id="relResumo"></div></div>
   </div>
 </div>
 
@@ -771,16 +816,38 @@ tr:hover td{background:var(--azul-light);}
   <div class="mfooter"><button class="btn btn-ghost" onclick="closeModal('importLanc')">Fechar</button></div>
 </div></div>
 
-<div class="overlay" id="modal-importDev"><div class="modal" style="width:480px;">
-  <div class="modal-title">Importar devedores</div>
-  <p style="font-size:13px;color:var(--text2);margin-bottom:16px;">Colunas esperadas: <strong>nome, cpf_cnpj, telefone, email, titulo, valor_original, status</strong></p>
-  <div class="import-zone" onclick="document.getElementById('fileInputDev').click()">
-    <div style="font-size:36px;margin-bottom:8px;">📂</div>
-    <div style="font-size:13px;color:var(--text2);font-weight:500;">Clique para selecionar arquivo</div>
-    <div style="font-size:11px;color:var(--text3);margin-top:4px;">.xlsx, .xls ou .csv</div>
+<div class="overlay" id="modal-importDev"><div class="modal" style="width:520px;">
+  <div class="modal-title">Importar clientes / devedores</div>
+  <div class="sub-tabs" style="margin-bottom:16px;">
+    <div class="sub-tab active" onclick="setImportTab('clientes',this)">Clientes</div>
+    <div class="sub-tab" onclick="setImportTab('devedores',this)">Devedores</div>
   </div>
-  <input type="file" id="fileInputDev" accept=".xlsx,.xls,.csv" style="display:none;" onchange="importarDevedores(this)"/>
-  <div id="importDevMsg" style="margin-top:12px;font-size:13px;"></div>
+  <div id="import-clientes">
+    <p style="font-size:13px;color:var(--text2);margin-bottom:6px;">Formato esperado — colunas da sua planilha:</p>
+    <div style="font-size:11px;color:var(--text3);background:var(--surface2);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:14px;line-height:1.8;">
+      Nome · E-mail · Telefone · CPF/CNPJ · Razão social · Inscrição · CEP · Logradouro · Número · Complemento · Bairro · Cidade · Estado · Informações
+    </div>
+    <div class="import-zone" onclick="document.getElementById('fileInputCli').click()">
+      <div style="font-size:36px;margin-bottom:8px;">📂</div>
+      <div style="font-size:13px;color:var(--text2);font-weight:500;">Clique para selecionar arquivo</div>
+      <div style="font-size:11px;color:var(--text3);margin-top:4px;">.xlsx, .xls ou .csv</div>
+    </div>
+    <input type="file" id="fileInputCli" accept=".xlsx,.xls,.csv" style="display:none;" onchange="importarClientes(this)"/>
+    <div id="importCliMsg" style="margin-top:12px;font-size:13px;"></div>
+  </div>
+  <div id="import-devedores" style="display:none;">
+    <p style="font-size:13px;color:var(--text2);margin-bottom:6px;">Colunas esperadas:</p>
+    <div style="font-size:11px;color:var(--text3);background:var(--surface2);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:14px;line-height:1.8;">
+      nome · cpf_cnpj · telefone · email · titulo · valor_original · status
+    </div>
+    <div class="import-zone" onclick="document.getElementById('fileInputDev').click()">
+      <div style="font-size:36px;margin-bottom:8px;">📂</div>
+      <div style="font-size:13px;color:var(--text2);font-weight:500;">Clique para selecionar arquivo</div>
+      <div style="font-size:11px;color:var(--text3);margin-top:4px;">.xlsx, .xls ou .csv</div>
+    </div>
+    <input type="file" id="fileInputDev" accept=".xlsx,.xls,.csv" style="display:none;" onchange="importarDevedores(this)"/>
+    <div id="importDevMsg" style="margin-top:12px;font-size:13px;"></div>
+  </div>
   <div class="mfooter"><button class="btn btn-ghost" onclick="closeModal('importDev')">Fechar</button></div>
 </div></div>
 
@@ -1601,6 +1668,81 @@ function importarLanc(input){
     save();const msg=document.getElementById('importLancMsg');if(msg){msg.style.color='var(--success)';msg.textContent=`${count} lançamento(s) importado(s)!`;}renderLanc();
   }catch(err){const msg=document.getElementById('importLancMsg');if(msg){msg.style.color='var(--danger)';msg.textContent='Erro ao ler o arquivo.';}}};
   if(file.name.endsWith('.csv'))reader.readAsText(file,'UTF-8');else reader.readAsBinaryString(file);
+}
+
+function setImportTab(tab,btn){
+  document.getElementById('import-clientes').style.display=tab==='clientes'?'block':'none';
+  document.getElementById('import-devedores').style.display=tab==='devedores'?'block':'none';
+  document.querySelectorAll('#modal-importDev .sub-tab').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+}
+
+function lerArquivo(input,cb){
+  var file=input.files[0];if(!file)return;
+  var reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      var data=[];
+      if(file.name.endsWith('.csv')){
+        var lines=e.target.result.split('\n').filter(function(l){return l.trim();});
+        var headers=lines[0].split(',').map(function(h){return h.trim().replace(/['"]/g,'').toLowerCase();});
+        data=lines.slice(1).map(function(l){
+          var vals=l.split(',');var obj={};
+          headers.forEach(function(h,i){obj[h]=(vals[i]||'').trim().replace(/['"]/g,'');});
+          return obj;
+        });
+      }else{
+        var wb=XLSX.read(e.target.result,{type:'binary'});
+        var ws=wb.Sheets[wb.SheetNames[0]];
+        data=XLSX.utils.sheet_to_json(ws,{defval:''});
+        data=data.map(function(row){
+          var nr={};
+          Object.keys(row).forEach(function(k){nr[k.toLowerCase().trim().replace(/['"]/g,'')]=String(row[k]).trim();});
+          return nr;
+        });
+      }
+      cb(data);
+    }catch(err){cb(null,err);}
+  };
+  if(file.name.endsWith('.csv'))reader.readAsText(file,'UTF-8');
+  else reader.readAsBinaryString(file);
+}
+
+function importarClientes(input){
+  lerArquivo(input,function(data,err){
+    var msg=document.getElementById('importCliMsg');
+    if(!data){if(msg){msg.style.color='var(--danger)';msg.textContent='Erro ao ler o arquivo.';}return;}
+    var count=0;
+    data.forEach(function(row){
+      var nome=row['nome']||row['name']||'';
+      if(!nome)return;
+      // Monta endereço completo
+      var partes=[row['logradouro'],row['número']||row['numero'],row['complemento'],row['bairro'],row['cidade'],row['estado'],row['cep']].filter(function(p){return p&&p.trim();});
+      var endereco=partes.join(', ');
+      var c={
+        id:uid(),
+        nome:nome,
+        email:row['e-mail']||row['email']||'',
+        tel:row['telefone']||row['fone']||'',
+        doc:row['cpf/cnpj']||row['cpf_cnpj']||row['cnpj']||row['cpf']||'',
+        razaoSocial:row['razão social']||row['razao social']||row['razão_social']||'',
+        inscricao:row['inscrição']||row['inscricao']||'',
+        cep:row['cep']||'',
+        endereco:endereco,
+        cidade:row['cidade']||'',
+        estado:row['estado']||'',
+        obs:row['informações']||row['informacoes']||row['informação']||'',
+        carteira:0,comissao:0,inicio:'',loginEmail:'',senha:'',
+        createdAt:hoje()
+      };
+      // Evita duplicata por nome
+      var existe=S.clientes.find(function(x){return x.nome.toLowerCase()===c.nome.toLowerCase();});
+      if(!existe){S.clientes.push(c);count++;}
+    });
+    save();
+    if(msg){msg.style.color='var(--success)';msg.textContent=count+' cliente(s) importado(s) com sucesso!';}
+    renderClientes();populateDevSelects();
+  });
 }
 
 function importarDevedores(input){
