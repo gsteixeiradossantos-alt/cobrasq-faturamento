@@ -864,6 +864,10 @@ img{max-width:100%}
           <label>Endereço</label>
           <input type="text" id="mdev-end" placeholder="Rua, número, bairro, cidade – UF">
         </div>
+        <div class="fg">
+          <label>Data de Nascimento (acesso ao portal)</label>
+          <input type="date" id="mdev-nasc">
+        </div>
       </div>
 
       <!-- Tab: Dívida -->
@@ -1048,6 +1052,10 @@ img{max-width:100%}
           <label>Login (e-mail portal)</label>
           <input type="email" id="mcli-login" placeholder="acesso@cedente.com">
         </div>
+      </div>
+      <div class="fg">
+        <label>Senha do portal</label>
+        <input type="text" id="mcli-senha" placeholder="Defina uma senha para o cedente">
       </div>
       <div class="fg">
         <label>Observações</label>
@@ -2543,6 +2551,7 @@ function abrirNovoDevedor(){
   document.getElementById('mdev-tel').value = '';
   document.getElementById('mdev-email').value = '';
   document.getElementById('mdev-end').value = '';
+  document.getElementById('mdev-nasc').value = '';
   document.getElementById('mdev-titulo').value = '';
   document.getElementById('mdev-status').value = '';
   document.getElementById('mdev-valor-orig').value = '';
@@ -2584,6 +2593,7 @@ function editDevedor(id){
   document.getElementById('mdev-tel').value = dev.tel||'';
   document.getElementById('mdev-email').value = dev.email||'';
   document.getElementById('mdev-end').value = dev.endereco||'';
+  document.getElementById('mdev-nasc').value = dev.loginNascimento||'';
   document.getElementById('mdev-titulo').value = dev.titulo||'';
   document.getElementById('mdev-status').value = dev.status||'';
   document.getElementById('mdev-valor-orig').value = dev.valorOrig||'';
@@ -2675,6 +2685,7 @@ function salvarDevedor(){
     tel: document.getElementById('mdev-tel').value||'',
     email: document.getElementById('mdev-email').value||'',
     endereco: document.getElementById('mdev-end').value||'',
+    loginNascimento: document.getElementById('mdev-nasc').value||'',
     titulo: document.getElementById('mdev-titulo').value||'',
     status: document.getElementById('mdev-status').value||'Cobrar',
     valorOrig: document.getElementById('mdev-valor-orig').value||'',
@@ -2974,6 +2985,7 @@ function abrirNovoCliente(){
   document.getElementById('mcli-end').value = '';
   document.getElementById('mcli-honor').value = '';
   document.getElementById('mcli-login').value = '';
+  document.getElementById('mcli-senha').value = '';
   document.getElementById('mcli-obs').value = '';
   document.getElementById('modal-cliente-title').textContent = 'Novo Cliente (Cedente)';
   openModal('modal-cliente');
@@ -2990,6 +3002,7 @@ function editCliente(id){
   document.getElementById('mcli-end').value = c.endereco||'';
   document.getElementById('mcli-honor').value = c.honorarios||'';
   document.getElementById('mcli-login').value = c.loginEmail||'';
+  document.getElementById('mcli-senha').value = c.loginSenha||'';
   document.getElementById('mcli-obs').value = c.obs||'';
   document.getElementById('modal-cliente-title').textContent = 'Editar Cliente';
   openModal('modal-cliente');
@@ -3011,7 +3024,7 @@ function salvarCliente(){
     endereco: document.getElementById('mcli-end').value||'',
     honorarios: document.getElementById('mcli-honor').value||'',
     loginEmail: document.getElementById('mcli-login').value||'',
-    loginSenha: existingCli ? existingCli.loginSenha||'' : '',
+    loginSenha: document.getElementById('mcli-senha').value||( existingCli ? existingCli.loginSenha||'' : '' ),
     obs: document.getElementById('mcli-obs').value||'',
     createdAt: existingCli ? existingCli.createdAt : hoje(),
     updatedAt: hoje()
