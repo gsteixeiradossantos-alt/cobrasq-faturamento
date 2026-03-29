@@ -1,5 +1,3 @@
-analise o codigo abaixo. é do meu sistema da empresa cobrasq. verifique pontos de melhoria e layout e funcionalidade e corrija. a principio nao está em servidor, apenas no meu computador. posteriormente colocarei no ar
-
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -232,6 +230,7 @@ tr:hover td{background:var(--azul-light);}
 
 @media(max-width:900px){.cards5{grid-template-columns:repeat(3,1fr);}.cards4{grid-template-columns:repeat(2,1fr);}}
 @media(max-width:700px){.cards5,.cards4,.cards3{grid-template-columns:1fr 1fr;}.grid2,.grid3{grid-template-columns:1fr;}.frow,.frow3{grid-template-columns:1fr;}.settings-grid{grid-template-columns:1fr;}.lanc-cat,.lanc-parcela{display:none;}}
+@media(max-width:480px){.cards5,.cards4,.cards3{grid-template-columns:1fr;}.content{padding:16px 14px;}.topbar{padding:0 14px;}.navbar{padding:0 8px;}.nav-tab{padding:0 14px;font-size:12px;}.modal{padding:18px 14px;}.drawer{width:100vw;}.footer{padding:16px 14px;}}
 </style>
 </head>
 <body>
@@ -546,6 +545,7 @@ tr:hover td{background:var(--azul-light);}
         <div class="settings-item" onclick="setConfigTab('usuarios',this)">Usuários</div>
         <div class="settings-item" onclick="setConfigTab('notif',this)">Notificações</div>
         <div class="settings-item" onclick="setConfigTab('senha',this)">Senha e acesso</div>
+        <div class="settings-item" onclick="setConfigTab('integracoes',this)">Integrações</div>
       </div>
       <div class="settings-content" id="configContent"></div>
     </div>
@@ -848,7 +848,7 @@ const KEY='cobrasq_v5';
 let S={
   lancamentos:[],projetos:[],tarefas:[],metas:[],cartoes:[],contas:[],devedores:[],clientes:[],
   categorias:{receita:['Serviços','Cobrança','Honorários','Acordos judiciais','Comissões','Outros'],despesa:['Aluguel','Cartões','Administrativo','Impostos','Marketing','Outros']},
-  config:{nome:'Gustavo Santos',email:'gustavo@cobrasq.com.br',senha:'cobrasq2025',empresa:'COBRASQ',sub:'RECUPERADORA DE CRÉDITO',avatar:'GS',tema:'light',metaMensal:40000,colaboradores:[],usuarios:[]},
+  config:{nome:'Gustavo Santos',email:'gustavo@cobrasq.com.br',senha:'cobrasq2025',empresa:'COBRASQ',sub:'RECUPERADORA DE CRÉDITO',avatar:'GS',tema:'light',metaMensal:40000,colaboradores:[],usuarios:[],claudeApiKey:''},
   fatHistorico:{
     2022:[0,0,0,25482.31,3101.03,24328.10,18354.09,20576.64,12812.26,18352.98,14666.88,16188.13],
     2023:[9605.90,9143.43,8105.46,12335.28,14146.95,14155.70,10832.38,15140.85,19472.66,17089.77,20131.20,15841.51],
@@ -1087,7 +1087,9 @@ async function processarDocumento(input){
     if(isImage)content=[{type:'image',source:{type:'base64',media_type:file.type,data:base64}},{type:'text',text:prompt}];
     else if(isPdf)content=[{type:'document',source:{type:'base64',media_type:'application/pdf',data:base64}},{type:'text',text:prompt}];
     else{alert('Formato não suportado. Use PDF, JPG ou PNG.');return;}
-    const resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content}]})});
+    const apiKey=S.config.claudeApiKey||'';
+    if(!apiKey){alert('Configure sua chave da API Claude em Configurações → Integrações.');return;}
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-5-20251001',max_tokens:1000,messages:[{role:'user',content}]})});
     const data=await resp.json();
     const text=(data.content||[]).map(c=>c.text||'').join('');
     const extracted=JSON.parse(text.replace(/```json|```/g,'').trim());
@@ -1353,9 +1355,6 @@ function renderTarefas(){const fp=document.getElementById('tarFiltProj')?.value|
 function abrirNovoMeta(){document.getElementById('metaModalTitulo').textContent='Nova meta';document.getElementById('metaId').value='';['metaNome','metaAlvo','metaAtual','metaPrazo'].forEach(x=>{const el=document.getElementById(x);if(el)el.value='';});openModal('meta');}
 function salvarMeta(){const id=document.getElementById('metaId').value||uid();const m={id,nome:document.getElementById('metaNome').value,alvo:parseFloat(document.getElementById('metaAlvo').value)||0,atual:parseFloat(document.getElementById('metaAtual').value)||0,cat:document.getElementById('metaCat').value,prazo:document.getElementById('metaPrazo').value};if(!m.nome)return;const idx=S.metas.findIndex(x=>x.id===id);if(idx>=0)S.metas[idx]=m;else S.metas.push(m);save();closeModal('meta');renderMetas();renderFatMetas();}
 function editMeta(id){const m=S.metas.find(x=>x.id===id);if(!m)return;document.getElementById('metaModalTitulo').textContent='Editar meta';document.getElementById('metaId').value=m.id;document.getElementById('metaNome').value=m.nome;document.getElementById('metaAlvo').value=m.alvo;document.getElementById('metaAtual').value=m.atual;document.getElementById('metaCat').value=m.cat;document.getElementById('metaPrazo').value=m.prazo||'';openModal('meta');}
-// CONTINUAÇÃO — cole este trecho no final da Parte B, substituindo a linha cortada
-// A última linha da Parte B termina com: ...· ${m.prazo?m.pra
-// Delete essa linha incompleta e cole isto no lugar:
 
 function renderMetas(){const g=document.getElementById('metasGrid');if(!g)return;if(!S.metas.length){g.innerHTML='<div style="color:var(--text3);font-size:13px;padding:20px;grid-column:1/-1;text-align:center;">Nenhuma meta criada.</div>';return;}g.innerHTML=S.metas.map(m=>{const pct=+m.alvo>0?Math.min(100,Math.round((+m.atual/+m.alvo)*100)):0;const cor=pct>=80?'var(--success)':pct>=50?'var(--warning)':'var(--danger)';return `<div class="kcard az"><div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;margin-bottom:4px;">${m.cat}</div><div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;"><div style="font-size:14px;font-weight:700;">${m.nome}</div><div style="font-size:20px;font-weight:800;color:${cor}">${pct}%</div></div><div class="pbar"><div class="pfill" style="width:${pct}%;background:${cor}"></div></div><div style="font-size:11px;color:var(--text3);margin-top:6px;">${fmtR(m.atual)} de ${fmtR(m.alvo)} · ${m.prazo?m.prazo.split('-').reverse().join('/'):'—'}</div><div style="display:flex;gap:6px;margin-top:10px;"><button class="btn btn-outline btn-sm" onclick="editMeta('${m.id}')">Editar</button><button class="btn btn-danger btn-xs" onclick="confirmDel(()=>{S.metas=S.metas.filter(x=>x.id!=='${m.id}');save();renderMetas();})">✕</button></div></div>`;}).join('');}
 
@@ -1372,6 +1371,7 @@ function renderConfigContent(tab){
   else if(tab==='usuarios'){const users=S.config.usuarios||[];el.innerHTML=`<h3 style="font-size:14px;font-weight:700;margin-bottom:18px;">Usuários do sistema</h3>${users.length?`<div class="tbl-wrap" style="margin-bottom:18px;"><table><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Senha</th><th></th></tr>${users.map((u,i)=>`<tr><td>${u.nome}</td><td>${u.email}</td><td><span class="badge b-blue">${u.perfil}</span></td><td><span style="font-size:11px;color:var(--text3);">${u.senha||'—'}</span></td><td><button class="btn btn-danger btn-xs" onclick="delUsuario(${i})">Remover</button></td></tr>`).join('')}</table></div>`:'<div style="font-size:13px;color:var(--text3);margin-bottom:16px;">Nenhum usuário adicional.</div>'}<div style="background:var(--surface2);border-radius:var(--radius-sm);padding:16px;"><div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;margin-bottom:12px;">Novo usuário</div><div class="frow"><div class="fg"><label>Nome</label><input type="text" id="novoUserNome"/></div><div class="fg"><label>E-mail</label><input type="email" id="novoUserEmail"/></div></div><div class="frow"><div class="fg"><label>Senha</label><input type="text" id="novoUserSenha" placeholder="Defina a senha"/></div><div class="fg"><label>Perfil</label><select id="novoUserPerfil"><option>Usuário</option><option>Administrador</option></select></div></div><button class="btn btn-primary" onclick="criarUsuario()">Criar usuário</button><div id="userMsg" style="margin-top:8px;font-size:12px;"></div></div>`;}
   else if(tab==='notif'){const n=S.config.notif||{};el.innerHTML=`<h3 style="font-size:14px;font-weight:700;margin-bottom:18px;">Notificações</h3>${[['contasVenc','Alertar contas vencendo'],['metaBaixa','Faturamento abaixo da meta'],['tarefasAtr','Tarefas atrasadas'],['resumoSem','Resumo semanal']].map(([k,l])=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:13px 0;border-bottom:1px solid var(--border);"><span style="font-size:13px;">${l}</span><input type="checkbox" ${n[k]?'checked':''} onchange="saveNotif('${k}',this.checked)" style="width:16px;height:16px;accent-color:var(--azul);cursor:pointer;"/></div>`).join('')}`;}
   else if(tab==='senha'){el.innerHTML=`<h3 style="font-size:14px;font-weight:700;margin-bottom:18px;">Senha do gestor</h3><div class="fg"><label>Nova senha</label><input type="password" id="senhaNova"/></div><div class="fg"><label>Confirmar</label><input type="password" id="senhaConf"/></div><button class="btn btn-primary" onclick="saveSenha()">Alterar senha</button><div id="senhaMsg" style="margin-top:8px;font-size:12px;"></div>`;}
+  else if(tab==='integracoes'){el.innerHTML=`<h3 style="font-size:14px;font-weight:700;margin-bottom:18px;">Integrações</h3><div style="background:var(--azul-light);border:1px solid var(--azul-mid);border-radius:var(--radius-sm);padding:12px 16px;margin-bottom:18px;font-size:12px;color:var(--azul);">A chave API é usada para leitura automática de documentos via IA. Obtenha a sua em <strong>console.anthropic.com</strong>.</div><div class="fg"><label>Chave API Claude (Anthropic)</label><input type="password" id="cfgApiKey" value="${S.config.claudeApiKey||''}" placeholder="sk-ant-..."/></div><button class="btn btn-primary" onclick="saveApiKey()">Salvar chave</button><div id="apiKeyMsg" style="margin-top:8px;font-size:12px;"></div>`;}
 }
 
 function autoAvatar(nome){const av=initials(nome);S.config.avatar=av;const p=document.getElementById('cfgAvatarPreview');if(p)p.textContent=av;document.getElementById('avatarBtn').textContent=av;}
@@ -1384,6 +1384,7 @@ function delCat(tipo,i){S.categorias[tipo].splice(i,1);save();renderConfigConten
 function saveNotif(k,v){if(!S.config.notif)S.config.notif={};S.config.notif[k]=v;save();}
 function criarUsuario(){const nome=document.getElementById('novoUserNome')?.value?.trim();const email=document.getElementById('novoUserEmail')?.value?.trim();const senha=document.getElementById('novoUserSenha')?.value?.trim();const perfil=document.getElementById('novoUserPerfil')?.value;const msg=document.getElementById('userMsg');if(!nome||!email||!senha){if(msg){msg.style.color='var(--danger)';msg.textContent='Preencha nome, e-mail e senha.';}return;}if(!S.config.usuarios)S.config.usuarios=[];S.config.usuarios.push({nome,email,senha,perfil});save();if(msg){msg.style.color='var(--success)';msg.textContent='Usuário criado com sucesso!';}setTimeout(()=>renderConfigContent('usuarios'),2000);}
 function delUsuario(i){S.config.usuarios.splice(i,1);save();renderConfigContent('usuarios');}
+function saveApiKey(){const k=document.getElementById('cfgApiKey')?.value?.trim();const msg=document.getElementById('apiKeyMsg');if(!msg)return;S.config.claudeApiKey=k||'';save();msg.style.color='var(--success)';msg.textContent='Chave salva com sucesso!';}
 function saveSenha(){const nova=document.getElementById('senhaNova')?.value;const conf=document.getElementById('senhaConf')?.value;const msg=document.getElementById('senhaMsg');if(!msg)return;if(nova!==conf){msg.style.color='var(--danger)';msg.textContent='As senhas não coincidem.';return;}if(nova.length<6){msg.style.color='var(--danger)';msg.textContent='Mínimo 6 caracteres.';return;}S.config.senha=nova;save();msg.style.color='var(--success)';msg.textContent='Senha alterada com sucesso!';}
 
 // ======= INIT =======
