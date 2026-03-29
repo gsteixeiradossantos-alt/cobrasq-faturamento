@@ -448,13 +448,44 @@ img{max-width:100%}
 .step.active .step-label{color:var(--navy);font-weight:700;}
 
 /* ===== PORTALS ===== */
-#portalCedente,#portalDevedor{width:100%;min-height:100vh;flex-direction:column;background:var(--bg);}
+#portalCedente{width:100%;min-height:100vh;flex-direction:row;background:var(--bg);}
+#portalDevedor{width:100%;min-height:100vh;flex-direction:column;background:var(--bg);}
 .portal-topbar{height:60px;background:var(--navy-dark);display:flex;align-items:center;padding:0 24px;gap:16px;}
 .portal-logo-text{color:#fff;font-size:16px;font-weight:800;letter-spacing:1.5px;}
 .portal-logo-sub{color:rgba(255,255,255,.4);font-size:10px;letter-spacing:2px;}
 .portal-body{flex:1;padding:28px 24px;display:flex;flex-direction:column;gap:20px;}
 .portal-welcome{font-size:20px;font-weight:700;color:var(--navy);}
 .dark .portal-welcome{color:var(--gold);}
+/* Cedente portal sidebar */
+.cp-sidebar{width:220px;min-width:220px;background:var(--navy-dark);display:flex;flex-direction:column;min-height:100vh;}
+.cp-sidebar-logo{padding:20px 16px 12px;border-bottom:1px solid rgba(255,255,255,.08);}
+.cp-sidebar-logo-text{color:#fff;font-size:15px;font-weight:800;letter-spacing:1.5px;}
+.cp-sidebar-logo-sub{color:rgba(255,255,255,.4);font-size:9px;letter-spacing:2px;margin-top:2px;}
+.cp-sidebar-user{padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.08);display:flex;align-items:center;gap:10px;}
+.cp-sidebar-avatar{width:34px;height:34px;border-radius:50%;background:var(--gold);color:var(--navy);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex-shrink:0;}
+.cp-sidebar-uname{color:#fff;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.cp-sidebar-urole{color:rgba(255,255,255,.4);font-size:10px;}
+.cp-nav{flex:1;padding:12px 0;}
+.cp-nav-item{display:flex;align-items:center;gap:10px;padding:10px 20px;color:rgba(255,255,255,.6);font-size:13px;font-weight:500;cursor:pointer;border-left:3px solid transparent;transition:all .15s;}
+.cp-nav-item:hover{background:rgba(255,255,255,.06);color:#fff;}
+.cp-nav-item.active{background:rgba(250,190,68,.08);color:var(--gold);border-left-color:var(--gold);}
+.cp-nav-icon{font-size:16px;width:20px;text-align:center;}
+.cp-sidebar-footer{padding:14px 16px;border-top:1px solid rgba(255,255,255,.08);}
+.cp-main{flex:1;display:flex;flex-direction:column;min-width:0;}
+.cp-topbar{height:56px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 24px;gap:12px;}
+.cp-topbar-title{font-size:15px;font-weight:700;color:var(--text);}
+.cp-body{flex:1;padding:24px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;}
+.cp-pending-badge{background:var(--gold);color:var(--navy);font-size:10px;font-weight:700;border-radius:10px;padding:1px 6px;margin-left:4px;}
+/* Comprovante card */
+.comp-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;display:flex;align-items:center;gap:14px;}
+.comp-card-icon{font-size:28px;flex-shrink:0;}
+.comp-card-info{flex:1;min-width:0;}
+.comp-card-name{font-size:13px;font-weight:600;color:var(--text);}
+.comp-card-meta{font-size:11px;color:var(--text-3);margin-top:2px;}
+.comp-card-status{font-size:11px;font-weight:700;padding:3px 8px;border-radius:20px;}
+.comp-status-pendente{background:#FFF3CD;color:#856404;}
+.comp-status-aprovado{background:#D1FAE5;color:#065F46;}
+.comp-status-rejeitado{background:#FEE2E2;color:#991B1B;}
 
 /* ===== MISC UTILS ===== */
 .mt-4{margin-top:4px}.mt-8{margin-top:8px}.mt-12{margin-top:12px}.mt-16{margin-top:16px}
@@ -761,19 +792,39 @@ img{max-width:100%}
      PORTAL CEDENTE
      ============================================================ -->
 <div id="portalCedente" class="screen">
-  <div class="portal-topbar">
-    <div>
-      <div class="portal-logo-text">COBRASQ</div>
-      <div class="portal-logo-sub">PORTAL DO CEDENTE</div>
+  <!-- Sidebar -->
+  <aside class="cp-sidebar">
+    <div class="cp-sidebar-logo">
+      <div class="cp-sidebar-logo-text">COBRASQ</div>
+      <div class="cp-sidebar-logo-sub">PORTAL DO CEDENTE</div>
     </div>
-    <div style="margin-left:auto;display:flex;gap:10px;align-items:center;">
-      <span id="portalCedenteUserName" style="color:rgba(255,255,255,.7);font-size:13px;"></span>
-      <button class="btn btn-ghost btn-sm" id="btnLogoutCedente"
-              style="border-color:rgba(255,255,255,.2);color:rgba(255,255,255,.7);">Sair</button>
+    <div class="cp-sidebar-user">
+      <div class="cp-sidebar-avatar" id="cpAvatarSidebar">?</div>
+      <div>
+        <div class="cp-sidebar-uname" id="cpNameSidebar">—</div>
+        <div class="cp-sidebar-urole">Cedente</div>
+      </div>
     </div>
-  </div>
-  <div class="portal-body" id="portalCedenteBody">
-    <!-- JS will populate -->
+    <nav class="cp-nav" id="cpNav">
+      <div class="cp-nav-item active" data-cppage="dashboard"><span class="cp-nav-icon">🏠</span>Dashboard</div>
+      <div class="cp-nav-item" data-cppage="carteira"><span class="cp-nav-icon">📋</span>Minha Carteira</div>
+      <div class="cp-nav-item" data-cppage="comprovantes"><span class="cp-nav-icon">📎</span>Comprovantes</div>
+      <div class="cp-nav-item" data-cppage="nova-cobranca"><span class="cp-nav-icon">➕</span>Nova Cobrança</div>
+      <div class="cp-nav-item" data-cppage="config"><span class="cp-nav-icon">⚙️</span>Configurações</div>
+    </nav>
+    <div class="cp-sidebar-footer">
+      <button class="btn btn-ghost btn-sm w-full" id="btnLogoutCedente"
+              style="border-color:rgba(255,255,255,.2);color:rgba(255,255,255,.6);">Sair</button>
+    </div>
+  </aside>
+  <!-- Main -->
+  <div class="cp-main">
+    <div class="cp-topbar">
+      <span class="cp-topbar-title" id="cpTopbarTitle">Dashboard</span>
+    </div>
+    <div class="cp-body" id="portalCedenteBody">
+      <!-- JS will populate -->
+    </div>
   </div>
 </div>
 
@@ -1700,6 +1751,7 @@ const fmtk=v=>{const n=+v||0;return n>=1000?'R$ '+(n/1000).toFixed(1)+'k':'R$ '+
 const hoje=()=>new Date().toISOString().slice(0,10);
 const initials=n=>n?n.trim().split(' ').filter(Boolean).slice(0,2).map(w=>w[0].toUpperCase()).join(''):'?';
 const greeting=()=>{const h=new Date().getHours();return h<12?'Bom dia':h<18?'Boa tarde':'Boa noite';};
+const escHtml=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 function mascaraCPF(v){return v.replace(/\D/g,'').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d{1,2})$/,'$1-$2');}
 function mascaraCNPJ(v){return v.replace(/\D/g,'').replace(/(\d{2})(\d)/,'$1.$2').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d)/,'$1/$2').replace(/(\d{4})(\d)/,'$1-$2');}
 function mascaraDoc(el){const v=el.value.replace(/\D/g,'');el.value=v.length<=11?mascaraCPF(v):mascaraCNPJ(v);}
@@ -1826,8 +1878,7 @@ function iniciarSessao(){
 
   if(currentUser.tipo === 'cedente'){
     document.getElementById('portalCedente').classList.add('active');
-    const nameEl = document.getElementById('portalCedenteUserName');
-    if(nameEl) nameEl.textContent = currentUser.nome;
+    cpPage = 'dashboard';
     renderPortalCedente();
     return;
   }
@@ -2069,10 +2120,10 @@ function renderPainel(){
         <div class="kcard-sub">quitado + recebido</div>
       </div>
       <div class="kcard">
-        <span class="kcard-icon">📊</span>
-        <div class="kcard-label">Taxa de Recuperação</div>
-        <div class="kcard-value">${taxaRec}%</div>
-        <div class="kcard-sub">${acordosAtivos} acordos ativos</div>
+        <span class="kcard-icon">🤝</span>
+        <div class="kcard-label">Acordos Ativos</div>
+        <div class="kcard-value">${acordosAtivos}</div>
+        <div class="kcard-sub">em negociação</div>
       </div>
     </div>
 
@@ -3054,51 +3105,413 @@ function excluirCliente(id){
 }
 
 // ── PORTAL CEDENTE ───────────────────────────────────────────
+let cpPage = 'dashboard';
+
 function renderPortalCedente(){
   if(!currentUser || currentUser.tipo!=='cedente') return;
+  // update sidebar user info
+  const nameEl = document.getElementById('cpNameSidebar');
+  const avatEl = document.getElementById('cpAvatarSidebar');
+  if(nameEl) nameEl.textContent = currentUser.nome;
+  if(avatEl) avatEl.textContent = initials(currentUser.nome);
+  cpNavigate(cpPage);
+}
+
+function cpNavigate(page){
+  cpPage = page;
+  // update nav active state
+  document.querySelectorAll('#cpNav .cp-nav-item').forEach(el=>{
+    el.classList.toggle('active', el.dataset.cppage===page);
+  });
+  // update topbar title
+  const titles = {dashboard:'Dashboard',carteira:'Minha Carteira',comprovantes:'Comprovantes de Pagamento','nova-cobranca':'Nova Cobrança',config:'Configurações'};
+  const titleEl = document.getElementById('cpTopbarTitle');
+  if(titleEl) titleEl.textContent = titles[page]||'';
+  // render page
   const body = document.getElementById('portalCedenteBody');
   if(!body) return;
+  if(page==='dashboard') cpRenderDashboard(body);
+  else if(page==='carteira') cpRenderCarteira(body);
+  else if(page==='comprovantes') cpRenderComprovantes(body);
+  else if(page==='nova-cobranca') cpRenderNovaCobranca(body);
+  else if(page==='config') cpRenderConfig(body);
+}
 
+function cpDevs(){
+  return (DB.devedores||[]).filter(d=>d.clienteId===currentUser.clienteId);
+}
+
+function cpRenderDashboard(body){
   const cli = (DB.clientes||[]).find(c=>c.id===currentUser.clienteId);
-  const devs = (DB.devedores||[]).filter(d=>d.clienteId===currentUser.clienteId);
-  const carteira = devs.reduce((s,d)=>s+(parseValorBR(d.valorAtual)||parseValorBR(d.valorOrig)||0),0);
-  const recuperado = devs.filter(d=>d.status==='Quitado'||d.status==='Recebido').reduce((s,d)=>s+(parseValorBR(d.valorAtual)||parseValorBR(d.valorOrig)||0),0);
+  const devs = cpDevs();
+  const ativas    = devs.filter(d=>!['Quitado','Recebido','Devolvida','Sem êxito'].includes(d.status)).length;
+  const judicial  = devs.filter(d=>d.fase==='judicial').length;
+  const acordo    = devs.filter(d=>d.status==='Acordo').length;
+  const quitadas  = devs.filter(d=>d.status==='Quitado'||d.status==='Recebido').length;
+  const semDoc    = devs.filter(d=>!(d.documentos&&d.documentos.length)).length;
+  const total     = devs.length;
+  const pctExito  = total>0?((quitadas/total)*100).toFixed(1):'0.0';
+  const carteira  = devs.reduce((s,d)=>s+(parseValorBR(d.valorAtual)||parseValorBR(d.valorOrig)||0),0);
+  const recuperado= devs.filter(d=>d.status==='Quitado'||d.status==='Recebido').reduce((s,d)=>s+(parseValorBR(d.valorAtual)||parseValorBR(d.valorOrig)||0),0);
+  // comprovantes pendentes de aprovação
+  const compPendentes = devs.reduce((s,d)=>s+((d.comprovantes||[]).filter(c=>c.status==='pendente').length),0);
 
   body.innerHTML = `
     <div class="portal-welcome">${greeting()}, ${currentUser.nome}!</div>
     <div class="grid-3">
-      <div class="kcard">
-        <div class="kcard-label">Total de Devedores</div>
-        <div class="kcard-value">${devs.length}</div>
+      <div class="kcard"><div class="kcard-accent" style="background:var(--gold)"></div>
+        <div class="kcard-label">Cobranças Ativas</div><div class="kcard-value">${ativas}</div>
+        <div class="kcard-sub">em andamento</div></div>
+      <div class="kcard"><div class="kcard-accent" style="background:#7C3AED"></div>
+        <div class="kcard-label">Em Ação Judicial</div><div class="kcard-value">${judicial}</div>
+        <div class="kcard-sub">processos judiciais</div></div>
+      <div class="kcard"><div class="kcard-accent" style="background:var(--navy)"></div>
+        <div class="kcard-label">Em Acordo</div><div class="kcard-value">${acordo}</div>
+        <div class="kcard-sub">negociações em curso</div></div>
+      <div class="kcard"><div class="kcard-accent" style="background:var(--success)"></div>
+        <div class="kcard-label">Finalizadas / Quitadas</div><div class="kcard-value">${quitadas}</div>
+        <div class="kcard-sub">${pctExito}% de êxito</div></div>
+      <div class="kcard"><div class="kcard-accent" style="background:var(--danger)"></div>
+        <div class="kcard-label">Pendentes de Documento</div><div class="kcard-value">${semDoc}</div>
+        <div class="kcard-sub">sem anexos</div></div>
+      <div class="kcard"><div class="kcard-accent" style="background:var(--success)"></div>
+        <div class="kcard-label">Taxa de Recuperação</div><div class="kcard-value">${pctExito}%</div>
+        <div class="kcard-sub">${fmtR(recuperado)} de ${fmtR(carteira)}</div></div>
+    </div>
+    ${compPendentes>0?`<div class="panel" style="border-left:4px solid var(--gold);">
+      <div class="panel-hdr"><span class="panel-title">⚠️ Comprovantes aguardando aprovação</span></div>
+      <div style="padding:12px 16px;font-size:13px;color:var(--text-2);">
+        Você tem <strong>${compPendentes}</strong> comprovante(s) pendente(s) de análise pela equipe COBRASQ.
+        <button class="btn btn-sm btn-ghost" style="margin-left:12px" onclick="cpNavigate('comprovantes')">Ver comprovantes</button>
       </div>
-      <div class="kcard">
-        <div class="kcard-label">Valor da Carteira</div>
-        <div class="kcard-value" style="font-size:20px;">${fmtR(carteira)}</div>
+    </div>`:''}
+    <div class="panel">
+      <div class="panel-hdr"><span class="panel-title">Resumo da Carteira</span></div>
+      <div style="display:flex;gap:32px;padding:8px 0;flex-wrap:wrap;">
+        <div class="stat-mini"><div class="stat-mini-val">${total}</div><div class="stat-mini-label">Total de cobranças</div></div>
+        <div class="stat-mini"><div class="stat-mini-val" style="color:var(--navy)">${fmtR(carteira)}</div><div class="stat-mini-label">Valor da carteira</div></div>
+        <div class="stat-mini"><div class="stat-mini-val" style="color:var(--success)">${fmtR(recuperado)}</div><div class="stat-mini-label">Valor recuperado</div></div>
+        ${cli?.honorarios?`<div class="stat-mini"><div class="stat-mini-val">${cli.honorarios}%</div><div class="stat-mini-label">Honorários</div></div>`:''}
       </div>
-      <div class="kcard">
-        <div class="kcard-label">Valor Recuperado</div>
-        <div class="kcard-value" style="font-size:20px;color:var(--success);">${fmtR(recuperado)}</div>
+    </div>`;
+}
+
+function cpRenderCarteira(body){
+  const devs = cpDevs();
+  const filter = body._filter||'';
+  const visible = filter ? devs.filter(d=>d.status===filter) : devs;
+
+  body.innerHTML = `
+    <div class="filter-bar">
+      <div class="filter-group">
+        ${['','Cobrar','Em negociação','Acordo','Notificado','Quitado','Devolvida','Sem êxito'].map(s=>`
+          <button class="filter-btn${(!filter&&!s)||(filter===s)?'  active':''}" onclick="(function(){document.getElementById('portalCedenteBody')._filter='${s}';cpRenderCarteira(document.getElementById('portalCedenteBody'));})()">
+            ${s||'Todos'}${s?'':` (${devs.length})`}
+          </button>`).join('')}
       </div>
+      <input class="search-input" placeholder="Buscar nome ou CPF..." id="cpCarteiraSearch" style="width:220px"
+        oninput="cpFiltrarCarteira(this.value)">
     </div>
     <div class="panel">
-      <div class="panel-header"><span class="panel-title">Meus Devedores</span></div>
-      ${devs.length===0
-        ? '<div class="empty-state"><div class="empty-state-icon">📭</div><h3>Nenhum devedor vinculado</h3></div>'
-        : `<div class="tbl-wrap"><table class="tbl">
-            <thead><tr><th>Nome</th><th>Documento</th><th>Valor</th><th>Status</th><th>Fase</th><th>Dias em aberto</th></tr></thead>
-            <tbody>
-              ${devs.map(d=>`<tr>
-                <td>${d.nome||'—'}</td>
-                <td>${d.doc||'—'}</td>
-                <td>${fmtR(parseValorBR(d.valorAtual)||parseValorBR(d.valorOrig)||0)}</td>
-                <td>${statusBadgeHtml(d.status)}</td>
-                <td>${d.fase==='judicial'?'⚖️ Judicial':'📋 Extrajudicial'}</td>
-                <td>${diasEmAberto(d.createdAt||d.entrada)}d</td>
-              </tr>`).join('')}
-            </tbody>
-          </table></div>`}
+      ${visible.length===0
+        ?'<div class="empty-state" style="padding:40px"><div class="empty-state-icon">📭</div><div class="empty-state-title">Nenhuma cobrança encontrada</div></div>'
+        :`<div class="tbl-wrap"><table class="tbl" id="cpCarteiraTbl">
+          <thead><tr><th>Nome</th><th>CPF/CNPJ</th><th>Valor</th><th>Status</th><th>Fase</th><th>Dias</th><th>Docs</th><th></th></tr></thead>
+          <tbody>
+            ${visible.map(d=>`<tr>
+              <td><strong>${d.nome||'—'}</strong></td>
+              <td style="font-size:12px;color:var(--text-3)">${d.doc||'—'}</td>
+              <td>${fmtR(parseValorBR(d.valorAtual)||parseValorBR(d.valorOrig)||0)}</td>
+              <td>${statusBadgeHtml(d.status)}</td>
+              <td><span style="font-size:12px">${d.fase==='judicial'?'⚖️ Judicial':'📋 Extrajudicial'}</span></td>
+              <td style="font-size:12px;color:var(--text-3)">${diasEmAberto(d.createdAt||d.entrada)}d</td>
+              <td>${(d.documentos||[]).length>0?`<span class="badge badge-green">${(d.documentos||[]).length}</span>`:'<span class="badge badge-gray">0</span>'}</td>
+              <td><button class="btn btn-xs btn-ghost" onclick="cpVerDevedor('${d.id}')">Ver</button></td>
+            </tr>`).join('')}
+          </tbody>
+        </table></div>`}
+    </div>`;
+}
+
+function cpFiltrarCarteira(q){
+  const devs = cpDevs().filter(d=>{
+    const s = (d.nome+d.doc).toLowerCase();
+    return s.includes(q.toLowerCase());
+  });
+  const tbody = document.querySelector('#cpCarteiraTbl tbody');
+  if(!tbody) return;
+  tbody.innerHTML = devs.map(d=>`<tr>
+    <td><strong>${d.nome||'—'}</strong></td>
+    <td style="font-size:12px;color:var(--text-3)">${d.doc||'—'}</td>
+    <td>${fmtR(parseValorBR(d.valorAtual)||parseValorBR(d.valorOrig)||0)}</td>
+    <td>${statusBadgeHtml(d.status)}</td>
+    <td><span style="font-size:12px">${d.fase==='judicial'?'⚖️ Judicial':'📋 Extrajudicial'}</span></td>
+    <td style="font-size:12px;color:var(--text-3)">${diasEmAberto(d.createdAt||d.entrada)}d</td>
+    <td>${(d.documentos||[]).length>0?`<span class="badge badge-green">${(d.documentos||[]).length}</span>`:'<span class="badge badge-gray">0</span>'}</td>
+    <td><button class="btn btn-xs btn-ghost" onclick="cpVerDevedor('${d.id}')">Ver</button></td>
+  </tr>`).join('');
+}
+
+function cpVerDevedor(id){
+  const d = (DB.devedores||[]).find(x=>x.id===id);
+  if(!d) return;
+  const body = document.getElementById('portalCedenteBody');
+  const valor = parseValorBR(d.valorAtual)||parseValorBR(d.valorOrig)||0;
+  const comps = d.comprovantes||[];
+  const hist  = d.historico||[];
+
+  body.innerHTML = `
+    <button class="btn btn-ghost btn-sm" onclick="cpNavigate('carteira')" style="width:fit-content">← Voltar</button>
+    <div class="panel">
+      <div class="panel-hdr">
+        <span class="panel-title">${d.nome}</span>
+        ${statusBadgeHtml(d.status)}
+      </div>
+      <div style="display:flex;gap:32px;flex-wrap:wrap;padding:8px 0 16px">
+        <div class="stat-mini"><div class="stat-mini-val" style="font-size:16px">${d.doc||'—'}</div><div class="stat-mini-label">CPF / CNPJ</div></div>
+        <div class="stat-mini"><div class="stat-mini-val" style="font-size:16px;color:var(--danger)">${fmtR(valor)}</div><div class="stat-mini-label">Valor em aberto</div></div>
+        <div class="stat-mini"><div class="stat-mini-val" style="font-size:16px">${d.fase==='judicial'?'⚖️ Judicial':'📋 Extrajudicial'}</div><div class="stat-mini-label">Fase</div></div>
+        <div class="stat-mini"><div class="stat-mini-val" style="font-size:16px">${diasEmAberto(d.createdAt||d.entrada)}d</div><div class="stat-mini-label">Dias em aberto</div></div>
+      </div>
     </div>
-  `;
+    <div class="grid-2">
+      <!-- Histórico -->
+      <div class="panel">
+        <div class="panel-hdr"><span class="panel-title">Histórico de Movimentação</span></div>
+        ${hist.length===0
+          ?'<div class="empty-state" style="padding:24px"><div class="empty-state-icon">📋</div><div class="empty-state-title">Sem histórico</div></div>'
+          :`<div class="timeline">${hist.slice().reverse().map(h=>`
+            <div class="timeline-item">
+              <div class="timeline-dot"></div>
+              <div class="timeline-content">
+                <div class="timeline-date">${h.data||''} · ${h.tipo||''}</div>
+                <div class="timeline-text">${h.texto||''}</div>
+                ${h.autor?`<div style="font-size:11px;color:var(--text-3)">${h.autor}</div>`:''}
+              </div>
+            </div>`).join('')}</div>`}
+      </div>
+      <!-- Comprovantes -->
+      <div class="panel">
+        <div class="panel-hdr">
+          <span class="panel-title">Comprovantes de Pagamento</span>
+          <button class="btn btn-sm btn-primary" onclick="cpUploadComprovante('${d.id}')">+ Enviar</button>
+        </div>
+        ${comps.length===0
+          ?'<div class="empty-state" style="padding:24px"><div class="empty-state-icon">📎</div><div class="empty-state-title">Nenhum comprovante</div></div>'
+          :`<div style="display:flex;flex-direction:column;gap:8px;padding:4px 0">${comps.map((c,i)=>`
+            <div class="comp-card">
+              <div class="comp-card-icon">📄</div>
+              <div class="comp-card-info">
+                <div class="comp-card-name">${c.nome||'Comprovante '+(i+1)}</div>
+                <div class="comp-card-meta">Enviado em ${c.data||'—'} · ${c.valor?fmtR(+c.valor):''}</div>
+              </div>
+              <span class="comp-card-status comp-status-${c.status||'pendente'}">${c.status==='aprovado'?'Aprovado':c.status==='rejeitado'?'Rejeitado':'Pendente'}</span>
+            </div>`).join('')}</div>`}
+      </div>
+    </div>`;
+}
+
+function cpUploadComprovante(devedorId){
+  const nome = prompt('Nome / descrição do comprovante (ex: Pagamento parcela 1):');
+  if(!nome) return;
+  const valor = prompt('Valor pago (deixe em branco se não souber):');
+  const d = (DB.devedores||[]).find(x=>x.id===devedorId);
+  if(!d) return;
+  if(!d.comprovantes) d.comprovantes = [];
+  d.comprovantes.push({ id:uid(), nome, valor:valor||'', data:hoje(), status:'pendente', cedente: currentUser.nome });
+  // add to historico
+  if(!d.historico) d.historico = [];
+  d.historico.push({ id:uid(), data:hoje(), tipo:'Comprovante', texto:`Cedente enviou comprovante: ${nome}${valor?' — '+fmtR(+valor):''}`, autor: currentUser.nome });
+  save();
+  cpVerDevedor(devedorId);
+}
+
+function cpRenderComprovantes(body){
+  const devs = cpDevs();
+  const all = [];
+  devs.forEach(d=>(d.comprovantes||[]).forEach(c=>all.push({...c, devedorNome:d.nome, devedorId:d.id})));
+  all.sort((a,b)=>b.data>a.data?1:-1);
+
+  body.innerHTML = `
+    <div style="display:flex;gap:8px;margin-bottom:4px;flex-wrap:wrap">
+      ${['todos','pendente','aprovado','rejeitado'].map(s=>`
+        <button class="filter-btn" onclick="cpFiltrarComps('${s}',this)"
+          style="${s==='todos'?'background:var(--navy);color:#fff;border-color:var(--navy)':''}">${s==='todos'?'Todos':s.charAt(0).toUpperCase()+s.slice(1)}</button>`).join('')}
+    </div>
+    <div id="cpCompsList">
+    ${all.length===0
+      ?'<div class="empty-state" style="padding:40px"><div class="empty-state-icon">📎</div><div class="empty-state-title">Nenhum comprovante enviado</div><div class="empty-state-sub">Acesse um devedor em "Minha Carteira" e clique em Enviar Comprovante.</div></div>'
+      :all.map(c=>`
+        <div class="comp-card" data-status="${c.status||'pendente'}">
+          <div class="comp-card-icon">📄</div>
+          <div class="comp-card-info">
+            <div class="comp-card-name">${c.nome||'Comprovante'}</div>
+            <div class="comp-card-meta">${c.devedorNome} · Enviado em ${c.data||'—'}${c.valor?' · '+fmtR(+c.valor):''}</div>
+          </div>
+          <span class="comp-card-status comp-status-${c.status||'pendente'}">${c.status==='aprovado'?'Aprovado':c.status==='rejeitado'?'Rejeitado':'Pendente'}</span>
+        </div>`).join('')}
+    </div>`;
+}
+
+function cpFiltrarComps(status, btn){
+  document.querySelectorAll('.cp-body .filter-btn').forEach(b=>{
+    b.style.background=''; b.style.color=''; b.style.borderColor='';
+  });
+  btn.style.background='var(--navy)'; btn.style.color='#fff'; btn.style.borderColor='var(--navy)';
+  document.querySelectorAll('#cpCompsList .comp-card').forEach(el=>{
+    el.style.display = (status==='todos'||el.dataset.status===status)?'':'none';
+  });
+}
+
+function cpRenderNovaCobranca(body){
+  body.innerHTML = `
+    <div class="panel">
+      <div class="panel-hdr"><span class="panel-title">Solicitar Nova Cobrança</span></div>
+      <div style="padding:4px 0 16px;font-size:13px;color:var(--text-2);">
+        Preencha os dados abaixo. A cobrança será <strong>analisada e aprovada</strong> pela equipe COBRASQ antes de ser ativada.
+      </div>
+      <div class="fg-row">
+        <div class="fg"><label>Nome do Devedor *</label><input type="text" id="cpnc-nome" placeholder="Nome completo ou razão social"></div>
+        <div class="fg"><label>CPF / CNPJ *</label><input type="text" id="cpnc-doc" placeholder="000.000.000-00"></div>
+      </div>
+      <div class="fg-row">
+        <div class="fg"><label>Telefone / WhatsApp</label><input type="text" id="cpnc-tel" placeholder="(00) 00000-0000"></div>
+        <div class="fg"><label>E-mail do Devedor</label><input type="email" id="cpnc-email" placeholder="email@exemplo.com"></div>
+      </div>
+      <div class="fg"><label>Endereço</label><input type="text" id="cpnc-end" placeholder="Rua, número, bairro, cidade – UF"></div>
+      <div class="fg-row">
+        <div class="fg"><label>Valor da Dívida (R$) *</label><input type="number" id="cpnc-valor" placeholder="0,00" min="0" step="0.01"></div>
+        <div class="fg"><label>Data de Vencimento Original</label><input type="date" id="cpnc-venc"></div>
+      </div>
+      <div class="fg"><label>Título / Referência</label><input type="text" id="cpnc-titulo" placeholder="Nº do contrato, nota fiscal, etc."></div>
+      <div class="fg"><label>Observações / Contexto</label><textarea id="cpnc-obs" rows="3" placeholder="Descreva a origem da dívida, tentativas anteriores de contato, documentos disponíveis..."></textarea></div>
+      <div style="display:flex;justify-content:flex-end;margin-top:8px;">
+        <button class="btn btn-primary" onclick="cpSubmitNovaCobranca()">📤 Enviar Solicitação</button>
+      </div>
+    </div>`;
+}
+
+function cpSubmitNovaCobranca(){
+  const nome  = (document.getElementById('cpnc-nome').value||'').trim();
+  const doc   = (document.getElementById('cpnc-doc').value||'').trim();
+  const valor = (document.getElementById('cpnc-valor').value||'').trim();
+  if(!nome||!doc||!valor){ alert('Preencha nome, CPF/CNPJ e valor.'); return; }
+
+  // Create devedor with status "Pendente aprovação"
+  const novo = {
+    id: uid(), nome, doc,
+    tel:   document.getElementById('cpnc-tel').value||'',
+    email: document.getElementById('cpnc-email').value||'',
+    endereco: document.getElementById('cpnc-end').value||'',
+    valorOrig: valor, valorAtual: valor,
+    titulo: document.getElementById('cpnc-titulo').value||'',
+    obs:   document.getElementById('cpnc-obs').value||'',
+    entrada: document.getElementById('cpnc-venc').value||hoje(),
+    status: 'Pendente aprovação',
+    fase: 'extrajudicial',
+    clienteId: currentUser.clienteId,
+    createdAt: hoje(),
+    historico:[{id:uid(),data:hoje(),tipo:'Solicitação',texto:`Cobrança solicitada pelo cedente ${currentUser.nome} via portal.`,autor:currentUser.nome}],
+    documentos:[], comprovantes:[], tarefas:[], acordos:[]
+  };
+  if(!DB.devedores) DB.devedores=[];
+  DB.devedores.push(novo);
+  save();
+  alert('Solicitação enviada! A equipe COBRASQ irá analisar e ativar a cobrança em breve.');
+  cpNavigate('carteira');
+}
+
+function cpRenderConfig(body){
+  const cli = (DB.clientes||[]).find(c=>c.id===currentUser.clienteId);
+  body.innerHTML = `
+    <div class="grid-2" style="align-items:start">
+      <!-- Dados pessoais -->
+      <div class="panel">
+        <div class="panel-hdr"><span class="panel-title">Meus Dados</span></div>
+        <div class="fg"><label>Nome de exibição</label><input type="text" id="cpconf-nome" value="${escHtml(currentUser.nome)}"></div>
+        <div class="fg"><label>E-mail de acesso</label><input type="email" id="cpconf-email" value="${escHtml(cli?.loginEmail||'')}"></div>
+        <div style="display:flex;justify-content:flex-end;margin-top:8px">
+          <button class="btn btn-primary" onclick="cpSalvarDados()">Salvar Dados</button>
+        </div>
+      </div>
+      <!-- Senha -->
+      <div class="panel">
+        <div class="panel-hdr"><span class="panel-title">Alterar Senha</span></div>
+        <div class="fg"><label>Senha atual</label><input type="password" id="cpconf-senha-atual" placeholder="••••••••"></div>
+        <div class="fg"><label>Nova senha</label><input type="password" id="cpconf-senha-nova" placeholder="••••••••"></div>
+        <div class="fg"><label>Confirmar nova senha</label><input type="password" id="cpconf-senha-conf" placeholder="••••••••"></div>
+        <div style="display:flex;justify-content:flex-end;margin-top:8px">
+          <button class="btn btn-primary" onclick="cpAlterarSenha()">Alterar Senha</button>
+        </div>
+      </div>
+      <!-- Alertas por e-mail -->
+      <div class="panel" style="grid-column:1/-1">
+        <div class="panel-hdr"><span class="panel-title">Alertas por E-mail</span></div>
+        <div style="display:flex;flex-direction:column;gap:14px;padding:4px 0">
+          ${[
+            ['cpnotif-novo-hist','Notificar quando houver nova movimentação em uma cobrança'],
+            ['cpnotif-status','Notificar quando o status de uma cobrança for alterado'],
+            ['cpnotif-acordo','Notificar quando um acordo for firmado'],
+            ['cpnotif-quitado','Notificar quando uma cobrança for quitada'],
+            ['cpnotif-comp','Notificar quando um comprovante for aprovado ou rejeitado'],
+            ['cpnotif-nova-sol','Notificar confirmação ao enviar nova solicitação de cobrança']
+          ].map(([id,label])=>{
+            const checked = cli?.notif?.[id]!==false;
+            return `<label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;">
+              <input type="checkbox" id="${id}" ${checked?'checked':''} style="width:16px;height:16px;">
+              ${label}
+            </label>`;
+          }).join('')}
+        </div>
+        <div style="display:flex;justify-content:flex-end;margin-top:16px">
+          <button class="btn btn-primary" onclick="cpSalvarNotif()">Salvar Preferências</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function cpSalvarDados(){
+  const cli = (DB.clientes||[]).find(c=>c.id===currentUser.clienteId);
+  if(!cli) return;
+  const nome  = (document.getElementById('cpconf-nome').value||'').trim();
+  const email = (document.getElementById('cpconf-email').value||'').trim();
+  if(!nome){ alert('Nome não pode estar vazio.'); return; }
+  cli.nome = nome;
+  cli.loginEmail = email;
+  currentUser.nome = nome;
+  document.getElementById('cpNameSidebar').textContent = nome;
+  document.getElementById('cpAvatarSidebar').textContent = initials(nome);
+  save();
+  alert('Dados atualizados!');
+}
+
+function cpAlterarSenha(){
+  const cli = (DB.clientes||[]).find(c=>c.id===currentUser.clienteId);
+  if(!cli) return;
+  const atual = document.getElementById('cpconf-senha-atual').value;
+  const nova  = document.getElementById('cpconf-senha-nova').value;
+  const conf  = document.getElementById('cpconf-senha-conf').value;
+  if(cli.loginSenha && atual !== cli.loginSenha){ alert('Senha atual incorreta.'); return; }
+  if(!nova||nova.length<4){ alert('Nova senha deve ter pelo menos 4 caracteres.'); return; }
+  if(nova!==conf){ alert('As senhas não coincidem.'); return; }
+  cli.loginSenha = nova;
+  save();
+  document.getElementById('cpconf-senha-atual').value='';
+  document.getElementById('cpconf-senha-nova').value='';
+  document.getElementById('cpconf-senha-conf').value='';
+  alert('Senha alterada com sucesso!');
+}
+
+function cpSalvarNotif(){
+  const cli = (DB.clientes||[]).find(c=>c.id===currentUser.clienteId);
+  if(!cli) return;
+  if(!cli.notif) cli.notif={};
+  ['cpnotif-novo-hist','cpnotif-status','cpnotif-acordo','cpnotif-quitado','cpnotif-comp','cpnotif-nova-sol'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) cli.notif[id] = el.checked;
+  });
+  save();
+  alert('Preferências salvas!');
 }
 
 // ── PORTAL DEVEDOR ───────────────────────────────────────────
@@ -4057,6 +4470,12 @@ document.addEventListener('DOMContentLoaded', ()=>{
   ['cedente-email','cedente-senha'].forEach(id=>{
     const el = document.getElementById(id);
     if(el) el.addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin('cedente'); });
+  });
+
+  // ── CEDENTE PORTAL NAV ───────────────────────────────────
+  document.getElementById('cpNav').addEventListener('click', e=>{
+    const item = e.target.closest('[data-cppage]');
+    if(item) cpNavigate(item.dataset.cppage);
   });
 
   // ── LOGOUT ───────────────────────────────────────────────
