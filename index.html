@@ -37979,8 +37979,6 @@ function _finFluxoPonteLucro(base, proj, p, A){
   p = Object.assign({}, FIN_FLUXO_PREMISSAS_PADRAO, p || {});
   const real = Math.max(0, Math.min(1, +p.realizacao || 0));
   const b = A.b, hoje = A.hoje;
-  const r0 = (proj && proj.rows && proj.rows[0]) || {};
-  const V = base.vencidos || {};
   const cont = new Set((base.itens||[]).filter(i => i.tipo === 'repasse' && i.contingente).map(i => i.id));
   let aqPrevFixo = 0, aqPrevCont = 0;
   for(const it of (A.aqPrevItens||[])){ if(cont.has(it.id)) aqPrevCont += it.valor; else aqPrevFixo += it.valor; }
@@ -37992,9 +37990,20 @@ function _finFluxoPonteLucro(base, proj, p, A){
   const diasPer = Math.round((_finDeISO(b.fim) - _finDeISO(b.ini)) / 86400000) + 1;
   const frac = b.modo === 'mes' ? 1 : Math.max(0, Math.min(1, diasPer / diasMes));
   const temHoje = hoje >= b.ini && hoje <= b.fim;
+  // O lucro do card JÁ contém o que venceu DENTRO do período (é lançamento do período).
+  // As linhas 1 e 2 trazem só o que vem de ANTES dele: entradas vencidas em meses
+  // anteriores (menos os repasses contingentes delas, com realização) e a parcela do mês
+  // do backlog — repasses vencidos antes do período com o devedor já pago, quitados em
+  // `backlogMeses` como na projeção. Sem este corte, uma parcela vencida no dia 1 entrava
+  // no lucro do card e de novo aqui.
+  const itens = (base.itens||[]).filter(i => i.vencido && String(i.vence||'') < b.ini);
+  const vencEnt = itens.filter(i => i.tipo === 'entrada' && !i.judicial).reduce((s,i) => s + i.valor, 0);
+  const vencCont = itens.filter(i => i.tipo === 'repasse' && i.contingente).reduce((s,i) => s + i.valor, 0);
+  const backlogAntes = itens.filter(i => i.tipo === 'repasse' && !i.contingente).reduce((s,i) => s + i.valor, 0);
+  const nb = Math.max(1, Math.round(+p.backlogMeses || 1));
   const linhas = [
-    { k:'vencidos', label:'Vencidos de meses anteriores puxados para este mês', v: temHoje ? real * ((+V.entradas||0) - (+V.repassesContingentes||0)) : 0 },
-    { k:'backlog', label:'Parcela do mês dos repasses vencidos com devedor já pago', v: -(+r0.repBacklog||0) * (mesKey === (base.meses||[{}])[0].key ? frac : 0) },
+    { k:'vencidos', label:'Vencidos de meses anteriores puxados para este mês', v: temHoje ? real * (vencEnt - vencCont) : 0 },
+    { k:'backlog', label:'Parcela do mês dos repasses vencidos com devedor já pago', v: temHoje ? -(backlogAntes / nb) * frac : 0 },
     { k:'recorrencias', label:'Recorrências que ainda não viraram lançamento', v: -((+m.recorrencias||0) + (+m.dividasRecorrentes||0)) * frac },
     { k:'das', label:`DAS de ${(+p.dasPct*100).toFixed(1).replace('.',',')}% sobre a receita própria`, v: -Math.max(0, inicio) * (+p.dasPct||0) },
   ];
