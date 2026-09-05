@@ -33170,7 +33170,8 @@ function _finLancCascataRender(){
       .finmv-gh:hover{background:#FBFAF6;}
       .finmv-lnk{background:transparent;border:none;padding:5px 4px;font-size:11.5px;font-weight:600;color:#15224A;cursor:pointer;font-family:inherit;white-space:nowrap;}
       .finmv-lnk:hover{color:#97793A;}
-      .finmv-aguard{font-size:11.5px;color:#97793A;white-space:nowrap;}
+      .finmv-aguard{background:transparent;border:none;padding:5px 4px;font-size:11.5px;font-weight:600;color:#97793A;white-space:nowrap;cursor:pointer;font-family:inherit;}
+      .finmv-aguard:hover{text-decoration:underline;}
       .finmv-compr{font-size:11.5px;font-weight:600;color:#4A7A52;white-space:nowrap;text-decoration:none;}
       .finmv-compr:hover{text-decoration:underline;}
       .finmv-kebab{background:transparent;border:none;border-radius:5px;color:#A6AEBD;font-size:14px;line-height:1;padding:3px 5px;cursor:pointer;font-family:inherit;}
@@ -33235,6 +33236,7 @@ function _finLancCascataRender(){
       <div class="finmv-cont">
         <span>${contador}${s.busca ? ` · busca “${escHtml(s.busca)}” <a onclick="_finLancCascataBusca('')">limpar</a>` : ''}</span>
         ${s.fTipo==='repasses' ? `<span style="color:#97793A;">· repasses ao credor saem daqui pelo botão <b>Repassar</b> — não existe mais aba separada</span>` : ''}
+        ${s.visao && s.visao !== 'tudo' ? `<span style="color:#97793A;">· só <b>${escHtml(((FIN_MOV_VISOES.find(v => v.id === s.visao) || {}).label || s.visao).toLowerCase())}</b> <a onclick="_finMovSetVisao('tudo')">ver tudo</a></span>` : ''}
         ${!agrupado ? `<span>· ordenado por ${escHtml((FIN_LANC_ORD_COLS[s.ord.col]||{}).label||'').toLowerCase()} <a onclick="_finLancCascataOrd('data')">voltar à ordem por data</a></span>` : ''}
         ${ctx.truncado ? `<span style="color:#A65A4A;font-weight:600;">· lista cortada em ${FIN_LANC_LIMITE} — ${ctx.busca?'refine a busca ou estreite o período':'estreite o período'}</span>` : ''}
       </div>
@@ -33534,7 +33536,7 @@ async function _finRepConfirmar(){
       await renderFinLancamentosCascata(document.getElementById('fin-content'));
       _finRepAbrir(fila[0], fila.slice(1));
     } else {
-      renderFinTab('lancamentos');
+      renderFinanceiro();   // página inteira: o badge e o subtítulo moram no cabeçalho
     }
   }catch(e){
     S.enviando = false;
@@ -33596,7 +33598,7 @@ async function _finLoteCategoriaConfirmar(){
     closeModal('finlote-overlay');
     _finFinanceiroInvalidaCaches();
     showToast(`Categoria alterada em ${rows.length} ${rows.length===1?'lançamento':'lançamentos'}.`, 'success');
-    renderFinTab('lancamentos');
+    renderFinanceiro();
   }catch(e){ showToast('Erro ao alterar categoria: ' + (e.message||e), 'danger'); }
 }
 function _finMovPainelFiltrosHtml(contas, cats, cedentes, contador, chipF){
@@ -33731,7 +33733,7 @@ function _finLancCascataRowHtml(l, ctx){
   // Confirmar (ghost) para A PAGAR / A RECEBER que não é repasse; sempre Abrir.
   const acoes = [];
   if(repAberto) acoes.push(`<button class="finmv-rep" onclick="event.stopPropagation();_finRepAbrir(${l.id})" title="Repassar ao credor por PIX (Asaas)"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3l4 4-4 4"/><path d="M21 7H7"/><path d="M7 21l-4-4 4-4"/><path d="M3 17h14"/></svg>Repassar</button>`);
-  else if(repasse && op && op.repasse_status === 'preparado' && !efetivado) acoes.push(`<span class="finmv-aguard" title="PIX disparado; o Asaas ainda não confirmou">aguardando Asaas ◔</span>`);
+  else if(repasse && op && op.repasse_status === 'preparado' && !efetivado) acoes.push(`<button class="finmv-aguard" onclick="event.stopPropagation();_repConferirTransfer('${escHtml(String(op.id))}')" title="PIX disparado; o Asaas ainda não confirmou. Clique para consultar: confirmado vira REPASSADO; recusado ou cancelado devolve o botão Repassar.">aguardando Asaas ◔</button>`);
   if(op && op.repasse_status === 'efetuado' && op.repasse_comprovante_url) acoes.push(`<a class="finmv-compr" href="${escHtml(op.repasse_comprovante_url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Comprovante ↗</a>`);
   if(!efetivado && !repasse) acoes.push(`<button class="finmv-gh" onclick="event.stopPropagation();_finMovClicarPolegar(${l.id})" title="${isEnt?'Confirmar recebimento':'Confirmar pagamento'} · ${fmtR(Math.abs(+l.valor||0))}">Confirmar</button>`);
   acoes.push(`<button class="finmv-lnk" onclick="event.stopPropagation();_finLancAbrirDrawer(${l.id})">Abrir</button>`);
@@ -36112,7 +36114,7 @@ async function _repConferirTransfer(opId){
     else if(j.liberado) showToast('A transferência não vingou ('+(j.motivo||j.asaas_status||'—')+'). O botão foi liberado.','warning');
     else showToast('Ainda em processamento no Asaas'+(j.asaas_status?' ('+j.asaas_status+')':'')+'.','info');
     _finFinanceiroInvalidaCaches();
-    renderFinTab(window._finTab==='credores' ? 'credores' : 'repasses');
+    renderFinanceiro();   // vale de Movimentações (linha "aguardando Asaas") e da tela legada
   }catch(e){ showToast('Erro ao consultar: '+(e.message||e),'danger'); }
 }
 const _repDM = s => { s=(s||'').slice(0,10); return s ? s.split('-').slice(1).reverse().join('/') : '—'; }; // dd/MM
@@ -38281,7 +38283,7 @@ async function _finCaixaPagar(id){
     await finApi.pagarLancamento(id, { dataPagamento: isoLocal(new Date()), contaId: it.contaId || null });
     _finFinanceiroInvalidaCaches();
     showToast('Pagamento confirmado.', 'success');
-    renderFinTab('visao');
+    renderFinanceiro();   // o subtítulo do cabeçalho conta as vencidas
   }catch(e){ showToast('Erro: ' + (e.message||e), 'danger'); }
 }
 // "Cobrar": abre a ficha do lançamento (recibo, nota, recebimento parcial, WhatsApp da
@@ -38316,6 +38318,11 @@ function _finCaixaAjustarMeta(){
 // "Ver os atrasados →" e os KPIs clicáveis levam para a lista já filtrada).
 function _finIrMovimentacoes(visao, patch){
   const s = _finLancCascataState;
+  // As visões antigas (FIN_MOV_VISOES) perderam a fileira de chips no v2. 'atrasados' é o
+  // chip Situação "Em atraso", então vira ele — senão a lista chegava recortada com
+  // "Tudo" e "Todos" acesos e nada dizia por quê. O que não tem chip (divergências, a
+  // repassar, não conciliados) segue como visão e se anuncia na linha do contador.
+  if(visao === 'atrasados'){ visao = 'tudo'; patch = Object.assign({ fStatus:'atrasado' }, patch || {}); }
   s.visao = visao || 'tudo';
   s.busca = '';
   // Chegar de outra aba com filtro de painel grudado já fez a lista parecer vazia sem
