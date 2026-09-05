@@ -32730,7 +32730,7 @@ function _finMovToggleMais(){ _finLancCascataState.maisFiltros = !_finLancCascat
 function _finMovVerMais(){ _finLancCascataState.limite += FIN_MOV_PAGINA; _finLancCascataRender(); }
 function _finMovNFiltros(){
   const s = _finLancCascataState;
-  return s.fContas.length + (s.fTipo?1:0) + (s.fStatus?1:0) + (s.fCategoria?1:0) + (s.fCedente?1:0) + (s.fMin?1:0) + (s.fMax?1:0);
+  return s.fContas.length + (s.fCategoria?1:0) + (s.fCedente?1:0) + (s.fMin?1:0) + (s.fMax?1:0);
 }
 function _finMovLimparFiltros(){
   const s = _finLancCascataState;
@@ -32825,7 +32825,8 @@ async function _finLancCascataOrd(col){
   if(!FIN_LANC_ORD_COLS[col]) return;
   const o = _finLancCascataState.ord;
   const antes = _finLancOrdServidorAsc();
-  if(o.col===col) o.dir = o.dir==='asc' ? 'desc' : 'asc';
+  if(col === 'data' && o.col !== 'data'){ o.col = 'data'; o.dir = 'asc'; }   // "voltar à ordem por data"
+  else if(o.col===col) o.dir = o.dir==='asc' ? 'desc' : 'asc';
   else { o.col = col; o.dir = FIN_LANC_ORD_DESC_PRIMEIRO.has(col) ? 'desc' : 'asc'; }
   // Trocar a ordem muda QUAIS 60 linhas a página mostra. Manter a seleção deixava a
   // barra de lote anunciando "60 selecionados" sobre linhas que sumiram da tela — e o
@@ -32888,13 +32889,23 @@ async function _finLancCascataCarregar(){
 
   let opsByLanc = {};
   try{
-    const { data } = await sb.from('fin_operacao')
-      .select('id,valor_recebido,valor_capital,valor_honorario,repasse_status,credor_id,recebido_em,lancamento_receita_id,lancamento_despesa_id')
+    const OPSEL = 'id,valor_recebido,valor_capital,valor_honorario,repasse_status,repasse_asaas_transfer_id,repasse_comprovante_url,credor_id,recebido_em,lancamento_receita_id,lancamento_despesa_id';
+    const { data } = await sb.from('fin_operacao').select(OPSEL)
       .gte('recebido_em', ini).lte('recebido_em', fim).limit(2000);
-    const credIds=[...new Set((data||[]).map(o=>o.credor_id).filter(Boolean))];
+    const ops = data || [];
+    // Operações criadas pelo /api/repassar a partir de um lançamento (repasse importado)
+    // têm recebido_em NULO e não entram na janela acima: sem esta segunda leitura o
+    // "preparado"/"efetuado" delas ficava invisível e a linha seguia oferecendo Repassar.
+    const desp = rows.filter(r => r.tipo_movimento === 0).map(r => r.id);
+    const vistos = new Set(ops.map(o => o.id));
+    for(let i = 0; i < desp.length; i += 300){
+      const { data:d2 } = await sb.from('fin_operacao').select(OPSEL).in('lancamento_despesa_id', desp.slice(i, i+300)).limit(2000);
+      for(const o of (d2||[])) if(!vistos.has(o.id)){ vistos.add(o.id); ops.push(o); }
+    }
+    const credIds=[...new Set(ops.map(o=>o.credor_id).filter(Boolean))];
     let credMap={};
     if(credIds.length){ const {data:cs}=await sb.from('clientes').select('id,nome,nome_fantasia').in('id',credIds); (cs||[]).forEach(c=>credMap[c.id]=_finNomeCredor(c)); }
-    (data||[]).forEach(o=>{ o._credorNome=credMap[o.credor_id]||null; if(o.lancamento_receita_id) opsByLanc[o.lancamento_receita_id]=o; if(o.lancamento_despesa_id) opsByLanc[o.lancamento_despesa_id]=o; });
+    ops.forEach(o=>{ o._credorNome=credMap[o.credor_id]||null; if(o.lancamento_receita_id) opsByLanc[o.lancamento_receita_id]=o; if(o.lancamento_despesa_id) opsByLanc[o.lancamento_despesa_id]=o; });
   }catch(_){}
   // Carteira da linha, quando não há fin_operacao: de quem é esse dinheiro.
   //
@@ -32999,11 +33010,16 @@ function _finLancCascataFiltrados(visaoId){
     if(s.fTipo === 'in'  && l.tipo_movimento !== 1) return false;
     if(s.fTipo === 'out' && l.tipo_movimento !== 0) return false;
     if(s.fTipo === 'repasse' && !_finLancEhRepasse(l, ctx)) return false;
+    // 'repasses' (chip do handoff v2): toda saída de aquisição de dívidas / com credor,
+    // paga ou não — a situação é recorte à parte. 'repasse' (acima) é o legado "a
+    // repassar agora", que só acende com a entrada em caixa.
+    if(s.fTipo === 'repasses' && !_finMovEhRepasse(l, ctx)) return false;
     if(s.fTipo === 'fatprev' && !_finLancEhFaturamentoPrevisto(l, ctx)) return false;
     if(s.fStatus){
       const t = _finLancSit(l).t;
       const efetivado = t === 'PAGO' || t === 'CONCILIADO';
       if(s.fStatus === 'pago' && !efetivado) return false;
+      if(s.fStatus === 'conciliado' && t !== 'CONCILIADO') return false;
       if(s.fStatus === 'atrasado' && t !== 'ATRASADO') return false;
       if(s.fStatus === 'pendente' && (efetivado || t === 'ATRASADO')) return false;
     }
@@ -33041,7 +33057,7 @@ function _finLancCascataRender(){
   const todos = ctx.rows;
   const filtrados = _finLancCascataFiltrados();
 
-  // Totais do RODAPÉ refletem o filtro inteiro, não a página exibida (handoff).
+  // Totais do RODAPÉ refletem o filtro inteiro, não a página exibida (handoff §3.2).
   let ent = 0, sai = 0;
   filtrados.forEach(l => { const v = Math.abs(+l.valor||0); if(l.tipo_movimento===1) ent += v; else sai += v; });
   const nVencidos = _finMovVencidos().length;   // mesma função que o botão executa
@@ -33051,18 +33067,12 @@ function _finLancCascataRender(){
   // popover para centenas de linhas foi o que congelou o protótipo com 280 lançamentos.
   const pagina = ordenados.slice(0, s.limite);
   const restantes = Math.max(0, ordenados.length - pagina.length);
-  // Cabeçalho de dia some quando o filtro devolve menos de 4 linhas: com pouquíssimas
-  // linhas a faixa de dia vira mais ruído do que informação.
-  //
-  // Era 8 até 31/08/2026, e o corte alto fazia a MESMA tela mudar de estrutura conforme o
-  // filtro, sem dizer por quê: a Juliana Pinto Ribeiro (15 linhas) saía em cascata de dias
-  // e a Claudete Aparecida da Silva (7) saía corrida. Junto com o cabeçalho ia embora o
-  // saldo do dia — e a Claudete tem entrada e saída no MESMO 06/10, exatamente o caso em
-  // que esse número é o que se quer ler.
+  // Grupo por dia (handoff v2) quando a ordem é a de data e há pelo menos 4 linhas (corte
+  // de 31/08, teste F-21: com pouquíssimas linhas a faixa de dia vira mais ruído do que
+  // informação). Ordenar por outra coluna desfaz a cascata e vira lista corrida — agrupar
+  // por dia e ordenar por valor ao mesmo tempo faria o maior valor não aparecer no topo.
   const agrupado = s.ord.col === 'data' && pagina.length >= 4;
-  // Totais do dia saem do DIA INTEIRO do filtro, não da fatia paginada: com o corte dos
-  // 60 caindo no meio de um dia, o saldo daquele cabeçalho ficava errado e ainda mudava
-  // de valor ao clicar em "Mostrar mais".
+  // Totais do dia saem do DIA INTEIRO do filtro, não da fatia paginada.
   const totalDoDia = {};
   if(agrupado){
     for(const l of ordenados){
@@ -33082,87 +33092,86 @@ function _finLancCascataRender(){
   }
 
   const contas = (ctx.dim && ctx.dim.contas) || [];
-  // Só as categorias das linhas que a aba REALMENTE mostra. `catPorLanc` é montado antes
-  // do corte do judicial, então "Sisbajud" aparecia na lista e escolhê-la devolvia zero.
   const cats = [...new Set(ctx.rows.map(l => (ctx.catPorLanc||{})[l.id]).filter(Boolean).map(c => c.nome))]
     .sort((a,b)=>a.localeCompare(b,'pt-BR'));
   const cedentes = [...new Set(todos.map(l => _finLancCedente(l, ctx)).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'pt-BR'));
-  const salvas = _finMovVisoesSalvas();
   const nFiltros = _finMovNFiltros();
   const contador = `${filtrados.length} de ${todos.length} ${todos.length===1?'lançamento':'lançamentos'}`;
+  // Contador de cada chip = o que a lista devolve ao clicar nele, com os outros recortes
+  // vigentes (invariante 10 do handoff de 29/08; §6.3 do handoff v2).
+  const repN = _finMovContarChip('fTipo', 'repasses');
 
-  const chipF = (on) => `border-radius:20px;padding:6px 13px;font-size:12.5px;white-space:nowrap;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:7px;`
-    + (on ? 'font-weight:600;background:#0A1530;color:#fff;border:1px solid #0A1530;' : 'font-weight:400;background:#fff;color:#5A5F66;border:1px solid #E6E1D2;');
+  const chipF = (on) => `border-radius:20px;padding:6px 12px;font-size:12.5px;white-space:nowrap;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:7px;`
+    + (on ? 'font-weight:500;background:#0A1530;color:#EFEAD9;border:1px solid #0A1530;' : 'font-weight:500;background:#fff;color:#0A1530;border:1px solid rgba(10,21,48,.14);');
+  const chip = (on, label, fn, n) => `<button class="finmv-chip ${on?'on':''}" onclick="${fn}">${label}${n != null ? ` <span class="n">${n}</span>` : ''}</button>`;
 
   el.innerHTML = `
     <style>
       .finmv-wrap{max-width:1560px;margin:0 auto;display:flex;flex-direction:column;gap:12px;}
-      .finmv-h1{font-family:'Fraunces',Georgia,serif;font-size:26px;font-weight:500;letter-spacing:-.02em;color:#0A1530;}
-      .finmv-sub{font-size:13px;color:#5A5F66;margin-top:3px;}
-      .finmv-chips{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
-      .finmv-chip{display:flex;align-items:center;gap:7px;border-radius:20px;padding:6px 13px;font-size:12.5px;font-weight:500;background:#fff;border:1px solid #E6E1D2;color:#5A5F66;cursor:pointer;font-family:inherit;white-space:nowrap;}
+      .finmv-wrap > *{flex-shrink:0;}
+      .finmv-filtros{display:flex;align-items:center;gap:8px;flex-wrap:wrap;row-gap:10px;}
+      .finmv-lb{font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:rgba(10,21,48,.5);margin-right:2px;}
+      .finmv-div{width:1px;height:22px;background:rgba(10,21,48,.12);margin:0 6px;}
+      .finmv-right{margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+      .finmv-chip{display:flex;align-items:center;gap:7px;border-radius:20px;padding:6px 12px;font-size:12.5px;font-weight:500;background:#fff;border:1px solid rgba(10,21,48,.14);color:#0A1530;cursor:pointer;font-family:inherit;white-space:nowrap;}
       .finmv-chip .n{font-family:'JetBrains Mono',monospace;font-size:10px;color:#8A94A6;}
-      .finmv-chip.on{background:#0A1530;border-color:#0A1530;color:#fff;font-weight:600;}
+      .finmv-chip.on{background:#0A1530;border-color:#0A1530;color:#EFEAD9;}
       .finmv-chip.on .n{color:#C9A961;}
-      .finmv-chip.add{border:1px dashed #D8D2C5;color:#6B7683;}
-      .finmv-chip.add:hover{border-color:#9C7F40;color:#9C7F40;}
-      .finmv-chip .x{color:#A6AEBD;font-size:11px;}
-      .finmv-chip .x:hover{color:#A65A4A;}
-      .finmv-barra{display:flex;gap:9px;flex-wrap:wrap;align-items:center;}
-      .finmv-busca{position:relative;display:flex;align-items:center;}
-      .finmv-busca .lupa{position:absolute;left:11px;font-size:12px;color:#A6AEBD;pointer-events:none;}
-      .finmv-inp{width:280px;max-width:100%;background:#fff;border:1px solid #E6E1D2;border-radius:7px;padding:8px 11px 8px 27px;font-size:12.5px;font-family:inherit;color:#0A1530;outline:none;}
       .finmv-fbtn{display:flex;align-items:center;gap:7px;border-radius:7px;padding:8px 12px;font-size:12.5px;font-weight:500;color:#0A1530;cursor:pointer;font-family:inherit;white-space:nowrap;}
       .finmv-fbadge{font-family:'JetBrains Mono',monospace;font-size:9.5px;border-radius:9px;padding:1px 6px;background:#0A1530;color:#fff;}
-      .finmv-painel{position:absolute;top:38px;left:0;z-index:50;width:452px;background:#fff;border:1px solid #E6E1D2;border-radius:11px;box-shadow:0 20px 48px rgba(10,21,48,.18);padding:16px;display:flex;flex-direction:column;gap:14px;text-align:left;}
+      .finmv-painel{position:absolute;top:38px;right:0;z-index:50;width:452px;max-width:calc(100vw - 60px);background:#fff;border:1px solid #E6E1D2;border-radius:11px;box-shadow:0 20px 48px rgba(10,21,48,.18);padding:16px;display:flex;flex-direction:column;gap:14px;text-align:left;}
       .finmv-painel .sec{display:flex;flex-direction:column;gap:8px;}
       .finmv-painel .sec .tt{font-size:12px;font-weight:600;color:#0A1530;}
       .finmv-painel .ops{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+      .finmv-painel .finmv-inp{width:100%;background:#fff;border:1px solid #E6E1D2;border-radius:7px;padding:8px 11px;font-size:12.5px;font-family:inherit;color:#0A1530;outline:none;box-sizing:border-box;}
       .finmv-mais{align-self:flex-start;display:flex;align-items:center;gap:5px;background:transparent;border:none;padding:0;font-size:12.5px;font-weight:600;color:#15224A;cursor:pointer;font-family:inherit;}
       .finmv-mais:hover{color:#9C7F40;}
       .finmv-avancado{display:grid;grid-template-columns:1fr 1fr;gap:10px;background:#FBFAF6;border:1px solid #E6E1D2;border-radius:8px;padding:11px 12px;}
       .finmv-avancado label{display:flex;flex-direction:column;gap:5px;font-size:11px;color:#8A94A6;}
       .finmv-avancado select,.finmv-avancado input{width:100%;background:#fff;border:1px solid #E6E1D2;border-radius:7px;padding:7px 9px;font-size:12px;font-family:inherit;color:#0A1530;}
       .finmv-avancado input{font-family:'JetBrains Mono',monospace;font-size:11.5px;}
-      .finmv-cont{margin-left:auto;font-size:12px;color:#8A94A6;}
-      .finmv-sec{background:#fff;border:1px solid #E6E1D2;border-radius:10px;overflow:hidden;}
-      /* As 9 colunas somam 852px com gaps e padding. Abaixo disso a tabela ROLA DENTRO
-         do cartão — deixar a linha crescer empurraria a página inteira para scroll
-         horizontal, que é a regressão que #mainArea{min-width:0} existe para evitar. */
+      .finmv-cont{font-size:12.5px;color:#5A5F66;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+      .finmv-cont a{color:#15224A;font-weight:600;cursor:pointer;}
+      .finmv-sec{background:#fff;border:1px solid rgba(10,21,48,.10);border-radius:12px;overflow:hidden;}
+      /* As 8 colunas somam ≈816px com gaps e padding — cabe a 1180. Abaixo disso a tabela
+         ROLA DENTRO do cartão em vez de empurrar a página (#mainArea{min-width:0}). */
       .finmv-scroll{overflow-x:auto;}
-      .finmv-grid{display:grid;grid-template-columns:30px 38px 48px minmax(230px,2.3fr) minmax(130px,1fr) 132px 38px 44px 30px;gap:12px;align-items:center;padding:0 18px;min-width:852px;box-sizing:border-box;}
-      .finmv-thead{border-bottom:1px solid #E6E1D2;padding-top:8px;padding-bottom:8px;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:#A6AEBD;}
+      .finmv-grid{display:grid;grid-template-columns:30px 26px minmax(170px,1.6fr) minmax(96px,1fr) minmax(84px,.7fr) 112px 100px minmax(128px,auto);gap:10px;align-items:center;padding:10px 14px;min-width:816px;box-sizing:border-box;}
+      .finmv-thead{background:#F4F5F7;border-bottom:1px solid rgba(10,21,48,.08);font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:rgba(10,21,48,.5);padding-top:9px;padding-bottom:9px;}
       .finmv-th{display:flex;align-items:center;gap:4px;cursor:pointer;user-select:none;border-radius:4px;padding:3px 4px;margin:-3px -4px;}
       .finmv-th svg{opacity:.3;}
       .finmv-th:hover{color:#0A1530;} .finmv-th:hover svg{opacity:.7;}
       .finmv-th.on{color:#0A1530;} .finmv-th.on svg{opacity:.7;}
-      .finmv-th.num{justify-content:flex-end;} .finmv-th.mid{justify-content:center;}
-      .finmv-dia{display:flex;align-items:baseline;gap:8px;padding:14px 18px 6px;min-width:852px;box-sizing:border-box;}
-      .finmv-dia .dd{font-size:11.5px;font-weight:600;color:#0A1530;white-space:nowrap;}
-      .finmv-dia .dow{font-size:10.5px;color:#A6AEBD;}
-      .finmv-dia .rule{flex:1;height:1px;background:#F2EFE6;}
-      .finmv-dia .sld{font-family:'JetBrains Mono',monospace;font-size:10.5px;white-space:nowrap;}
-      .finmv-row{position:relative;border-top:1px solid #F7F4EC;cursor:pointer;padding-top:10px;padding-bottom:10px;}
-      .finmv-row:hover{background:#FBFAF6;}
-      .finmv-row.atraso{background:#FEFBEC;border-top-color:#F5EBCF;}
-      .finmv-row.atraso:hover{background:#FCF6E4;}
+      .finmv-th.num{justify-content:flex-end;}
+      .finmv-daygrp{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 14px;background:#FBF8EF;border-bottom:1px solid rgba(10,21,48,.08);font-family:'JetBrains Mono',monospace;font-size:10.5px;color:#97793A;letter-spacing:.05em;min-width:816px;box-sizing:border-box;}
+      .finmv-daygrp b{font-weight:600;white-space:nowrap;}
+      .finmv-row{position:relative;border-bottom:1px solid rgba(10,21,48,.08);cursor:pointer;font-size:13px;}
+      .finmv-row:hover{background:rgba(10,21,48,.04);}
+      .finmv-row.rep{background:#FBFAF6;}
       .finmv-row.sel{background:#F6F3EA;}
-      .finmv-row input[type=checkbox]{width:14px;height:14px;accent-color:#0A1530;cursor:pointer;}
-      .finmv-tipo{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;margin:0 auto;}
-      .finmv-data{font-family:'JetBrains Mono',monospace;font-size:11px;color:#A6AEBD;}
+      .finmv-row input[type=checkbox],.finmv-thead input[type=checkbox]{width:15px;height:15px;border-radius:4px;accent-color:#0A1530;cursor:pointer;}
       .finmv-d1{display:flex;align-items:baseline;gap:7px;min-width:0;}
-      .finmv-d1 .tx{font-size:13.5px;font-weight:500;letter-spacing:-.005em;color:#0A1530;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+      .finmv-d1 .tx{font-size:13px;font-weight:500;color:#0A1530;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
       .finmv-parc{font-family:'JetBrains Mono',monospace;font-size:10px;color:#A6AEBD;flex-shrink:0;white-space:nowrap;}
-      /* Marcador redondo no lugar da tag de texto: a tag dobrava a altura da linha. */
       .finmv-marca{display:flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;flex-shrink:0;font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:600;cursor:help;align-self:center;}
-      .finmv-d2{font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;display:block;}
-      .finmv-cat{font-size:11.5px;color:#8A94A6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-      .finmv-val{font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:600;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;letter-spacing:-.01em;}
-      .finmv-vextra{display:block;font-size:10.5px;font-weight:500;color:#9C7F40;letter-spacing:0;}
-      .finmv-cel{position:relative;display:flex;align-items:center;justify-content:center;}
-      .finmv-cbtn{background:transparent;border:none;padding:0;cursor:pointer;display:flex;}
-      /* Polegar: preenchimento claro com traço escuro. Sólido vira mancha na lista. */
-      .finmv-pol{display:flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:6px;flex-shrink:0;cursor:pointer;border:none;padding:0;background:transparent;}
+      .finmv-d2{font-size:11.5px;color:rgba(10,21,48,.5);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;display:block;}
+      .finmv-cat{min-width:0;overflow:hidden;}
+      .finmv-conta{font-size:12.5px;color:#0A1530;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;}
+      .finmv-conta:hover{color:#97793A;}
+      .finmv-val{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;}
+      .finmv-vextra{display:block;font-size:10.5px;font-weight:500;color:#9C7F40;}
+      .finmv-st{display:inline-block;font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.08em;border-radius:4px;padding:3px 7px;white-space:nowrap;text-transform:uppercase;}
+      .finmv-cel{position:relative;display:flex;align-items:center;}
+      .finmv-acao{justify-content:flex-end;gap:6px;flex-wrap:nowrap;}
+      .finmv-rep{display:inline-flex;align-items:center;gap:5px;background:#0A1530;color:#EFEAD9;border:none;border-radius:7px;padding:6px 10px;font-size:11.5px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;}
+      .finmv-rep:hover{background:#C9A961;color:#2A1A05;}
+      .finmv-gh{background:#fff;border:1px solid rgba(10,21,48,.14);border-radius:7px;padding:5px 9px;font-size:11.5px;font-weight:600;color:#0A1530;cursor:pointer;font-family:inherit;white-space:nowrap;}
+      .finmv-gh:hover{background:#FBFAF6;}
+      .finmv-lnk{background:transparent;border:none;padding:5px 4px;font-size:11.5px;font-weight:600;color:#15224A;cursor:pointer;font-family:inherit;white-space:nowrap;}
+      .finmv-lnk:hover{color:#97793A;}
+      .finmv-aguard{font-size:11.5px;color:#97793A;white-space:nowrap;}
+      .finmv-compr{font-size:11.5px;font-weight:600;color:#4A7A52;white-space:nowrap;text-decoration:none;}
+      .finmv-compr:hover{text-decoration:underline;}
       .finmv-kebab{background:transparent;border:none;border-radius:5px;color:#A6AEBD;font-size:14px;line-height:1;padding:3px 5px;cursor:pointer;font-family:inherit;}
       .finmv-kebab.on{background:#F2EFE6;}
       .finmv-pop{position:absolute;top:30px;right:-6px;z-index:45;background:#fff;border:1px solid #E6E1D2;border-radius:10px;box-shadow:0 18px 44px rgba(10,21,48,.2);padding:14px;display:flex;flex-direction:column;gap:11px;text-align:left;width:300px;cursor:default;}
@@ -33174,54 +33183,55 @@ function _finLancCascataRender(){
       .finmv-mi:hover{background:#FBFAF6;}
       .finmv-mi.sep{border-top:1px solid #F2EFE6;margin-top:4px;padding-top:8px;}
       .finmv-mi.del{color:#A65A4A;}
-      .finmv-conta-pop{position:absolute;top:28px;right:-6px;z-index:45;width:238px;background:#fff;border:1px solid #E6E1D2;border-radius:9px;box-shadow:0 16px 36px rgba(10,21,48,.18);padding:5px;display:flex;flex-direction:column;cursor:default;}
+      .finmv-conta-pop{position:absolute;top:24px;left:0;z-index:45;width:238px;background:#fff;border:1px solid #E6E1D2;border-radius:9px;box-shadow:0 16px 36px rgba(10,21,48,.18);padding:5px;display:flex;flex-direction:column;cursor:default;}
       .finmv-conta-pop .tt{font-size:10.5px;color:#A6AEBD;padding:6px 9px 4px;}
       .finmv-conta-it{display:flex;align-items:center;gap:9px;width:100%;min-width:0;background:transparent;border:none;border-radius:6px;padding:7px 9px;font-size:12.5px;font-family:inherit;text-align:left;color:#0A1530;cursor:pointer;}
       .finmv-conta-it:hover{background:#FBFAF6;}
       .finmv-conta-it .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0;}
       .finmv-mostrar{width:100%;background:#fff;border:none;border-top:1px solid #F2EFE6;padding:12px;font-size:12.5px;font-weight:600;color:#15224A;cursor:pointer;font-family:inherit;}
       .finmv-mostrar:hover{background:#FBFAF6;}
-      .finmv-foot{background:#F7F4EC;border-top:1px solid #E6E1D2;padding:11px 16px;display:flex;gap:18px;align-items:center;flex-wrap:wrap;font-size:11.5px;color:#5A5F66;}
-      .finmv-foot .lb{font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:#6B7683;}
+      .finmv-foot{background:#F7F4EC;border-top:1px solid rgba(10,21,48,.08);padding:11px 14px;display:flex;gap:14px;align-items:center;flex-wrap:wrap;font-size:12.5px;color:#5A5F66;}
       .finmv-foot b{font-family:'JetBrains Mono',monospace;font-weight:600;}
       .finmv-efet-lote{display:flex;align-items:center;gap:6px;background:#fff;border:1px solid #D8D2C5;border-radius:6px;padding:5px 10px;font-size:11.5px;font-weight:600;color:#0A1530;white-space:nowrap;cursor:pointer;font-family:inherit;}
       .finmv-efet-lote:hover{background:#FBFAF6;}
-      .finmv-lote{position:fixed;left:252px;right:24px;bottom:18px;z-index:60;background:#0A1530;border-radius:9px;box-shadow:0 8px 24px rgba(10,21,48,.28);padding:11px 14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
-      .finmv-lote .qt{font-family:'JetBrains Mono',monospace;font-size:11.5px;font-weight:600;color:#fff;}
+      .finmv-lote{position:sticky;bottom:12px;z-index:60;background:#0A1530;border-radius:12px;box-shadow:0 8px 24px rgba(10,21,48,.28);padding:11px 14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+      .finmv-lote .qt{font-family:'JetBrains Mono',monospace;font-size:11.5px;font-weight:600;color:#EFEAD9;}
       .finmv-lote .tt{font-family:'JetBrains Mono',monospace;font-size:11.5px;color:#C9A961;}
-      .finmv-lb{border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.10);color:#fff;font-family:inherit;font-size:12px;font-weight:500;padding:6px 12px;border-radius:6px;cursor:pointer;white-space:nowrap;}
+      .finmv-lb{border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.10);color:#EFEAD9;font-family:inherit;font-size:12px;font-weight:500;padding:6px 12px;border-radius:6px;cursor:pointer;white-space:nowrap;}
       .finmv-lb:hover{background:rgba(255,255,255,.16);}
-      .finmv-lb.go{background:#5E7C58;border-color:#5E7C58;font-weight:600;} .finmv-lb.go:hover{background:#4F6A4A;}
+      .finmv-lb.go{background:#4A7A52;border-color:#4A7A52;font-weight:600;} .finmv-lb.go:hover{background:#3F6A47;}
       .finmv-lb.gh{background:transparent;border:none;color:#B4BCCC;margin-left:auto;} .finmv-lb.gh:hover{color:#fff;background:transparent;}
     </style>
     <div class="finmv-wrap" onclick="_finMovFecharPopovers(event)">
-      <div>
-        <div class="finmv-h1">Movimentações</div>
-        <div class="finmv-sub">${escHtml((ctx.periodoLabel||'').replace(/^./,c=>c.toUpperCase()))}${ctx.truncado?` · <span style="color:#A65A4A;font-weight:600;">lista cortada em ${FIN_LANC_LIMITE} — ${ctx.busca?'refine a busca ou estreite o período':'estreite o período'}</span>`:''}</div>
+      <div class="finmv-filtros">
+        <span class="finmv-lb">Tipo</span>
+        ${chip(!s.fTipo, 'Tudo', "_finMovSetFiltro('fTipo','')")}
+        ${chip(s.fTipo==='in', 'Entradas', "_finMovSetFiltro('fTipo','in')")}
+        ${chip(s.fTipo==='out', 'Saídas', "_finMovSetFiltro('fTipo','out')")}
+        ${chip(s.fTipo==='repasses', 'Repasses', "_finMovSetFiltro('fTipo','repasses')", repN)}
+        <span class="finmv-div"></span>
+        <span class="finmv-lb">Situação</span>
+        ${chip(!s.fStatus, 'Todos', "_finMovSetFiltro('fStatus','')")}
+        ${chip(s.fStatus==='pendente', 'Pendentes', "_finMovSetFiltro('fStatus','pendente')")}
+        ${chip(s.fStatus==='atrasado', 'Em atraso', "_finMovSetFiltro('fStatus','atrasado')")}
+        ${chip(s.fStatus==='conciliado', 'Conciliados', "_finMovSetFiltro('fStatus','conciliado')")}
+        <div class="finmv-right">
+          ${_finPeriodoNavHtml({ formato:'datas', align:'right' })}
+          <div style="position:relative;">
+            <button class="finmv-fbtn" style="background:${s.filtrosAbertos?'#F7F4EC':'#fff'};border:1px solid ${nFiltros?'#0A1530':'#E6E1D2'};" onclick="event.stopPropagation();_finMovTogglePainel()">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h18l-7 8v6l-4 2v-8z"></path></svg>
+              Filtrar${nFiltros?`<span class="finmv-fbadge">${nFiltros}</span>`:''}
+            </button>
+            ${s.filtrosAbertos ? _finMovPainelFiltrosHtml(contas, cats, cedentes, contador, chipF) : ''}
+          </div>
+        </div>
       </div>
 
-      <div class="finmv-chips">
-        ${FIN_MOV_VISOES.map(v=>{
-          const n = _finMovContadorVisao(v.id);
-          return `<button class="finmv-chip ${s.visao===v.id?'on':''}" onclick="_finMovSetVisao('${v.id}')">${v.label}<span class="n">${n}</span></button>`;
-        }).join('')}
-        ${salvas.map(v=>`<button class="finmv-chip ${s.visaoSalva===v.nome?'on':''}" onclick="_finMovAplicarVisaoSalva(${JSON.stringify(v.nome).replace(/"/g,'&quot;')})">${escHtml(v.nome)}<span class="x" onclick="event.stopPropagation();_finMovApagarVisaoSalva(${JSON.stringify(v.nome).replace(/"/g,'&quot;')})" title="apagar">✕</span></button>`).join('')}
-        <button class="finmv-chip add" onclick="_finMovSalvarVisao()">+ Salvar visão</button>
-      </div>
-
-      <div class="finmv-barra">
-        <div class="finmv-busca">
-          <span class="lupa">⌕</span>
-          <input class="finmv-inp" id="finmv-busca" type="search" value="${escHtml(s.busca)}" placeholder="Buscar nesta visão…" oninput="_finLancCascataBusca(this.value)">
-        </div>
-        <div style="position:relative;">
-          <button class="finmv-fbtn" style="background:${s.filtrosAbertos?'#F7F4EC':'#fff'};border:1px solid ${nFiltros?'#0A1530':'#E6E1D2'};" onclick="event.stopPropagation();_finMovTogglePainel()">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h18l-7 8v6l-4 2v-8z"></path></svg>
-            Filtrar${nFiltros?`<span class="finmv-fbadge">${nFiltros}</span>`:''}
-          </button>
-          ${s.filtrosAbertos ? _finMovPainelFiltrosHtml(contas, cats, cedentes, contador, chipF) : ''}
-        </div>
-        <span class="finmv-cont">${contador}</span>
+      <div class="finmv-cont">
+        <span>${contador}${s.busca ? ` · busca “${escHtml(s.busca)}” <a onclick="_finLancCascataBusca('')">limpar</a>` : ''}</span>
+        ${s.fTipo==='repasses' ? `<span style="color:#97793A;">· repasses ao credor saem daqui pelo botão <b>Repassar</b> — não existe mais aba separada</span>` : ''}
+        ${!agrupado ? `<span>· ordenado por ${escHtml((FIN_LANC_ORD_COLS[s.ord.col]||{}).label||'').toLowerCase()} <a onclick="_finLancCascataOrd('data')">voltar à ordem por data</a></span>` : ''}
+        ${ctx.truncado ? `<span style="color:#A65A4A;font-weight:600;">· lista cortada em ${FIN_LANC_LIMITE} — ${ctx.busca?'refine a busca ou estreite o período':'estreite o período'}</span>` : ''}
       </div>
 
       <section class="finmv-sec">
@@ -33229,17 +33239,15 @@ function _finLancCascataRender(){
           <div class="finmv-grid finmv-thead">${_finLancTheadHtml(pagina)}</div>
           ${pagina.length
             ? (agrupado ? porDia.map(g=>_finLancCascataDiaHtml(g, ctx)).join('') : pagina.map(l=>_finLancCascataRowHtml(l, ctx)).join(''))
-            : `<div style="padding:38px 16px;text-align:center;display:flex;flex-direction:column;gap:8px;align-items:center;">
-                 <span style="font-size:13px;color:#5A5F66;">Nenhum lançamento nesta visão com o filtro aplicado.</span>
-                 <span class="cx-link" onclick="_finMovLimparFiltros()">Limpar filtros</span></div>`}
+            : `<div style="padding:38px 16px;text-align:center;font-size:13px;color:#5A5F66;">Nenhum lançamento com esses filtros. <a style="color:#15224A;font-weight:600;cursor:pointer;" onclick="_finMovLimparFiltros()">Limpar filtros</a></div>`}
         </div>
         ${restantes ? `<button class="finmv-mostrar" onclick="_finMovVerMais()">Mostrar mais ${Math.min(FIN_MOV_PAGINA, restantes)} de ${restantes}</button>` : ''}
         <div class="finmv-foot">
-          <span class="lb">Totais do filtro</span>
-          <span>entradas <b style="color:#4C6647;">${fmtR(ent)}</b></span>
-          <span>saídas <b style="color:#7D3F33;">${fmtR(sai)}</b></span>
-          ${nVencidos ? `<button class="finmv-efet-lote" onclick="_finMovEfetivarVencidos()">Efetivar ${nVencidos} ${nVencidos===1?'vencido':'vencidos'}</button>` : ''}
-          <span style="margin-left:auto;">líquido <b style="color:${(ent-sai)>=0?'#4C6647':'#7D3F33'};">${fmtRs(ent-sai)}</b></span>
+          <span>Totais do filtro</span>
+          <span>· entradas <b style="color:#4A7A52;">+${fmtR(ent)}</b></span>
+          <span>· saídas <b style="color:#9B4A3F;">−${fmtR(sai)}</b></span>
+          <span>· líquido <b style="color:${(ent-sai)>=0?'#4A7A52':'#9B4A3F'};">${fmtRs(ent-sai)}</b></span>
+          ${nVencidos ? `<button class="finmv-efet-lote" style="margin-left:auto;" onclick="_finMovEfetivarVencidos()">Efetivar ${nVencidos} ${nVencidos===1?'vencido':'vencidos'}</button>` : ''}
         </div>
       </section>
       <div id="finlc-bulkbar"></div>
@@ -33250,16 +33258,352 @@ function _finLancCascataRender(){
 
 // Painel de filtros de 452px. Só é MONTADO quando está aberto — o mesmo motivo pelo qual
 // menu e seletor de conta só existem na linha aberta.
-function _finMovPainelFiltrosHtml(contas, cats, cedentes, contador, chipF){
+// ══════════════════════════════════════════════════════════════
+// MOVIMENTAÇÕES v2 — repasse na linha (handoff Financeiro v2, 05/09/2026)
+// ──────────────────────────────────────────────────────────────
+// A aba "Recebíveis e repasses" saiu; repassar ao credor é o botão Repassar da linha (e o
+// lote "Repassar N ao credor"). O que é repasse aqui é o MESMO critério do Fluxo de caixa
+// e do badge da aba (_finFluxoClassificaSaida: credor_id ou categoria "Aquisição de
+// dívidas de terceiro"; tarifa nunca é). O botão só existe em saída de aquisição em
+// aberto e sem transferência já disparada; o backend (/api/repassar) garante a
+// idempotência (claim pendente→preparado) e o teto de capital (409 teto_capital).
+function _finMovCatNome(l, ctx){
+  const c = ctx && ctx.catPorLanc && ctx.catPorLanc[l.id];
+  if(!c) return '';
+  return Array.isArray(c.nomes) && c.nomes.length ? c.nomes.join(' / ') : (c.nome || '');
+}
+function _finMovEhRepasse(l, ctx){
+  return l.tipo_movimento === 0 && _finFluxoClassificaSaida(l, _finMovCatNome(l, ctx)) === 'repasse';
+}
+function _finMovRepasseAberto(l, ctx){
+  if(!_finMovEhRepasse(l, ctx) || _finLancQuitado(l) || +l.status !== 0) return false;
+  const op = ctx.opsByLanc[l.id];
+  if(op && (op.repasse_asaas_transfer_id || op.repasse_status === 'preparado' || op.repasse_status === 'efetuado')) return false;
+  return true;
+}
+// Pílula de situação (handoff §3.2). Para saída de repasse: PENDENTE (em aberto),
+// PIX ENVIADO (preparado, aguardando o Asaas) e REPASSADO (efetuado). O resto é a
+// situação de sempre (_finLancSit), só com a paleta do handoff.
+const FIN_MOV_SIT_CORES = {
+  'PAGO':['#EEF0F4','#5A6472'], 'CONCILIADO':['#E9F0E9','#4A7A52'], 'ATRASADO':['#F6E9E7','#9B4A3F'],
+  'A RECEBER':['#E8EEF5','#3A6491'], 'A PAGAR':['#FBF3E1','#7A6428'], 'PENDENTE':['#FBF3E1','#7A6428'],
+  'PIX ENVIADO':['#E8EEF5','#3A6491'], 'REPASSADO':['#E9F0E9','#4A7A52'],
+};
+function _finMovSit(l, ctx){
+  const st = _finLancSit(l);
+  let t = st.t;
+  if(_finMovEhRepasse(l, ctx)){
+    const op = ctx.opsByLanc[l.id];
+    if(op && op.repasse_status === 'preparado' && !_finLancQuitado(l)) t = 'PIX ENVIADO';
+    else if(op && op.repasse_status === 'efetuado') t = 'REPASSADO';
+    else if(t === 'A PAGAR') t = 'PENDENTE';
+  }
+  const c = FIN_MOV_SIT_CORES[t] || FIN_MOV_SIT_CORES.PAGO;
+  return { t, bg:c[0], fg:c[1] };
+}
+// Contador de um chip com os OUTROS recortes vigentes — o mesmo caminho da lista.
+function _finMovContarChip(campo, valor){
   const s = _finLancCascataState;
-  const secao = (titulo, campo, opcoes) => `
-    <div class="sec">
-      <span class="tt">${titulo}</span>
-      <div class="ops">${opcoes.map(o=>`<button style="${chipF(s[campo]===o[0])}" onclick="event.stopPropagation();_finMovToggleChip('${campo}','${o[0]}')">${escHtml(o[1])}</button>`).join('')}</div>
+  const antes = s[campo];
+  s[campo] = valor;
+  try{ return _finLancCascataFiltrados().length; } finally { s[campo] = antes; }
+}
+
+// Toast escuro de 6s do handoff (radius 10). Sem "Desfazer": não existe desfazer de PIX,
+// e um botão que só fecha o toast prometeria o que não faz.
+function _finRepToast(msg, erro){
+  let c = document.getElementById('finrep-toasts');
+  if(!c){ c = document.createElement('div'); c.id = 'finrep-toasts'; c.style.cssText = 'position:fixed;right:24px;bottom:24px;z-index:12000;display:flex;flex-direction:column;gap:8px;'; document.body.appendChild(c); }
+  const t = document.createElement('div');
+  t.style.cssText = `background:${erro?'#7D3F33':'#0A1530'};color:#EFEAD9;border-radius:10px;padding:12px 16px;font-size:13px;box-shadow:0 8px 24px rgba(10,21,48,.28);max-width:420px;animation:toastIn .25s ease;display:flex;align-items:center;gap:10px;`;
+  t.innerHTML = `<span style="flex:1;">${escHtml(msg)}</span><button style="background:transparent;border:none;color:#C9A961;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;" onclick="this.parentNode.remove()">fechar</button>`;
+  c.appendChild(t);
+  setTimeout(()=>{ try{ t.remove(); }catch(_){} }, 6000);
+}
+
+// ── Modal "Repasse ao credor · PIX via Asaas" (handoff §3.3) ──────────────────────
+// Chama POST /api/repassar { lancamento_id, credor_id?, pix_key? }. Capital do caso e
+// "já repassado" espelham api/_repasse-ficha.js saldoDeCapital (o maior entre a ficha e
+// as saídas baixadas), para o modal recusar ANTES o que o servidor recusaria com 409.
+let _finRepState = null;
+function _finRepOverlay(){
+  let ov = document.getElementById('finrep-overlay');
+  if(!ov){ ov = document.createElement('div'); ov.id='finrep-overlay'; ov.className='overlay'; ov.style.zIndex = '1100'; document.body.appendChild(ov); }
+  return ov;
+}
+function _finRepFechar(){ const ov = document.getElementById('finrep-overlay'); if(ov) ov.classList.remove('open'); _finRepState = null; }
+async function _finRepAbrir(lancId, fila){
+  const sb = getSupabase();
+  const ov = _finRepOverlay();
+  ov.innerHTML = `<div class="modal" style="max-width:560px;"><div class="modal-body" style="text-align:center;color:#8A94A6;padding:40px;"><div class="mv2-spinner" style="margin:0 auto 10px;width:24px;height:24px;border-width:3px;"></div>Preparando o repasse…</div></div>`;
+  ov.classList.add('open');
+  try{
+    const { data:l, error } = await sb.from('fin_lancamento')
+      .select('id,descricao,valor,tipo_movimento,status,cobranca_id,credor_id,numero_parcela,total_parcelas,data_vencimento')
+      .eq('id', lancId).single();
+    if(error || !l) throw new Error((error && error.message) || 'lançamento não encontrado');
+    if(l.tipo_movimento !== 0 || +l.status !== 0) throw new Error('este lançamento não é uma saída em aberto');
+    let credorId = l.credor_id || null;
+    if(!credorId && l.cobranca_id){
+      try{ const { data:c } = await sb.from('cobrancas').select('cliente_id').eq('id', l.cobranca_id).maybeSingle(); credorId = (c && c.cliente_id) || null; }catch(_){}
+    }
+    let credor = null, credores = [];
+    if(credorId){
+      const { data:c } = await sb.from('clientes').select('id,nome,nome_fantasia,doc,chave_pix').eq('id', credorId).maybeSingle();
+      credor = c || null;
+    }
+    if(!credor){
+      const { data:cs } = await sb.from('clientes').select('id,nome,nome_fantasia,doc,chave_pix').order('nome').limit(500);
+      credores = cs || [];
+    }
+    // Devedor: o cadastrado prevalece (devedores e cobrancas compartilham o id); senão o
+    // nome que está na descrição, sem as anotações de trabalho.
+    let devedor = _finRepasseNomeDevedor(l.descricao);
+    if(l.cobranca_id){
+      try{ const { data:d } = await sb.from('devedores').select('nome').eq('id', l.cobranca_id).maybeSingle(); if(d && d.nome) devedor = d.nome; }catch(_){}
+    }
+    let parcela = l.numero_parcela || null, total = l.total_parcelas || null;
+    if(!parcela){ const m = String(l.descricao||'').match(/(\d+)\s*\/\s*(\d+)\s*$/); if(m){ parcela = +m[1]; total = +m[2]; } }
+    // Teto do caso — mesma conta de saldoDeCapital (api/_repasse-ficha.js).
+    let saldo = null;
+    if(l.cobranca_id){
+      try{
+        const { data:cob } = await sb.from('cobrancas').select('valor_capital,divida').eq('id', l.cobranca_id).maybeSingle();
+        const cap = cob ? (cob.valor_capital != null ? +cob.valor_capital : (cob.divida && cob.divida.valorCapital != null ? +cob.divida.valorCapital : null)) : null;
+        if(cap != null && cap > 0){
+          const [{ data:rps }, { data:lancs }] = await Promise.all([
+            sb.from('repasses_cliente').select('valor').eq('cobranca_id', l.cobranca_id),
+            sb.from('fin_lancamento').select('valor').eq('cobranca_id', l.cobranca_id).eq('tipo_movimento', 0).eq('status', 1),
+          ]);
+          const naFicha = (rps||[]).reduce((s2,r)=>s2+(+r.valor||0),0);
+          const noFin = (lancs||[]).reduce((s2,x)=>s2+Math.abs(+x.valor||0),0);
+          const enviado = Math.max(naFicha, noFin);
+          saldo = { capital: cap, enviado, resta: +(cap - enviado).toFixed(2) };
+        }
+      }catch(_){ saldo = null; }
+    }
+    _finRepState = { l, valor: Math.abs(+l.valor||0), credor, credores, credorId: credor ? credor.id : null,
+      pixKey: credor ? (credor.chave_pix || '') : '', pixEditada:false, devedor, parcela, total, saldo,
+      fila: Array.isArray(fila) ? fila.slice() : [], enviando:false };
+    _finRepRender();
+  }catch(e){
+    _finRepFechar();
+    showToast('Não deu para preparar o repasse: ' + (e.message||e), 'danger');
+  }
+}
+function _finRepDescricaoPix(){
+  const S = _finRepState; if(!S) return '';
+  // Espelho de descricaoPix (api/_repasse-msg.js): "<parcela> - <devedor>".
+  const nome = S.devedor || '';
+  return nome ? (S.parcela ? `${S.parcela} - ${nome}` : nome) : (S.parcela ? `Repasse Cobrasq - parcela ${S.parcela}` : 'Repasse Cobrasq');
+}
+function _finRepSetCredor(id){
+  const S = _finRepState; if(!S) return;
+  S.credorId = id;
+  const c = S.credores.find(x => String(x.id) === String(id));
+  if(c && !S.pixEditada) S.pixKey = c.chave_pix || '';
+  _finRepRender();
+}
+function _finRepSetPix(v){ const S = _finRepState; if(!S) return; S.pixKey = v; S.pixEditada = true; const ok = document.getElementById('finrep-ok'); if(ok) ok.disabled = !_finRepValido(); }
+function _finRepValido(){
+  const S = _finRepState; if(!S || S.enviando) return false;
+  if(!S.credorId) return false;
+  if(S.saldo && S.valor > S.saldo.resta + 0.005) return false;
+  return true;
+}
+function _finRepRender(){
+  const S = _finRepState; if(!S) return;
+  const ov = _finRepOverlay();
+  const fmtDoc = d => { const x = String(d||'').replace(/\D/g,''); if(x.length===14) return `CNPJ ${x.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/,'$1.$2.$3/$4-$5')}`; if(x.length===11) return `CPF ${x.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/,'$1.$2.$3-$4')}`; return d || ''; };
+  const sigla = n => { const p = String(n||'').replace(/[^\p{L}\s]/gu,'').trim().split(/\s+/); return ((p[0]||'')[0]||'' ) + ((p[1]||'')[0]||''); };
+  const credorSel = S.credor || S.credores.find(x => String(x.id) === String(S.credorId)) || null;
+  const nomeCred = credorSel ? _finNomeCredor(credorSel) : '';
+  const estoura = S.saldo && S.valor > S.saldo.resta + 0.005;
+  const pctJa = S.saldo && S.saldo.capital > 0 ? Math.min(100, S.saldo.enviado / S.saldo.capital * 100) : 0;
+  const pctEste = S.saldo && S.saldo.capital > 0 ? Math.max(0, Math.min(100 - pctJa, S.valor / S.saldo.capital * 100)) : 0;
+  const fonte = S.credor
+    ? (S.pixEditada ? '<span style="color:#97793A;">chave informada agora — fica salva no cadastro do cliente</span>'
+       : (S.credor.chave_pix ? '<span style="color:#4A7A52;">chave PIX do cadastro do cliente</span>' : '<span style="color:#97793A;">sem chave no cadastro — será usado o CPF/CNPJ do credor</span>'))
+    : (S.credorId ? (S.pixEditada ? '<span style="color:#97793A;">chave informada agora</span>' : (S.pixKey ? '<span style="color:#4A7A52;">chave PIX do cadastro do credor escolhido</span>' : '<span style="color:#97793A;">será a chave do credor escolhido (ou o CPF/CNPJ dele)</span>'))
+       : '<span style="color:#97793A;">será a chave do credor escolhido</span>');
+  ov.innerHTML = `
+    <style>
+      .finrep-eye{font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:#97793A;}
+      .finrep-t{font-family:'Fraunces',Georgia,serif;font-size:20px;font-weight:500;color:#0A1530;margin-top:4px;line-height:1.2;}
+      .finrep-lb{font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:rgba(10,21,48,.5);margin-bottom:6px;}
+      .finrep-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+      @media (max-width:560px){ .finrep-grid{grid-template-columns:1fr;} }
+      .finrep-val{font-family:'JetBrains Mono',monospace;font-size:24px;font-weight:600;color:#0A1530;white-space:nowrap;}
+      .finrep-sub{font-size:12px;color:#5A5F66;margin-top:4px;}
+      .finrep-box{background:#F4F5F7;border-radius:8px;padding:10px 12px;font-family:'JetBrains Mono',monospace;font-size:13px;color:#0A1530;word-break:break-word;}
+      .finrep-cred{display:flex;align-items:center;gap:10px;border:1px solid rgba(10,21,48,.10);border-radius:10px;padding:10px 12px;}
+      .finrep-av{width:32px;height:32px;border-radius:50%;background:#C9A961;color:#2A1A05;display:grid;place-items:center;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;flex-shrink:0;}
+      .finrep-aviso{background:#F6E9E7;border:1px solid #E7CFC7;color:#7D3F33;border-radius:8px;padding:10px 12px;font-size:12.5px;margin-bottom:8px;}
+      .finrep-lista{max-height:180px;overflow-y:auto;border:1px solid rgba(10,21,48,.10);border-radius:8px;}
+      .finrep-lista label{display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid #F2EFE6;font-size:12.5px;cursor:pointer;}
+      .finrep-lista label:hover{background:#FBFAF6;}
+      .finrep-inp{width:100%;box-sizing:border-box;border:1px solid rgba(10,21,48,.14);border-radius:8px;padding:10px 12px;font-family:'JetBrains Mono',monospace;font-size:13px;color:#0A1530;outline:none;}
+      .finrep-inp:focus{border-color:#0A1530;}
+      .finrep-cap{background:#FBFAF6;border:1px solid #E6E1D2;border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;font-size:13px;}
+      .finrep-cap .ln{display:flex;justify-content:space-between;gap:10px;}
+      .finrep-cap .ln b{font-family:'JetBrains Mono',monospace;font-weight:600;white-space:nowrap;}
+      .finrep-bar{height:8px;background:#EEF0F4;border-radius:4px;overflow:hidden;display:flex;margin-top:4px;}
+      .finrep-bar i{display:block;height:100%;}
+      .finrep-ok{background:#4A7A52;color:#fff;border:none;border-radius:8px;padding:10px 16px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;}
+      .finrep-ok:disabled{background:#EEF0F4;color:#8A94A6;cursor:not-allowed;}
+      .finrep-ghost{background:#fff;color:#0A1530;border:1px solid rgba(10,21,48,.14);border-radius:8px;padding:10px 16px;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;}
+    </style>
+    <div class="modal" style="max-width:560px;">
+      <div class="modal-header" style="align-items:flex-start;">
+        <div style="flex:1;min-width:0;">
+          <div class="finrep-eye">Repasse ao credor · PIX via Asaas</div>
+          <div class="finrep-t">${escHtml(_finDescCrua(S.l.descricao) || 'Repasse')}</div>
+        </div>
+        <button class="modal-close" onclick="_finRepFechar()">&#10005;</button>
+      </div>
+      <div class="modal-body" style="display:flex;flex-direction:column;gap:18px;">
+        <div class="finrep-grid">
+          <div>
+            <div class="finrep-lb">Valor do PIX</div>
+            <div class="finrep-val">${fmtR(S.valor)}</div>
+            <div class="finrep-sub">${S.parcela ? `parcela ${S.parcela}${S.total ? ' de ' + S.total : ''} · ` : ''}devedor ${escHtml(S.devedor || '—')}</div>
+          </div>
+          <div>
+            <div class="finrep-lb">Descrição no extrato do credor</div>
+            <div class="finrep-box">${escHtml(_finRepDescricaoPix())}</div>
+          </div>
+        </div>
+        <div>
+          <div class="finrep-lb">Credor</div>
+          ${S.credor ? `<div class="finrep-cred"><span class="finrep-av">${escHtml(sigla(nomeCred).toUpperCase())}</span><div style="min-width:0;"><div style="font-weight:600;font-size:13.5px;color:#0A1530;">${escHtml(nomeCred)}</div><div style="font-size:12px;color:#5A5F66;">${escHtml(fmtDoc(S.credor.doc))}</div></div></div>`
+          : `<div class="finrep-aviso">Lançamento sem credor vinculado — escolha abaixo. A escolha vale para as outras parcelas em aberto deste devedor.</div>
+             <div class="finrep-lista">${S.credores.map(c => `<label><input type="radio" name="finrep-cred" ${String(c.id)===String(S.credorId)?'checked':''} onchange="_finRepSetCredor('${c.id}')"><span style="flex:1;min-width:0;"><span style="display:block;font-weight:600;color:#0A1530;">${escHtml(_finNomeCredor(c)||'—')}</span><span style="font-size:11.5px;color:#5A5F66;">${escHtml(fmtDoc(c.doc))}</span></span></label>`).join('') || '<div style="padding:12px;font-size:12.5px;color:#8A94A6;">Nenhum cliente cadastrado.</div>'}</div>`}
+        </div>
+        <div>
+          <div class="finrep-lb">Chave PIX</div>
+          <input class="finrep-inp" value="${escHtml(S.pixKey||'')}" placeholder="CPF/CNPJ, e-mail, telefone ou chave aleatória" oninput="_finRepSetPix(this.value)">
+          <div class="finrep-sub" style="text-align:right;">${fonte}</div>
+        </div>
+        ${S.saldo ? `<div class="finrep-cap">
+          <div class="ln"><span>Capital do caso</span><b>${fmtR(S.saldo.capital)}</b></div>
+          <div class="ln"><span>Já repassado</span><b>${fmtR(S.saldo.enviado)}</b></div>
+          <div class="ln" style="font-weight:600;"><span>Resta após este PIX</span><b style="color:${estoura?'#9B4A3F':'#0A1530'};">${fmtRs(S.saldo.resta - S.valor)}</b></div>
+          <div class="finrep-bar"><i style="width:${pctJa.toFixed(1)}%;background:#4A7A52;"></i><i style="width:${pctEste.toFixed(1)}%;background:#C9A961;"></i></div>
+          ${estoura ? `<div style="color:#9B4A3F;font-weight:600;font-size:12.5px;">Este repasse passa do teto em ${fmtR(S.valor - S.saldo.resta)} — o servidor recusaria (teto do capital do caso).</div>` : ''}
+        </div>` : `<div style="font-size:12px;color:#8A94A6;">Sem cobrança vinculada ou sem capital definido no caso: não há teto conhecido para este repasse.</div>`}
+        <div style="font-size:12px;color:#5A5F66;line-height:1.5;">Ao confirmar: PIX sai pelo Asaas, esta saída é baixada como paga, o comprovante do banco vai ao credor por WhatsApp e fica anexado na ficha do caso.${S.fila.length ? ` Depois deste, ${S.fila.length === 1 ? 'vem mais 1 repasse' : 'vêm mais ' + S.fila.length + ' repasses'} da seleção.` : ''}</div>
+      </div>
+      <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:10px;">
+        <button class="finrep-ghost" onclick="_finRepFechar()">Cancelar</button>
+        <button class="finrep-ok" id="finrep-ok" ${_finRepValido()?'':'disabled'} onclick="_finRepConfirmar()">Confirmar PIX de ${fmtR(S.valor)}</button>
+      </div>
     </div>`;
+  ov.classList.add('open');
+}
+async function _finRepConfirmar(){
+  const S = _finRepState; if(!S || !_finRepValido()) return;
+  S.enviando = true;
+  const ok = document.getElementById('finrep-ok'); if(ok){ ok.disabled = true; ok.textContent = 'Enviando PIX…'; }
+  const body = { lancamento_id: S.l.id };
+  if(!S.l.credor_id && S.credorId) body.credor_id = S.credorId;
+  const pix = String(S.pixKey||'').trim();
+  if(pix && (S.pixEditada || !(S.credor && S.credor.chave_pix === pix))) body.pix_key = pix;
+  const fila = S.fila.slice();
+  try{
+    const res = await fetch('/api/repassar', { method:'POST', headers:{ ...(await authHeaders()), 'Content-Type':'application/json' }, body: JSON.stringify(body) });
+    const j = await res.json().catch(()=>({}));
+    if(!res.ok){
+      if(j.teto_capital) throw new Error(j.error || 'passa do teto de capital do caso');
+      throw new Error(j.error || ('HTTP ' + res.status));
+    }
+    if(j.skipped) _finRepToast(`Nada enviado: ${j.skipped}.`);
+    else if(j.repasse_status === 'efetuado') _finRepToast(`PIX de ${fmtR(S.valor)} enviado · comprovante indo ao credor por WhatsApp.`);
+    else if(j.repasse_status === 'preparado') _finRepToast(`PIX de ${fmtR(S.valor)} enviado · Asaas ainda processando; a linha vira REPASSADO quando confirmar.`);
+    else if(j.liberado) _finRepToast(`A transferência anterior ${j.motivo ? '(' + j.motivo + ') ' : ''}foi liberada — clique em Repassar de novo.`);
+    else _finRepToast('Repasse registrado.');
+    _finRepFechar();
+    _finFinanceiroInvalidaCaches();
+    if(fila.length){
+      // Lote: o próximo abre depois que a lista recarregou, para a linha anterior já
+      // aparecer com a situação nova.
+      await renderFinLancamentosCascata(document.getElementById('fin-content'));
+      _finRepAbrir(fila[0], fila.slice(1));
+    } else {
+      renderFinTab('lancamentos');
+    }
+  }catch(e){
+    S.enviando = false;
+    _finRepToast('Erro no repasse: ' + (e.message||e), true);
+    if(ok){ ok.disabled = !_finRepValido(); ok.textContent = 'Confirmar PIX de ' + fmtR(S.valor); }
+  }
+}
+// Lote "Repassar N ao credor": abre o modal para o primeiro repasse em aberto da seleção;
+// ao confirmar, segue para o próximo.
+function _finRepLote(){
+  const ctx = window._finLancCascataCtx; if(!ctx) return;
+  const sel = _finLancCascataState.sel;
+  const ids = ctx.rows.filter(l => sel.has(l.id) && _finMovRepasseAberto(l, ctx)).map(l => l.id);
+  if(!ids.length){ showToast('Nenhum repasse em aberto na seleção.', 'warning'); return; }
+  _finRepAbrir(ids[0], ids.slice(1));
+}
+
+// ── Lote "Alterar categoria" ──────────────────────────────────────────────────────
+// Troca o rateio inteiro das linhas selecionadas por UMA categoria (mesma gravação do
+// editor de série). Avisa quando alguma linha tem rateio em mais de uma categoria.
+function _finLoteCategoriaAbrir(){
+  const linhas = _finLoteSelecionados();
+  if(!linhas.length){ showToast('Nada selecionado.', 'danger'); return; }
+  const ctx = window._finLancCascataCtx || {};
+  const cats = ((ctx.dim && ctx.dim.categorias) || []).filter(c => c.ativa !== false);
+  const ov = _finLoteAbrirOverlay();
+  const tipos = new Set(linhas.map(l => l.tipo_movimento));
+  const lista = cats.filter(c => tipos.size !== 1 || c.tipo_movimento == null || c.tipo_movimento === [...tipos][0]);
+  ov.innerHTML = `<div class="modal modal-sm">
+    <div class="modal-header"><span class="modal-title">Alterar categoria de ${linhas.length} ${linhas.length===1?'lançamento':'lançamentos'}</span><button class="modal-close" onclick="closeModal('finlote-overlay')">&#10005;</button></div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:10px;">
+      <select id="finlote-cat" style="width:100%;border:1px solid var(--border);border-radius:8px;padding:9px 10px;font-family:inherit;font-size:13px;">
+        <option value="">Escolha a categoria…</option>
+        ${lista.map(c => `<option value="${c.id}">${escHtml(c.descricao||'')}</option>`).join('')}
+      </select>
+      <div style="font-size:11.5px;color:var(--text-3);">A categoria escolhida substitui o rateio inteiro de cada linha selecionada.</div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('finlote-overlay')">Cancelar</button><button class="btn btn-primary" onclick="_finLoteCategoriaConfirmar()">Aplicar</button></div>
+  </div>`;
+  window._finLoteCtx = { linhas };
+  openModal('finlote-overlay');
+}
+async function _finLoteCategoriaConfirmar(){
+  const sel = document.getElementById('finlote-cat');
+  const catId = sel && sel.value; if(!catId){ showToast('Escolha a categoria.', 'warning'); return; }
+  const linhas = ((window._finLoteCtx || {}).linhas) || [];
+  if(!linhas.length) return;
+  const sb = getSupabase();
+  try{
+    const ids = linhas.map(l => l.id);
+    const { data:atual } = await sb.from('fin_lancamento_categoria').select('lancamento_id').in('lancamento_id', ids).limit(4000);
+    const porLanc = {}; (atual||[]).forEach(r => { porLanc[r.lancamento_id] = (porLanc[r.lancamento_id]||0) + 1; });
+    const comRateio = Object.values(porLanc).filter(n => n > 1).length;
+    if(comRateio && !confirm(`${comRateio} lançamento(s) têm rateio em mais de uma categoria. Trocar substitui o rateio inteiro. Continuar?`)) return;
+    await sb.from('fin_lancamento_categoria').delete().in('lancamento_id', ids);
+    const rows = linhas.map(l => ({ lancamento_id: l.id, categoria_id: catId, valor: Math.abs(+l.valor||0) }));
+    const { error } = await sb.from('fin_lancamento_categoria').insert(rows);
+    if(error) throw error;
+    closeModal('finlote-overlay');
+    _finFinanceiroInvalidaCaches();
+    showToast(`Categoria alterada em ${rows.length} ${rows.length===1?'lançamento':'lançamentos'}.`, 'success');
+    renderFinTab('lancamentos');
+  }catch(e){ showToast('Erro ao alterar categoria: ' + (e.message||e), 'danger'); }
+}
+function _finMovPainelFiltrosHtml(contas, cats, cedentes, contador, chipF){
+  // Painel do botão Filtrar (handoff v2): tipo e situação viraram chips na linha, então aqui
+  // ficam a busca no servidor (varre o período inteiro, além do teto de FIN_LANC_LIMITE),
+  // contas e os filtros avançados (categoria, cedente, faixa de valor).
+  const s = _finLancCascataState;
   return `<div class="finmv-painel" onclick="event.stopPropagation()">
-    ${secao('Tipo','fTipo',[['in','Entradas'],['out','Saídas'],['repasse','Repasses'],['fatprev','Faturamento previsto']])}
-    ${secao('Status','fStatus',[['pago','Efetivado'],['pendente','Pendente'],['atrasado','Atrasado']])}
+    <div class="sec">
+      <span class="tt">Buscar na descrição</span>
+      <input class="finmv-inp" id="finmv-busca" type="search" value="${escHtml(s.busca)}" placeholder="nome, parcela, anotação… (Enter)" onchange="_finLancCascataBusca(this.value)">
+    </div>
     <div class="sec">
       <span class="tt">Contas e carteiras</span>
       <div class="ops">${contas.map(c=>`<button style="${chipF(s.fContas.indexOf(String(c.id))>=0)}" onclick="event.stopPropagation();_finMovToggleConta('${c.id}')">${_finContaAvatar(c,16)}${escHtml(c.descricao||'—')}</button>`).join('') || '<span style="font-size:11.5px;color:#A6AEBD;">Nenhuma conta cadastrada.</span>'}</div>
@@ -33301,8 +33645,10 @@ function _finMovFecharPopovers(ev){
 // Cabeçalho: as 9 colunas do handoff. Checkbox do cabeçalho marca/desmarca todas as
 // linhas VISÍVEIS (a página exibida), não a lista inteira.
 function _finLancTheadHtml(pagina){
+  // Cabeçalho das 8 colunas do handoff v2: ☐ · · DESCRIÇÃO · CATEGORIA · CONTA · VALOR ·
+  // SITUAÇÃO · AÇÃO. O checkbox marca/desmarca as linhas VISÍVEIS (a página exibida),
+  // que já respeitam o filtro.
   const { col, dir } = _finLancCascataState.ord;
-  // Ícone de ordenação no padrão do Controlle: Lucide arrow-up-down, opacity .3 → .7.
   const setinha = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m21 16-4 4-4-4"/><path d="M17 20V4"/><path d="m3 8 4-4 4 4"/><path d="M7 4v16"/></svg>`;
   const th = (k, cls) => {
     const on = col===k;
@@ -33310,15 +33656,14 @@ function _finLancTheadHtml(pagina){
   };
   const vis = pagina||[];
   const todas = vis.length > 0 && vis.every(l => _finLancCascataState.sel.has(l.id));
-  return `<span><input type="checkbox" style="width:14px;height:14px;accent-color:#0A1530;cursor:pointer;" ${todas?'checked':''} onclick="_finMovToggleTodos(this.checked)" title="Marcar todas as linhas visíveis"></span>`
-       + `<span style="text-align:center;">Tipo</span>`
-       + th('data')
+  return `<span><input type="checkbox" ${todas?'checked':''} onclick="_finMovToggleTodos(this.checked)" title="Marcar todas as linhas visíveis"></span>`
+       + `<span></span>`
        + th('descricao')
        + th('categoria')
+       + `<span>Conta</span>`
        + th('valor','num')
-       + `<span style="text-align:center;">Conta</span>`
-       + `<span style="text-align:center;">Pago</span>`
-       + `<span></span>`;
+       + th('situacao')
+       + `<span style="text-align:right;">Ação</span>`;
 }
 function _finMovToggleTodos(marcar){
   const sel = _finLancCascataState.sel;
@@ -33328,21 +33673,22 @@ function _finMovToggleTodos(marcar){
 }
 // Cabeçalho de dia sem caixa: "1 de agosto · sáb", linha fina até o saldo do dia.
 function _finLancCascataDiaHtml(g, ctx){
-  const DOW = ['dom','seg','ter','qua','qui','sex','sáb'];
+  // Grupo por dia (handoff v2): "HOJE · SÁB 05/09" com o total do dia à direita. O total
+  // é do dia INTEIRO do filtro, mesmo quando a paginação corta o dia ao meio.
+  const DOW = ['DOM','SEG','TER','QUA','QUI','SEX','SÁB'];
   const d = g.data;
   const dt = d ? new Date(d+'T00:00:00') : null;
-  const longa = dt ? `${dt.getDate()} de ${_FIN_MESES[dt.getMonth()]}` : '—';
-  const dow = dt ? DOW[dt.getDay()] : '';
+  const h = isoLocal(new Date());
+  const ontem = (() => { const x = new Date(); x.setDate(x.getDate()-1); return isoLocal(x); })();
+  const amanha = (() => { const x = new Date(); x.setDate(x.getDate()+1); return isoLocal(x); })();
+  const pre = d === h ? 'HOJE · ' : (d === ontem ? 'ONTEM · ' : (d === amanha ? 'AMANHÃ · ' : ''));
+  const rot = dt ? `${pre}${DOW[dt.getDay()]} ${d.slice(8,10)}/${d.slice(5,7)}` : '—';
   const tot = g.tot || { e:0, s:0, n:g.itens.length };
   const saldo = tot.e - tot.s;
-  // Quando a página corta o dia ao meio, o saldo continua sendo o do dia inteiro e a
-  // faixa diz quantas linhas ainda faltam — em vez de mostrar um número parcial mudo.
   const faltam = Math.max(0, tot.n - g.itens.length);
-  return `<div class="finmv-dia">
-      <span class="dd">${longa}</span><span class="dow">${dow}</span>
-      ${faltam ? `<span class="dow" title="o saldo é do dia inteiro; o resto aparece em “Mostrar mais”">+${faltam} nesta data</span>` : ''}
-      <span class="rule"></span>
-      <span class="sld" style="color:${saldo>=0?'#4C6647':'#A65A4A'};">${saldo>=0?'+':''}${fmtRs(saldo)}</span>
+  return `<div class="finmv-daygrp">
+      <span>${rot}${faltam ? ` <span style="color:#A6AEBD;" title="o total é do dia inteiro; o resto aparece em “Mostrar mais”">+${faltam} nesta data</span>` : ''}</span>
+      <b style="color:${saldo>=0?'#4A7A52':'#9B4A3F'};">${saldo>=0?'+':''}${fmtRs(saldo)}</b>
     </div>${g.itens.map(l=>_finLancCascataRowHtml(l, ctx)).join('')}`;
 }
 function _finLancCascataRowHtml(l, ctx){
@@ -33355,56 +33701,58 @@ function _finLancCascataRowHtml(l, ctx){
   const atrasado = st.t === 'ATRASADO';
   const conta = ((ctx.dim && ctx.dim.contas) || []).find(c => String(c.id) === String(l.conta_id));
   const cat = ctx.catPorLanc && ctx.catPorLanc[l.id];
-
-  // Linha 2 da descrição: quem está do outro lado, sem repetir o que a linha 1 já diz.
-  // Receita própria e despesa operacional não têm segunda linha (handoff).
-  const cedente = _finLancCedente(l, ctx);
-  // "repasse a X" só vale para saída que É repasse. A tarifa do Asaas sai da conta da
-  // COBRASQ e pertence ao caso, não ao cedente — dizer "repasse a Injetcar" num débito de
-  // R$ 1,99 afirma um pagamento que não existe. Ela usa a mesma forma da receita: de qual
-  // carteira é o caso.
-  const sub = cedente
-    ? ((isEnt || _finEhTarifa(l)) ? `carteira de ${escHtml(cedente)}` : `repasse a ${escHtml(cedente)}`)
-    : '';
-
-  // Marcador circular ao lado do título. Divergência tem precedência: é a que trava o
-  // repasse. Substituem as tags de texto, que dobravam a altura da linha.
   const op = ctx.opsByLanc[l.id];
+  const repasse = _finMovEhRepasse(l, ctx);
+  const repAberto = _finMovRepasseAberto(l, ctx);
+  const sit = _finMovSit(l, ctx);
+
+  // Linha 2 da descrição: quem está do outro lado + a data que importa (vence / pago).
+  const cedente = _finLancCedente(l, ctx);
+  const sub = cedente ? ((isEnt || _finEhTarifa(l)) ? `carteira de ${escHtml(cedente)}` : `repasse a ${escHtml(cedente)}`) : '';
+  const dm = v => v ? v.slice(8,10) + '/' + v.slice(5,7) : '';
+  const hojeIso = isoLocal(new Date());
+  const quando = efetivado
+    ? (l.data_pagamento ? `pago em ${dm(l.data_pagamento)}` : '')
+    : (l.data_vencimento ? (l.data_vencimento === hojeIso ? 'vence hoje' : (atrasado ? `venceu ${dm(l.data_vencimento)}` : `vence ${dm(l.data_vencimento)}`)) : '');
+  const sub2 = [sub, quando].filter(Boolean).join(' · ');
+
+  // Marcador circular: divergência (trava o repasse) tem precedência sobre "a repassar".
   let marca = '';
   if(_finLancEhDivergencia(l, ctx)) marca = `<span class="finmv-marca" style="background:#FBEAE7;color:#7D3F33;" title="A parcela foi recebida mas a divisão entre COBRASQ e cedente não foi calculada. Nada pode ser repassado até resolver.">!</span>`;
-  else if(_finLancEhRepasse(l, ctx) && !(op && op.repasse_status === 'efetuado')) marca = `<span class="finmv-marca" style="background:#FBF3E1;color:#7A6428;" title="A repassar${cedente?' a '+escHtml(cedente):''}">↗</span>`;
+  else if(_finLancEhRepasse(l, ctx) && !(op && op.repasse_status === 'efetuado')) marca = `<span class="finmv-marca" style="background:#FBF3E1;color:#7A6428;" title="A repassar${cedente?' a '+escHtml(cedente):''} — a entrada já caiu">↗</span>`;
 
-  // Dois estados do badge de tipo (padrão do Controlle): efetivado preenche o círculo,
-  // previsto fica só com o anel.
-  const tom = isEnt ? '#D9F6E3' : '#FBEAE7';
-  const cor = isEnt ? '#4C6647' : '#A65A4A';
-  const path = isEnt ? 'M7 7h10v10M7 17 17 7' : 'M17 7 7 17M17 17H7V7';
-  const seta = `<span class="finmv-tipo" style="${efetivado?`background:${tom};`:`background:transparent;box-shadow:inset 0 0 0 2px ${tom};`}color:${cor};" title="${isEnt?'Receita':'Despesa'} ${efetivado?'efetivada':'prevista'}"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="${path}"/></svg></span>`;
+  // AÇÃO (handoff v2 §3.2): Repassar só em saída de aquisição em aberto sem transfer;
+  // "aguardando Asaas" enquanto o PIX está preparado; Comprovante quando efetuado;
+  // Confirmar (ghost) para A PAGAR / A RECEBER que não é repasse; sempre Abrir.
+  const acoes = [];
+  if(repAberto) acoes.push(`<button class="finmv-rep" onclick="event.stopPropagation();_finRepAbrir(${l.id})" title="Repassar ao credor por PIX (Asaas)"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3l4 4-4 4"/><path d="M21 7H7"/><path d="M7 21l-4-4 4-4"/><path d="M3 17h14"/></svg>Repassar</button>`);
+  else if(repasse && op && op.repasse_status === 'preparado' && !efetivado) acoes.push(`<span class="finmv-aguard" title="PIX disparado; o Asaas ainda não confirmou">aguardando Asaas ◔</span>`);
+  if(op && op.repasse_status === 'efetuado' && op.repasse_comprovante_url) acoes.push(`<a class="finmv-compr" href="${escHtml(op.repasse_comprovante_url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Comprovante ↗</a>`);
+  if(!efetivado && !repasse) acoes.push(`<button class="finmv-gh" onclick="event.stopPropagation();_finMovClicarPolegar(${l.id})" title="${isEnt?'Confirmar recebimento':'Confirmar pagamento'} · ${fmtR(Math.abs(+l.valor||0))}">Confirmar</button>`);
+  acoes.push(`<button class="finmv-lnk" onclick="event.stopPropagation();_finLancAbrirDrawer(${l.id})">Abrir</button>`);
 
-  return `<div class="finmv-grid finmv-row ${sel?'sel':''} ${atrasado?'atraso':''}" data-lanc="${l.id}" onclick="_finLancAbrirDrawer(${l.id})">
+  return `<div class="finmv-grid finmv-row ${sel?'sel':''} ${repAberto?'rep':''}" data-lanc="${l.id}" onclick="_finLancAbrirDrawer(${l.id})">
       <span><input type="checkbox" ${sel?'checked':''} onclick="event.stopPropagation();_finLancCascataToggleSel(${l.id})"></span>
-      ${seta}
-      <span class="finmv-data">${(l.data_competencia||'').slice(8,10)}/${(l.data_competencia||'').slice(5,7)}</span>
+      <span class="fin-ti ${isEnt?'rec':'des'}" title="${isEnt?'Entrada':'Saída'}">${isEnt?'↓':'↑'}</span>
       <span style="min-width:0;">
         <span class="finmv-d1">
           <span class="tx" title="${escHtml(l.descricao||'')}">${escHtml(_finMovDescSemParcela(l))}</span>
           ${l.numero_parcela && l.total_parcelas ? `<span class="finmv-parc" title="parcela ${l.numero_parcela}/${l.total_parcelas} deste acordo">${l.numero_parcela}/${l.total_parcelas}</span>` : ''}
           ${marca}
         </span>
-        ${sub ? `<span class="finmv-d2" style="color:#9C7F40;">${sub}</span>` : ''}
+        ${sub2 ? `<span class="finmv-d2">${sub2}</span>` : ''}
       </span>
-      <span class="finmv-cat" title="${cat?escHtml(cat.nome):''}">${cat ? escHtml(cat.nome)+(cat.extras?` <span style="color:#C3C9D4;">+${cat.extras}</span>`:'') : '<span style="color:#C9C3B4;">sem categoria</span>'}</span>
-      <span class="finmv-val" style="color:${isEnt?'#4C6647':'#0A1530'};" title="${vc.extra ? `face ${fmtR(vc.face)} + ${fmtR(Math.abs(vc.extra))} de ${vc.extra>0?'acréscimo':'desconto'}` : ''}">${isEnt?'+':'−'} ${fmtR(vc.v)}${vc.extra ? `<span class="finmv-vextra" title="face da parcela: ${fmtR(vc.face)}">${vc.extra>0?'+':'−'}${fmtR(Math.abs(vc.extra))}</span>` : ''}</span>
-      <span class="finmv-cel">
-        <button class="finmv-cbtn" onclick="event.stopPropagation();_finMovAbrirPopConta(${l.id})" title="${escHtml((conta&&conta.descricao)||'sem conta')} — clique para mover">${_finContaAvatar(conta, 20)}</button>
+      <span class="finmv-cat">${cat ? `<span class="fin-catpill" title="${escHtml(cat.nome)}" style="max-width:100%;overflow:hidden;text-overflow:ellipsis;display:inline-block;">${escHtml(cat.nome)}${cat.extras?` <span style="color:#C3C9D4;">+${cat.extras}</span>`:''}</span>` : '<span style="color:#C9C3B4;font-size:11.5px;">sem categoria</span>'}</span>
+      <span class="finmv-cel" style="min-width:0;">
+        <span class="finmv-conta" title="${escHtml((conta&&conta.descricao)||'sem conta')} — clique para mover" onclick="event.stopPropagation();_finMovAbrirPopConta(${l.id})">${escHtml((conta&&conta.descricao)||'—')}</span>
         ${s.popConta === l.id ? _finMovPopContaHtml(l, ctx) : ''}
       </span>
-      <span class="finmv-cel">
-        ${_finMovPolegarHtml(l, st, efetivado, atrasado)}
+      <span class="finmv-val" style="color:${isEnt?'#4A7A52':'#9B4A3F'};" title="${vc.extra ? `face ${fmtR(vc.face)} + ${fmtR(Math.abs(vc.extra))} de ${vc.extra>0?'acréscimo':'desconto'}` : ''}">${isEnt?'+':'−'}${fmtR(vc.v)}${vc.extra ? `<span class="finmv-vextra" title="face da parcela: ${fmtR(vc.face)}">${vc.extra>0?'+':'−'}${fmtR(Math.abs(vc.extra))}</span>` : ''}</span>
+      <span><span class="finmv-st" style="background:${sit.bg};color:${sit.fg};">${sit.t}</span></span>
+      <span class="finmv-cel finmv-acao">
+        ${acoes.join('')}
+        <button class="finmv-kebab ${s.menu===l.id?'on':''}" onclick="event.stopPropagation();_finMovAbrirMenu(${l.id})" title="Mais ações">⋮</button>
         ${s.popEfet === l.id ? _finMovPopEfetivarHtml(l, ctx) : ''}
-      </span>
-      <span class="finmv-cel">
-        <button class="finmv-kebab ${s.menu===l.id?'on':''}" onclick="event.stopPropagation();_finMovAbrirMenu(${l.id})" title="Ações rápidas">⋮</button>
         ${s.menu === l.id ? _finMovMenuHtml(l) : ''}
       </span>
     </div>`;
@@ -33796,15 +34144,17 @@ function _finLancCascataRenderBulkbar(){
   if(!n){ bar.innerHTML=''; return; }
   // Total assinado da seleção: entrada soma, saída subtrai — é o que o lote vai mexer.
   const ctx = window._finLancCascataCtx || { rows: [] };
-  const total = ctx.rows.filter(l => sel.has(l.id))
-    .reduce((a,l) => a + (l.tipo_movimento===1 ? 1 : -1) * Math.abs(+l.valor||0), 0);
+  const linhas = ctx.rows.filter(l => sel.has(l.id));
+  const total = linhas.reduce((a,l) => a + (l.tipo_movimento===1 ? 1 : -1) * Math.abs(+l.valor||0), 0);
+  // "Repassar N ao credor" só quando há repasse em aberto na seleção (handoff v2 §3.2).
+  const nRep = linhas.filter(l => _finMovRepasseAberto(l, ctx)).length;
   bar.innerHTML = `<div class="finmv-lote">
-    <span class="qt">${n} ${n===1?'lançamento selecionado':'lançamentos selecionados'}</span>
-    <span class="tt">${fmtRs(total)}</span>
-    <button class="finmv-lb go" onclick="_finLancCascataLote('pagar')">Confirmar pagamento</button>
-    <button class="finmv-lb" onclick="_finLancCascataLote('conciliar')">Conciliar</button>
-    <button class="finmv-lb" onclick="_finLoteEditarAbrirModal()">Editar nome e vencimento</button>
-    <button class="finmv-lb" onclick="_finLancSerieAbrirModal()">Excluir esta e as próximas</button>
+    <span class="qt">${n} ${n===1?'selecionado':'selecionados'}</span>
+    <span class="tt">soma ${fmtRs(total)}</span>
+    ${nRep ? `<button class="finmv-lb go" onclick="_finRepLote()">Repassar ${nRep} ao credor</button>` : ''}
+    <button class="finmv-lb" onclick="_finLancCascataLote('pagar')">Confirmar pagamento</button>
+    <button class="finmv-lb" onclick="_finLoteCategoriaAbrir()">Alterar categoria</button>
+    <button class="finmv-lb" onclick="_finLoteEditarAbrirModal()">Reagendar</button>
     <button class="finmv-lb" onclick="_finLancCascataLote('excluir')">Excluir</button>
     <button class="finmv-lb gh" onclick="_finLancCascataState.sel.clear();_finLancCascataRender();">Limpar seleção ✕</button>
   </div>`;

@@ -436,8 +436,12 @@ const perto = (a, b) => Math.abs(a - b) < 0.005;
   //     carregador que pare de aplicar o corte, não é observável num sandbox sem DOM —
   //     então é travado aqui, no texto do arquivo.
   const fonteHTML = HTML;
+  // Handoff v2 (05/09/2026): os chips de visão saíram da tela; o chip que carrega número
+  // é "Repasses", contado por _finMovContarChip — que passa pelo MESMO
+  // _finLancCascataFiltrados da lista (é o que a asserção 10 exercita).
   ok('13 · o chip usa o contador compartilhado',
-    /const n = _finMovContadorVisao\(v\.id\);/.test(fonteHTML)
+    /const repN = _finMovContarChip\('fTipo', 'repasses'\);/.test(fonteHTML)
+    && /function _finMovContarChip\(campo, valor\)\{[\s\S]{0,400}_finLancCascataFiltrados\(\)\.length/.test(fonteHTML)
     && !/const n = ctx\.rows\.filter\(l => v\.ok\(l, ctx\)\)\.length;/.test(fonteHTML),
     'o render voltou a contar o chip por conta própria');
   ok('13a · o carregador aplica o corte do judicial',
