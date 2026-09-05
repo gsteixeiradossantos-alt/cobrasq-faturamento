@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  html, body { margin:0; height:100%; background:#F3F4F6; font-family:'Inter Tight','Inter',system-ui,sans-serif; font-size:14px; color:#0A1530; }
+  a { color:#0A1530; text-decoration:none; } a:hover { color:#97793A; }
+  ::-webkit-scrollbar { width:9px; height:9px; } ::-webkit-scrollbar-thumb { background:#DCD6C6; border-radius:8px; }
+  @keyframes modalIn { from { opacity:0; transform:scale(.96) translateY(8px); } to { opacity:1; transform:none; } }
+  @keyframes toastIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+</style>
+</helmet>
+
+<div data-screen-label="Financeiro v2" style="display:flex; height:100vh; min-width:1180px; background:#F3F4F6; font-family:'Inter Tight','Inter',system-ui,sans-serif; color:#0A1530; position:relative; overflow:hidden;">
+
+  <!-- SIDEBAR -->
+  <div style="width:228px; flex-shrink:0; background:#0A1530; border-right:1px solid rgba(201,169,97,0.18); color:#EFEAD9; display:flex; flex-direction:column; overflow-y:auto; overflow-x:hidden;">
+    <div style="padding:18px 18px 14px; display:flex; align-items:center; gap:10px;">
+      <div style="width:28px; height:28px; border-radius:7px; background:rgba(255,255,255,0.06); border:1px solid rgba(201,169,97,0.4); position:relative; flex-shrink:0;"><div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:9px; height:9px; border-radius:50%; background:#C9A961;"></div></div>
+      <div style="font-family:'Fraunces',Georgia,serif; font-weight:500; font-size:19px; line-height:1; color:#EFEAD9;">cobrasq<span style="color:#C9A961;">.</span></div>
+      <div style="margin-left:auto; font-family:'JetBrains Mono',monospace; font-size:9px; color:rgba(239,234,217,0.5); border:1px solid rgba(201,169,97,0.18); border-radius:4px; padding:1px 5px;">v1</div>
+    </div>
+    <div style="padding:4px 14px 6px;">
+      <div style="display:flex; align-items:center; gap:8px; padding:8px 11px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.10); border-radius:9px; color:rgba(239,234,217,0.5); font-size:12.5px;"><svg width="13" height="13" viewBox="0 0 18 18" fill="none"><path d="M8 13a5.5 5.5 0 100-11 5.5 5.5 0 000 11zM12 12l3.5 3.5" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"></path></svg>Buscar...<span style="margin-left:auto; font-family:'JetBrains Mono',monospace; font-size:9px; border:1px solid rgba(201,169,97,0.18); border-radius:4px; padding:1px 5px;">⌘K</span></div>
+    </div>
+    <sc-for list="{{ navTree }}" as="g" hint-placeholder-count="5">
+      <div style="padding:5px 10px 2px;">
+        <div style="padding:9px 10px 5px; font-size:9.5px; font-weight:500; letter-spacing:0.16em; color:#6C7690; text-transform:uppercase; font-family:'JetBrains Mono',monospace;">{{ g.titulo }}</div>
+        <sc-for list="{{ g.itens }}" as="n" hint-placeholder-count="4">
+          <div style="position:relative; display:flex; align-items:center; gap:9px; padding:7px 10px; margin-bottom:1px; border-radius:8px; cursor:pointer; font-size:13px; font-weight:500; color:{{ n.fg }}; background:{{ n.bg }};" style-hover="background:rgba(255,255,255,0.06); color:#EFEAD9;">
+            <sc-if value="{{ n.active }}" hint-placeholder-val="{{ false }}"><div style="position:absolute; left:-10px; top:0; bottom:0; width:2px; background:#C9A961;"></div></sc-if>
+            <span style="display:flex; width:15px; flex-shrink:0; color:{{ n.icFg }};"><svg width="15" height="15" viewBox="0 0 18 18" fill="none" style="display:block;"><path d="{{ n.ic }}" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>
+            <span style="flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ n.label }}</span>
+            <sc-if value="{{ n.temBadge }}" hint-placeholder-val="{{ false }}"><span style="flex-shrink:0; font-family:'JetBrains Mono',monospace; font-size:9.5px; font-weight:600; line-height:1; padding:3px 6px; border-radius:20px; background:{{ n.badgeBg }}; color:{{ n.badgeFg }};">{{ n.badge }}</span></sc-if>
+          </div>
+        </sc-for>
+      </div>
+    </sc-for>
+    <div style="margin-top:auto; padding:12px; border-top:1px solid rgba(239,234,217,0.14);">
+      <div style="display:flex; align-items:center; gap:10px; padding:6px;">
+        <div style="width:34px; height:34px; border-radius:8px; background:#C9A961; display:grid; place-items:center; font-size:12px; font-weight:700; color:#2A1A05; font-family:'JetBrains Mono',monospace;">DG</div>
+        <div style="min-width:0;"><strong style="display:block; color:#EFEAD9; font-size:12.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Dr. Gustavo Teixeira</strong><span style="color:rgba(239,234,217,0.5); font-size:10.5px;">Gestor</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div style="flex:1; min-width:0; display:flex; flex-direction:column; background:#FFFFFF; overflow:hidden;">
+    <div style="height:56px; background:#FFFFFF; border-bottom:1px solid rgba(10,21,48,0.10); display:flex; align-items:center; padding:0 28px; gap:12px; flex-shrink:0;">
+      <div style="font-size:20px; padding:0 4px;">☰</div>
+      <div style="font-family:'JetBrains Mono',monospace; font-size:10.5px; font-weight:600; letter-spacing:0.14em; text-transform:uppercase;"><span style="color:rgba(10,21,48,0.42); font-weight:500;">Dinheiro / Financeiro / </span>{{ crumb }}</div>
+      <div style="margin-left:auto; display:flex; align-items:center; gap:6px;">
+        <div style="width:38px; height:38px; border-radius:9px; border:1px solid rgba(10,21,48,0.10); display:grid; place-items:center; position:relative;"><svg width="16" height="16" viewBox="0 0 18 18" fill="none"><path d="M9 3a4 4 0 00-4 4c0 3-1.5 4.5-1.5 4.5h11S13 10 13 7a4 4 0 00-4-4zM7.5 14a1.5 1.5 0 003 0" stroke="rgba(10,21,48,0.6)" stroke-width="1.35" stroke-linecap="round"></path></svg><span style="position:absolute; top:5px; right:5px; width:6px; height:6px; background:#9B4A3F; border-radius:50%; border:1.5px solid #fff;"></span></div>
+        <div style="display:flex; align-items:center; gap:8px; padding:4px 10px 4px 4px; border-radius:6px; border:1px solid rgba(10,21,48,0.10); height:38px;"><div style="width:26px; height:26px; border-radius:6px; background:#0A1530; display:grid; place-items:center; font-size:11px; font-weight:700; color:#fff;">DG</div><span style="font-size:12px; font-weight:600; white-space:nowrap;">Dr. Gustavo Teixeira</span></div>
+      </div>
+    </div>
+
+    <!-- page header + tabs -->
+    <div style="padding:22px 28px 0; display:flex; flex-direction:column; gap:14px; flex-shrink:0; border-bottom:1px solid rgba(10,21,48,0.10);">
+      <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap;">
+        <div style="display:flex; flex-direction:column; gap:6px; min-width:0;">
+          <div style="font-family:'JetBrains Mono',monospace; font-size:9.5px; letter-spacing:0.16em; text-transform:uppercase; color:rgba(10,21,48,0.42);">Financeiro · Sábado, 05 de setembro de 2026</div>
+          <div style="font-family:'Fraunces',Georgia,serif; font-weight:500; font-size:28px; letter-spacing:-0.01em; line-height:1.1;">{{ titulo }}</div>
+          <div style="font-size:13px; color:rgba(10,21,48,0.6);">{{ subtitulo }}</div>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
+          <div style="display:inline-flex; align-items:center; gap:6px; padding:9px 14px; border-radius:9px; border:1px solid rgba(10,21,48,0.10); font-size:12.5px; font-weight:600; cursor:pointer; white-space:nowrap;">↻ Importar boletos Asaas</div>
+          <div style="display:inline-flex; align-items:center; gap:6px; padding:9px 14px; border-radius:9px; background:#0A1530; color:#EFEAD9; font-size:12.5px; font-weight:600; cursor:pointer; white-space:nowrap; box-shadow:0 1px 2px rgba(10,21,48,0.18);">+ Novo lançamento</div>
+        </div>
+      </div>
+      <div style="display:flex; gap:3px; margin-bottom:-1px;">
+        <sc-for list="{{ finTabs }}" as="t" hint-placeholder-count="6">
+          <div onClick="{{ t.on }}" style="padding:9px 14px; font-size:13.5px; font-weight:{{ t.w }}; color:{{ t.fg }}; border-bottom:2px solid {{ t.bd }}; cursor:pointer; white-space:nowrap; display:inline-flex; align-items:center; gap:7px; border-radius:8px 8px 0 0;" style-hover="background:#F4F5F7; color:#0A1530;">{{ t.label }}<sc-if value="{{ t.temN }}" hint-placeholder-val="{{ false }}"><span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; font-weight:600; padding:2px 6px; border-radius:20px; background:{{ t.nBg }}; color:{{ t.nFg }};">{{ t.n }}</span></sc-if><sc-if value="{{ t.legado }}" hint-placeholder-val="{{ false }}"><span style="font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.1em; color:rgba(10,21,48,0.42);">LEGADO</span></sc-if></div>
+        </sc-for>
+      </div>
+    </div>
+
+    <!-- ===== MOVIMENTAÇÕES ===== -->
+    <sc-if value="{{ isMov }}" hint-placeholder-val="{{ true }}">
+      <div style="flex:1; min-height:0; display:flex; flex-direction:column; overflow:auto; position:relative;">
+        <!-- filters -->
+        <div style="padding:16px 28px 12px; display:flex; align-items:center; gap:8px; flex-shrink:0; flex-wrap:wrap; row-gap:10px;">
+          <span style="font-family:'JetBrains Mono',monospace; font-size:9.5px; letter-spacing:0.14em; color:rgba(10,21,48,0.42); margin-right:2px;">TIPO</span>
+          <sc-for list="{{ tipoChips }}" as="c" hint-placeholder-count="4"><div onClick="{{ c.on }}" style="padding:6px 12px; border-radius:20px; font-size:12.5px; font-weight:500; border:1px solid {{ c.bd }}; background:{{ c.bg }}; color:{{ c.fg }}; cursor:pointer; white-space:nowrap; display:inline-flex; gap:6px; align-items:center;">{{ c.l }}<sc-if value="{{ c.temN }}" hint-placeholder-val="{{ false }}"><span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; font-weight:600;">{{ c.n }}</span></sc-if></div></sc-for>
+          <div style="width:1px; height:22px; background:rgba(10,21,48,0.10); margin:0 6px;"></div>
+          <span style="font-family:'JetBrains Mono',monospace; font-size:9.5px; letter-spacing:0.14em; color:rgba(10,21,48,0.42); margin-right:2px;">SITUAÇÃO</span>
+          <sc-for list="{{ stChips }}" as="c" hint-placeholder-count="4"><div onClick="{{ c.on }}" style="padding:6px 12px; border-radius:20px; font-size:12.5px; font-weight:500; border:1px solid {{ c.bd }}; background:{{ c.bg }}; color:{{ c.fg }}; cursor:pointer; white-space:nowrap;">{{ c.l }}</div></sc-for>
+          <div style="margin-left:auto; display:flex; align-items:center; gap:8px; position:relative; z-index:5;">
+            <!-- .fincx-nav (capturado) -->
+            <div style="display:flex; align-items:center; gap:2px; border:1px solid #E6E1D2; border-radius:7px; overflow:visible; background:#fff; height:28px; position:relative;">
+              <div onClick="{{ perPrev }}" title="Anterior" style="height:100%; padding:0 9px; display:grid; place-items:center; font-size:14px; color:#0A1530; cursor:pointer;">‹</div>
+              <div onClick="{{ perToggle }}" style="height:100%; padding:0 10px; display:grid; place-items:center; font-size:12.5px; font-weight:500; color:#0A1530; cursor:pointer; white-space:nowrap; font-family:'JetBrains Mono',monospace;">{{ periodoFaixaCurta }}</div>
+              <div onClick="{{ perNext }}" title="Próximo" style="height:100%; padding:0 9px; display:grid; place-items:center; font-size:14px; color:#0A1530; cursor:pointer;">›</div>
+              <sc-if value="{{ perOpen }}" hint-placeholder-val="{{ false }}">
+                <div style="position:absolute; top:calc(100% + 8px); right:0; width:340px; background:#fff; border-radius:16px; box-shadow:0 8px 32px rgba(10,21,48,0.14); border:1px solid rgba(10,21,48,0.08); padding:12px; display:flex; flex-direction:column; gap:4px; animation:modalIn .15s ease; z-index:20;">
+                  <sc-for list="{{ perAtalhos }}" as="p" hint-placeholder-count="3"><div onClick="{{ p.on }}" style="padding:12px 16px; border-radius:9px; font-size:15px; font-weight:500; cursor:pointer; background:{{ p.bg }}; color:{{ p.fg }};" style-hover="background:#F4F5F7;">{{ p.label }}</div></sc-for>
+                  <div style="height:1px; background:rgba(10,21,48,0.10); margin:8px 4px;"></div>
+                  <div style="padding:4px 16px 0; font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.12em; color:rgba(10,21,48,0.42);">IR PARA UM MÊS</div>
+                  <div style="display:flex; gap:8px; padding:6px 16px 8px;"><input type="month" value="{{ mesVal }}" onChange="{{ setMes }}" style="flex:1; min-width:0; padding:10px 12px; border:1.5px solid rgba(10,21,48,0.14); border-radius:9px; font-family:'Inter Tight',sans-serif; font-size:14px; color:#0A1530; background:#fff; outline:none;"><div onClick="{{ irMes }}" style="padding:10px 18px; border-radius:9px; background:#0A1530; color:#EFEAD9; font-size:14px; font-weight:600; cursor:pointer;">Ir</div></div>
+                  <div style="height:1px; background:rgba(10,21,48,0.10); margin:8px 4px;"></div>
+                  <div style="padding:4px 16px 0; font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.12em; color:rgba(10,21,48,0.42);">PERÍODO PERSONALIZADO</div>
+                  <div style="display:flex; flex-direction:column; gap:8px; padding:6px 16px 8px;"><input type="date" value="{{ deVal }}" onChange="{{ setDe }}" style="padding:10px 12px; border:1.5px solid rgba(10,21,48,0.14); border-radius:9px; font-family:'Inter Tight',sans-serif; font-size:14px; color:#0A1530; background:#fff; outline:none;"><input type="date" value="{{ ateVal }}" onChange="{{ setAte }}" style="padding:10px 12px; border:1.5px solid rgba(10,21,48,0.14); border-radius:9px; font-family:'Inter Tight',sans-serif; font-size:14px; color:#0A1530; background:#fff; outline:none;"><div onClick="{{ aplicarCustom }}" style="padding:11px; border-radius:9px; background:#0A1530; color:#EFEAD9; font-size:14px; font-weight:600; cursor:pointer; text-align:center;">Selecionar</div></div>
+                </div>
+              </sc-if>
+            </div>
+            <!-- .finmv-fbtn (capturado) -->
+            <div style="display:flex; align-items:center; gap:7px; border-radius:7px; padding:8px 12px; font-size:12.5px; font-weight:500; color:#0A1530; cursor:pointer; white-space:nowrap; background:#fff; border:1px solid #E6E1D2;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h18l-7 8v6l-4 2v-8z"></path></svg>Filtrar</div>
+          </div>
+        </div>
+        <div style="padding:0 28px 8px; display:flex; align-items:center; gap:10px; font-size:12.5px; color:rgba(10,21,48,0.6); flex-shrink:0;"><span>{{ contador }}</span><sc-if value="{{ temRepFiltro }}" hint-placeholder-val="{{ false }}"><span style="color:#97793A;">· repasses ao credor saem daqui pelo botão <strong style="font-weight:600;">Repassar</strong> — não existe mais aba separada</span></sc-if></div>
+
+        <!-- table -->
+        <div style="flex-shrink:0; margin:0 28px; border:1px solid rgba(10,21,48,0.10); border-radius:12px; overflow:hidden;">
+          <div style="display:grid; grid-template-columns:30px 26px minmax(170px,1.6fr) minmax(96px,1fr) minmax(84px,0.7fr) 112px 100px minmax(128px,auto); gap:10px; padding:10px 14px; font-family:'JetBrains Mono',monospace; font-size:9.5px; letter-spacing:0.14em; color:rgba(10,21,48,0.5); background:#F4F5F7; border-bottom:1px solid rgba(10,21,48,0.10); position:sticky; top:0; z-index:2;">
+            <div onClick="{{ toggleAll }}" style="width:15px; height:15px; border:1.5px solid rgba(10,21,48,0.3); border-radius:4px; background:{{ allBg }}; cursor:pointer; display:grid; place-items:center; color:#fff; font-size:10px;">{{ allMark }}</div>
+            <span></span><span>DESCRIÇÃO</span><span>CATEGORIA</span><span>CONTA</span><span style="text-align:right;">VALOR</span><span>SITUAÇÃO</span><span style="text-align:right;">AÇÃO</span>
+          </div>
+          <sc-for list="{{ rows }}" as="r" hint-placeholder-count="12">
+            <sc-if value="{{ r.grupo }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex; justify-content:space-between; padding:8px 14px; background:#FBF8EF; font-family:'JetBrains Mono',monospace; font-size:10.5px; letter-spacing:0.05em; color:#97793A; border-bottom:1px solid rgba(10,21,48,0.10);"><span>{{ r.dia }}</span><span style="color:rgba(10,21,48,0.5);">{{ r.tot }}</span></div>
+            </sc-if>
+            <sc-if value="{{ r.linha }}" hint-placeholder-val="{{ true }}">
+              <div style="display:grid; grid-template-columns:30px 26px minmax(170px,1.6fr) minmax(96px,1fr) minmax(84px,0.7fr) 112px 100px minmax(128px,auto); gap:10px; padding:10px 14px; align-items:center; border-bottom:1px solid rgba(10,21,48,0.08); font-size:13px; background:{{ r.bg }};" style-hover="background:rgba(10,21,48,0.04);">
+                <div onClick="{{ r.toggle }}" style="width:15px; height:15px; border:1.5px solid rgba(10,21,48,0.3); border-radius:4px; background:{{ r.cbBg }}; cursor:pointer; display:grid; place-items:center; color:#fff; font-size:10px;">{{ r.cbMark }}</div>
+                <div style="width:26px; height:26px; border-radius:50%; display:grid; place-items:center; font-size:13px; font-weight:700; background:{{ r.tiBg }}; color:{{ r.tiFg }};">{{ r.ti }}</div>
+                <div style="min-width:0; display:flex; flex-direction:column; gap:2px;"><span style="font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ r.desc }}</span><span style="font-size:11.5px; color:rgba(10,21,48,0.5); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ r.sub }}</span></div>
+                <span style="display:inline-flex; align-items:center; gap:5px; border:1px solid rgba(10,21,48,0.10); border-radius:7px; padding:3px 9px; font-size:11.5px; color:rgba(10,21,48,0.6); white-space:nowrap; justify-self:start; max-width:100%; overflow:hidden; text-overflow:ellipsis;">{{ r.cat }}</span>
+                <span style="color:rgba(10,21,48,0.6); font-size:12.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ r.conta }}</span>
+                <span style="font-family:'JetBrains Mono',monospace; font-weight:600; text-align:right; color:{{ r.cor }}; white-space:nowrap;">{{ r.val }}</span>
+                <span style="font-family:'JetBrains Mono',monospace; font-size:9.5px; letter-spacing:0.08em; padding:4px 8px; border-radius:4px; background:{{ r.sbg }}; color:{{ r.sfg }}; justify-self:start; white-space:nowrap;">{{ r.st }}</span>
+                <div style="display:flex; justify-content:flex-end; gap:6px;">
+                  <sc-if value="{{ r.podeRepassar }}" hint-placeholder-val="{{ false }}"><div onClick="{{ r.repassar }}" style="display:inline-flex; align-items:center; gap:5px; font-size:11.5px; font-weight:600; padding:5px 10px; border-radius:7px; background:#0A1530; color:#EFEAD9; cursor:pointer; white-space:nowrap;" style-hover="background:#C9A961; color:#2A1A05;"><svg width="11" height="11" viewBox="0 0 18 18" fill="none"><path d="M3.5 6.5h10l-2.5-2.5M14.5 11.5h-10l2.5 2.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path></svg>Repassar</div></sc-if>
+                  <sc-if value="{{ r.preparado }}" hint-placeholder-val="{{ false }}"><span style="font-size:11.5px; color:#97793A; white-space:nowrap;">aguardando Asaas ◔</span></sc-if>
+                  <sc-if value="{{ r.temComprovante }}" hint-placeholder-val="{{ false }}"><span style="font-size:11.5px; font-weight:600; color:#4A7A52; white-space:nowrap; cursor:pointer;">Comprovante ↗</span></sc-if>
+                  <sc-if value="{{ r.podeConfirmar }}" hint-placeholder-val="{{ false }}"><div style="font-size:11.5px; font-weight:600; padding:5px 10px; border-radius:7px; border:1px solid rgba(10,21,48,0.14); cursor:pointer; white-space:nowrap;">Confirmar</div></sc-if>
+                  <span style="font-size:11.5px; font-weight:600; color:rgba(10,21,48,0.6); cursor:pointer;">Abrir</span>
+                </div>
+              </div>
+            </sc-if>
+          </sc-for>
+          <sc-if value="{{ vazio }}" hint-placeholder-val="{{ false }}"><div style="padding:38px 16px; text-align:center; font-size:13px; color:rgba(10,21,48,0.6);">Nenhum lançamento com esses filtros. <span onClick="{{ limpar }}" style="font-weight:600; color:#0A1530; cursor:pointer;">Limpar filtros</span></div></sc-if>
+        </div>
+
+        <!-- footer totals / batch bar -->
+        <sc-if value="{{ semSel }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex; align-items:center; gap:28px; padding:14px 42px 20px; font-size:12.5px; color:rgba(10,21,48,0.6); flex-shrink:0;">
+            <span>Totais do filtro</span>
+            <span style="margin-left:auto;">entradas <span style="font-family:'JetBrains Mono',monospace; font-weight:600; color:#4A7A52;">{{ totIn }}</span></span>
+            <span>saídas <span style="font-family:'JetBrains Mono',monospace; font-weight:600; color:#9B4A3F;">{{ totOut }}</span></span>
+            <span>líquido <span style="font-family:'JetBrains Mono',monospace; font-weight:600; color:#0A1530;">{{ totNet }}</span></span>
+          </div>
+        </sc-if>
+        <sc-if value="{{ temSel }}" hint-placeholder-val="{{ false }}">
+          <div style="position:sticky; bottom:12px; margin:12px 28px 16px; padding:12px 18px; background:#0A1530; color:#EFEAD9; border-radius:12px; display:flex; align-items:center; gap:10px; box-shadow:0 8px 24px rgba(10,21,48,0.28); flex-shrink:0; z-index:3;">
+            <div style="display:flex; flex-direction:column; margin-right:14px;"><span style="font-size:13px; font-weight:600;">{{ selLabel }}</span><span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:rgba(239,234,217,0.6);">soma {{ selSum }}</span></div>
+            <sc-if value="{{ selTemRepasse }}" hint-placeholder-val="{{ false }}"><div onClick="{{ repassarLote }}" style="padding:8px 14px; border-radius:7px; background:#4A7A52; color:#fff; font-size:12.5px; font-weight:600; cursor:pointer;">Repassar {{ selRepN }} ao credor</div></sc-if>
+            <div style="padding:8px 14px; border-radius:7px; border:1px solid rgba(239,234,217,0.3); font-size:12.5px; font-weight:500; cursor:pointer;">Confirmar pagamento</div>
+            <div style="padding:8px 14px; border-radius:7px; border:1px solid rgba(239,234,217,0.3); font-size:12.5px; font-weight:500; cursor:pointer;">Alterar categoria</div>
+            <div style="padding:8px 14px; border-radius:7px; border:1px solid rgba(239,234,217,0.3); font-size:12.5px; font-weight:500; cursor:pointer;">Reagendar</div>
+            <div onClick="{{ limparSel }}" style="margin-left:auto; font-size:12.5px; color:rgba(239,234,217,0.7); cursor:pointer;">Limpar seleção ✕</div>
+          </div>
+        </sc-if>
+      </div>
+    </sc-if>
+
+    <!-- ===== CAIXA (2b · três blocos) ===== -->
+    <sc-if value="{{ isCaixa }}" hint-placeholder-val="{{ false }}">
+      <div style="flex:1; min-height:0; overflow:auto; padding:20px 28px 28px; display:flex; flex-direction:column; gap:16px; background:#F3F4F6;">
+        <div style="display:flex; flex-direction:column; align-items:center; gap:6px; position:relative; z-index:5; flex-shrink:0;">
+          <div style="display:inline-flex; align-items:stretch; border:1px solid rgba(10,21,48,0.14); border-radius:9px; background:#fff; position:relative;">
+            <div onClick="{{ perPrev }}" style="padding:0 14px; display:grid; place-items:center; font-size:14px; color:rgba(10,21,48,0.6); cursor:pointer; border-right:1px solid rgba(10,21,48,0.08);">‹</div>
+            <div onClick="{{ perToggle }}" style="padding:9px 18px; font-size:14px; font-weight:600; cursor:pointer; min-width:190px; text-align:center; white-space:nowrap;">{{ periodoLabel }}</div>
+            <div onClick="{{ perNext }}" style="padding:0 14px; display:grid; place-items:center; font-size:14px; color:rgba(10,21,48,0.6); cursor:pointer; border-left:1px solid rgba(10,21,48,0.08);">›</div>
+            <sc-if value="{{ perOpen }}" hint-placeholder-val="{{ false }}">
+              <div style="position:absolute; top:calc(100% + 8px); left:50%; transform:translateX(-50%); width:340px; background:#fff; border-radius:16px; box-shadow:0 8px 32px rgba(10,21,48,0.14); border:1px solid rgba(10,21,48,0.08); padding:12px; display:flex; flex-direction:column; gap:4px; animation:modalIn .15s ease;">
+                <sc-for list="{{ perAtalhos }}" as="p" hint-placeholder-count="3"><div onClick="{{ p.on }}" style="padding:12px 16px; border-radius:9px; font-size:15px; font-weight:500; cursor:pointer; background:{{ p.bg }}; color:{{ p.fg }};" style-hover="background:#F4F5F7;">{{ p.label }}</div></sc-for>
+                <div style="height:1px; background:rgba(10,21,48,0.10); margin:8px 4px;"></div>
+                <div style="padding:4px 16px 0; font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.12em; color:rgba(10,21,48,0.42);">IR PARA UM MÊS</div>
+                <div style="display:flex; gap:8px; padding:6px 16px 8px;">
+                  <input type="month" value="{{ mesVal }}" onChange="{{ setMes }}" style="flex:1; min-width:0; padding:10px 12px; border:1.5px solid rgba(10,21,48,0.14); border-radius:9px; font-family:'Inter Tight',sans-serif; font-size:14px; color:#0A1530; background:#fff; outline:none;">
+                  <div onClick="{{ irMes }}" style="padding:10px 18px; border-radius:9px; background:#0A1530; color:#EFEAD9; font-size:14px; font-weight:600; cursor:pointer;">Ir</div>
+                </div>
+                <div style="height:1px; background:rgba(10,21,48,0.10); margin:8px 4px;"></div>
+                <div style="padding:4px 16px 0; font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.12em; color:rgba(10,21,48,0.42);">PERÍODO PERSONALIZADO</div>
+                <div style="display:flex; flex-direction:column; gap:8px; padding:6px 16px 8px;">
+                  <input type="date" value="{{ deVal }}" onChange="{{ setDe }}" style="padding:10px 12px; border:1.5px solid rgba(10,21,48,0.14); border-radius:9px; font-family:'Inter Tight',sans-serif; font-size:14px; color:#0A1530; background:#fff; outline:none;">
+                  <input type="date" value="{{ ateVal }}" onChange="{{ setAte }}" style="padding:10px 12px; border:1.5px solid rgba(10,21,48,0.14); border-radius:9px; font-family:'Inter Tight',sans-serif; font-size:14px; color:#0A1530; background:#fff; outline:none;">
+                  <div onClick="{{ aplicarCustom }}" style="padding:11px; border-radius:9px; background:#0A1530; color:#EFEAD9; font-size:14px; font-weight:600; cursor:pointer; text-align:center;">Selecionar</div>
+                </div>
+              </div>
+            </sc-if>
+          </div>
+        </div>
+        <!-- contas bancárias -->
+        <div style="display:flex; flex-direction:column; gap:8px; flex-shrink:0;">
+          <div style="display:flex; align-items:baseline; gap:10px;"><span style="font-family:'JetBrains Mono',monospace; font-size:9.5px; letter-spacing:0.16em; color:rgba(10,21,48,0.5);">CONTAS BANCÁRIAS · {{ contasN }} ATIVAS</span><span style="margin-left:auto; font-size:12px; font-weight:600; cursor:pointer;">Conciliar extrato →</span></div>
+          <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:8px;">
+            <div style="min-width:0; background:#0A1530; color:#EFEAD9; border-radius:10px; padding:12px 14px; display:flex; flex-direction:column; gap:6px;"><span style="font-family:'JetBrains Mono',monospace; font-size:8.5px; letter-spacing:0.14em; color:#C9A961;">SALDO TOTAL</span><span style="font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:600; white-space:nowrap;">{{ cx.saldo }}</span><span style="font-size:11px; color:rgba(239,234,217,0.6);">soma das {{ contasN }} contas</span></div>
+            <sc-for list="{{ contas }}" as="a" hint-placeholder-count="7">
+              <div style="min-width:0; background:#fff; border:1px solid rgba(10,21,48,0.10); border-radius:10px; padding:12px 14px; display:flex; flex-direction:column; gap:6px;">
+                <div style="display:flex; align-items:center; gap:7px; min-width:0;"><div style="width:20px; height:20px; border-radius:50%; background:{{ a.bg }}; color:#fff; display:grid; place-items:center; font-family:'JetBrains Mono',monospace; font-size:7px; font-weight:700; flex-shrink:0;">{{ a.sig }}</div><span style="font-size:12px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ a.nome }}</span></div>
+                <span style="font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:600; white-space:nowrap;">{{ a.saldo }}</span>
+                <span style="font-size:11px; color:#5A5F66;">{{ a.tipo }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        <!-- indicadores do período -->
+        <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:16px; flex-shrink:0;">
+          <div style="background:#0A1530; color:#EFEAD9; border-radius:12px; padding:20px 22px; display:flex; flex-direction:column; gap:8px; min-width:0;">
+            <span style="font-family:'JetBrains Mono',monospace; font-size:9.5px; letter-spacing:0.16em; color:#C9A961;">LUCRO LÍQUIDO · {{ periodoNomeUp }}</span>
+            <span style="font-family:'JetBrains Mono',monospace; font-size:26px; font-weight:600; letter-spacing:-0.02em; white-space:nowrap; color:{{ lq.cor }};">{{ lq.valor }}</span>
+            <div style="display:flex; flex-direction:column; gap:3px; font-size:12px; color:rgba(239,234,217,0.7);">
+              <div style="display:flex; justify-content:space-between; gap:8px;"><span>entradas (recebidas + a receber)</span><span style="font-family:'JetBrains Mono',monospace; color:#BFD4B9;">{{ lq.ent }}</span></div>
+              <div style="display:flex; justify-content:space-between; gap:8px;"><span>− aquisição de dívidas (pagas + a pagar)</span><span style="font-family:'JetBrains Mono',monospace; color:#E2B4AA;">{{ lq.rep }}</span></div>
+            </div>
+          </div>
+          <div style="background:#fff; border:1px solid rgba(10,21,48,0.10); border-radius:12px; padding:20px 22px; display:flex; flex-direction:column; gap:8px; min-width:0;">
+            <div style="display:flex; align-items:center; gap:8px;"><span style="font-family:'JetBrains Mono',monospace; font-size:9.5px; letter-spacing:0.16em; color:rgba(10,21,48,0.5);">META DE LUCRO · {{ periodoNomeUp }}</span><span style="margin-left:auto; font-size:11px; color:rgba(10,21,48,0.42);">meta mensal</span></div>
+            <div style="display:flex; align-items:baseline; gap:4px;"><span style="font-family:'JetBrains Mono',monospace; font-size:16px; color:rgba(10,21,48,0.5);">R$</span><input type="text" value="{{ lq.metaInput }}" onChange="{{ setMeta }}" style="width:100%; min-width:0; padding:2px 0; border:none; border-bottom:1.5px dashed rgba(10,21,48,0.25); font-family:'JetBrains Mono',monospace; font-size:22px; font-weight:600; letter-spacing:-0.02em; color:#0A1530; background:transparent; outline:none;"></div>
+            <div style="height:8px; border-radius:4px; background:#EEF0F4; overflow:hidden;"><div style="height:100%; width:{{ lq.pct }}; background:{{ lq.barCor }};"></div></div>
+            <div style="display:flex; flex-direction:column; gap:3px; font-size:12px; color:#5A5F66;">
+              <div style="display:flex; justify-content:space-between; gap:8px;"><span>− lucro já garantido (recebido + a receber)</span><span style="font-family:'JetBrains Mono',monospace; color:#4A7A52;">{{ lq.garantido }}</span></div>
+              <div style="display:flex; justify-content:space-between; gap:8px; font-weight:600; color:{{ lq.faltaCor }};"><span>{{ lq.faltaLabel }}</span><span style="font-family:'JetBrains Mono',monospace;">{{ lq.faltaVal }}</span></div>
+            </div>
+          </div>
+          <div style="background:#fff; border:1px solid rgba(10,21,48,0.10); border-radius:12px; padding:20px 22px; display:flex; flex-direction:column; gap:8px; min-width:0;">
+            <span style="font-family:'JetBrains Mono',monospace; font-size:9.5px; letter-spacing:0.16em; color:rgba(10,21,48,0.5);">ACORDOS REALIZADOS · {{ periodoNomeUp }}</span>
+            <span style="font-family:'JetBrains Mono',monospace; font-size:28px; font-weight:600; letter-spacing:-0.02em;">{{ ac.n }}<span style="font-family:'Inter Tight',sans-serif; font-size:13px; font-weight:400; color:#5A5F66; margin-left:8px; letter-spacing:0;">{{ ac.nSub }}</span></span>
+            <div style="display:flex; flex-direction:column; gap:3px; font-size:12px; color:#5A5F66;">
+              <div style="display:flex; justify-content:space-between; gap:8px;"><span>valor acordado</span><span style="font-family:'JetBrains Mono',monospace; color:#0A1530;">{{ ac.total }}</span></div>
+              <div style="display:flex; justify-content:space-between; gap:8px;"><span>ticket médio</span><span style="font-family:'JetBrains Mono',monospace; color:#0A1530;">{{ ac.ticket }}</span></div>
+            </div>
+          </div>
+          <div style="background:#fff; border:1px solid {{ dc.bd }}; border-radius:12px; padding:20px 22px; display:flex; flex-direction:column; gap:8px; min-width:0;">
+            <span style="font-family:'JetBrains Mono',monospace; font-size:9.5px; letter-spacing:0.16em; color:rgba(10,21,48,0.5);">ACORDOS DESCUMPRIDOS · {{ periodoNomeUp }}</span>
+            <span style="font-family:'JetBrains Mono',monospace; font-size:28px; font-weight:600; letter-spacing:-0.02em; color:{{ dc.cor }};">{{ dc.n }}<span style="font-family:'Inter Tight',sans-serif; font-size:13px; font-weight:400; color:#5A5F66; margin-left:8px; letter-spacing:0;">{{ dc.nSub }}</span></span>
+            <div style="display:flex; flex-direction:column; gap:3px; font-size:12px; color:#5A5F66;">
+              <div style="display:flex; justify-content:space-between; gap:8px;"><span>parcelas vencidas sem pagamento</span><span style="font-family:'JetBrains Mono',monospace; color:#9B4A3F;">{{ dc.valor }}</span></div>
+              <div style="display:flex; justify-content:space-between; gap:8px;"><span>{{ dc.quem }}</span><span style="font-family:'JetBrains Mono',monospace; color:#0A1530;">{{ dc.pct }}</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- vencidas -->
+        <sc-if value="{{ temVencidas }}" hint-placeholder-val="{{ false }}">
+          <div style="display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; flex-shrink:0;">
+            <div style="background:#fff; border:1px solid #E7CFC7; border-radius:12px; overflow:hidden; display:flex; flex-direction:column;">
+              <div style="padding:12px 18px; border-bottom:1px solid rgba(10,21,48,0.10); display:flex; align-items:baseline; gap:10px; background:#FBEAE7;"><span style="font-family:'Fraunces',Georgia,serif; font-size:16px; color:#7D3F33;">Contas a pagar vencidas</span><span style="font-size:12px; color:#7D3F33;">{{ vp.n }}</span><span style="margin-left:auto; font-family:'JetBrains Mono',monospace; font-size:14px; font-weight:600; color:#9B4A3F;">{{ vp.tot }}</span></div>
+              <sc-for list="{{ vp.itens }}" as="i" hint-placeholder-count="2"><div style="display:flex; align-items:center; gap:12px; padding:10px 18px; border-bottom:1px solid rgba(10,21,48,0.06); font-size:13px;"><div style="flex:1; min-width:0;"><div style="font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ i.t }}</div><div style="font-size:11.5px; color:#9B4A3F;">{{ i.s }}</div></div><span style="font-family:'JetBrains Mono',monospace; font-weight:600; color:#9B4A3F; white-space:nowrap;">{{ i.v }}</span><span style="font-size:11.5px; font-weight:600; padding:4px 10px; border-radius:6px; border:1px solid rgba(10,21,48,0.14); cursor:pointer;">Pagar</span></div></sc-for>
+              <sc-if value="{{ vp.vazio }}" hint-placeholder-val="{{ false }}"><div style="padding:16px 18px; font-size:12.5px; color:#5A5F66;">Nenhuma conta a pagar vencida.</div></sc-if>
+            </div>
+            <div style="background:#fff; border:1px solid #E7CFC7; border-radius:12px; overflow:hidden; display:flex; flex-direction:column;">
+              <div style="padding:12px 18px; border-bottom:1px solid rgba(10,21,48,0.10); display:flex; align-items:baseline; gap:10px; background:#FBEAE7;"><span style="font-family:'Fraunces',Georgia,serif; font-size:16px; color:#7D3F33;">Contas a receber vencidas</span><span style="font-size:12px; color:#7D3F33;">{{ vr.n }}</span><span style="margin-left:auto; font-family:'JetBrains Mono',monospace; font-size:14px; font-weight:600; color:#9B4A3F;">{{ vr.tot }}</span></div>
+              <sc-for list="{{ vr.itens }}" as="i" hint-placeholder-count="2"><div style="display:flex; align-items:center; gap:12px; padding:10px 18px; border-bottom:1px solid rgba(10,21,48,0.06); font-size:13px;"><div style="flex:1; min-width:0;"><div style="font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ i.t }}</div><div style="font-size:11.5px; color:#9B4A3F;">{{ i.s }}</div></div><span style="font-family:'JetBrains Mono',monospace; font-weight:600; color:#9B4A3F; white-space:nowrap;">{{ i.v }}</span><span style="font-size:11.5px; font-weight:600; padding:4px 10px; border-radius:6px; border:1px solid rgba(10,21,48,0.14); cursor:pointer;">Cobrar</span></div></sc-for>
+              <sc-if value="{{ vr.vazio }}" hint-placeholder-val="{{ false }}"><div style="padding:16px 18px; font-size:12.5px; color:#5A5F66;">Nenhuma conta a receber vencida.</div></sc-if>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- Fluxo de caixa › ponte (section.fx-sec do index.html) -->
+        <div style="background:#fff; border:1px solid #E6E1D2; border-radius:9px; overflow:hidden; font-size:14px; color:#0A1530; flex-shrink:0;">
+          <div style="padding:14px 18px 10px; display:flex; flex-direction:column; gap:4px; border-bottom:1px solid #E6E1D2;">
+            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;"><h2 style="margin:0; font-family:'Fraunces',Georgia,serif; font-weight:500; font-size:17px; letter-spacing:-0.005em;">Do lucro líquido à sobra de {{ pt.mes }}</h2><span style="margin-left:auto; display:inline-flex; gap:6px; align-items:center; padding:4px 10px; border-radius:20px; border:1px solid rgba(10,21,48,0.14); font-size:11.5px; color:#5A5F66;">Realização <b style="font-family:'JetBrains Mono',monospace; font-weight:600; color:#0A1530;">{{ pt.realiz }}</b></span><span style="display:inline-flex; gap:6px; align-items:center; padding:4px 10px; border-radius:20px; border:1px solid rgba(10,21,48,0.14); font-size:11.5px; color:#5A5F66;">DAS <b style="font-family:'JetBrains Mono',monospace; font-weight:600; color:#0A1530;">9,0%</b></span><span style="padding:4px 10px; border-radius:20px; background:#0A1530; color:#EFEAD9; font-size:11.5px; font-weight:600; cursor:pointer;">Ajustar premissas</span></div>
+            <span style="font-size:12px; color:#6B7683;">Parte do lucro líquido do card acima (entradas − aquisição de dívidas de terceiro, já com {{ pt.realiz }} de realização sobre o que ainda não caiu) e chega ao que sobra para retirar.</span>
+          </div>
+          <div style="display:flex; flex-direction:column;">
+            <div style="display:flex; justify-content:space-between; gap:16px; padding:11px 18px; border-bottom:1px solid #F2EFE6; font-weight:700;"><span>Lucro líquido de {{ pt.mes }} com realização de {{ pt.realiz }}</span><span style="font-family:'JetBrains Mono',monospace; white-space:nowrap;">{{ pt.inicio }}</span></div>
+            <sc-for list="{{ pt.linhas }}" as="l" hint-placeholder-count="6">
+              <div style="display:flex; justify-content:space-between; gap:16px; padding:11px 18px; border-bottom:1px solid #F2EFE6;"><span>{{ l.t }}</span><span style="font-family:'JetBrains Mono',monospace; white-space:nowrap; color:{{ l.cor }};">{{ l.v }}</span></div>
+            </sc-for>
+            <div style="display:flex; justify-content:space-between; gap:16px; padding:11px 18px; font-weight:700; background:#FBFAF6;"><span>Sobra antes da retirada</span><span style="font-family:'JetBrains Mono',monospace; white-space:nowrap; color:{{ pt.fimCor }};">{{ pt.fim }}</span></div>
+          </div>
+        </div>
+
+        <!-- aviso: vence hoje (só quando não há vencidas) -->
+        <sc-if value="{{ temAvisoHoje }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex; align-items:center; gap:12px; padding:12px 18px; background:#FBF3E1; border:1px solid #DFC992; border-radius:10px; font-size:13px; color:#7A6428;"><span style="width:8px; height:8px; border-radius:50%; background:#C9A961; flex-shrink:0;"></span>{{ avisoHoje }}</div>
+        </sc-if>
+      </div>
+    </sc-if>
+
+    <!-- ===== OUTRAS ABAS (sem captura ainda) ===== -->
+    <sc-if value="{{ isOutra }}" hint-placeholder-val="{{ false }}">
+      <div style="flex:1; display:grid; place-items:center; padding:40px;">
+        <div style="max-width:420px; text-align:center; display:flex; flex-direction:column; gap:8px;">
+          <div style="font-family:'Fraunces',Georgia,serif; font-size:20px;">{{ titulo }}</div>
+          <div style="font-size:13px; color:rgba(10,21,48,0.6); line-height:1.5;">{{ outraMsg }}</div>
+        </div>
+      </div>
+    </sc-if>
+  </div>
+
+  <!-- ===== MODAL REPASSAR ===== -->
+  <sc-if value="{{ modalAberto }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ fechar }}" style="position:absolute; inset:0; z-index:1000; background:rgba(0,0,0,0.45); display:flex; align-items:center; justify-content:center; padding:16px;">
+      <div onClick="{{ stop }}" style="background:#fff; border-radius:12px; box-shadow:0 8px 32px rgba(10,21,48,0.14); width:100%; max-width:560px; max-height:90vh; display:flex; flex-direction:column; animation:modalIn .18s ease;">
+        <div style="padding:18px 22px 14px; border-bottom:1px solid rgba(10,21,48,0.10); display:flex; align-items:center; gap:10px; flex-shrink:0;">
+          <div style="display:flex; flex-direction:column; gap:2px; flex:1;"><span style="font-family:'JetBrains Mono',monospace; font-size:9.5px; letter-spacing:0.14em; color:#97793A;">REPASSE AO CREDOR · PIX VIA ASAAS</span><span style="font-family:'Fraunces',Georgia,serif; font-size:20px;">{{ m.titulo }}</span></div>
+          <div onClick="{{ fechar }}" style="width:30px; height:30px; border-radius:6px; display:grid; place-items:center; font-size:18px; color:rgba(10,21,48,0.42); cursor:pointer;">×</div>
+        </div>
+        <div style="padding:20px 22px; display:flex; flex-direction:column; gap:16px; overflow-y:auto; flex:1; min-height:0;">
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
+            <div style="display:flex; flex-direction:column; gap:5px;"><span style="font-family:'JetBrains Mono',monospace; font-size:9.5px; letter-spacing:0.12em; color:rgba(10,21,48,0.42);">VALOR DO PIX</span><span style="font-family:'JetBrains Mono',monospace; font-size:24px; font-weight:600; letter-spacing:-0.02em;">{{ m.valor }}</span><span style="font-size:11.5px; color:rgba(10,21,48,0.5);">{{ m.parcela }}</span></div>
+            <div style="display:flex; flex-direction:column; gap:5px;"><span style="font-family:'JetBrains Mono',monospace; font-size:9.5px; letter-spacing:0.12em; color:rgba(10,21,48,0.42);">DESCRIÇÃO NO EXTRATO DO CREDOR</span><span style="font-family:'JetBrains Mono',monospace; font-size:13px; padding:8px 10px; background:#F4F5F7; border-radius:7px;">{{ m.pixDesc }}</span></div>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:5px;">
+            <span style="font-family:'JetBrains Mono',monospace; font-size:9.5px; letter-spacing:0.12em; color:rgba(10,21,48,0.42);">CREDOR</span>
+            <sc-if value="{{ m.temCredor }}" hint-placeholder-val="{{ true }}"><div style="display:flex; align-items:center; gap:10px; padding:9px 12px; border:1.5px solid rgba(10,21,48,0.06); border-radius:9px;"><div style="width:26px; height:26px; border-radius:50%; background:#C9A961; color:#2A1A05; display:grid; place-items:center; font-family:'JetBrains Mono',monospace; font-size:10px; font-weight:700;">{{ m.credorSig }}</div><div style="display:flex; flex-direction:column;"><span style="font-size:13.5px; font-weight:600;">{{ m.credor }}</span><span style="font-size:11.5px; color:rgba(10,21,48,0.5);">{{ m.credorDoc }}</span></div></div></sc-if>
+            <sc-if value="{{ m.semCredor }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex; flex-direction:column; gap:8px;">
+                <div style="font-size:12.5px; color:#7D3F33; background:#F6E9E7; border:1px solid #E7CFC7; border-radius:7px; padding:8px 12px;">Lançamento sem credor vinculado — escolha abaixo. A escolha vale para as outras parcelas em aberto deste devedor.</div>
+                <div style="display:flex; flex-direction:column; gap:4px;">
+                  <sc-for list="{{ credores }}" as="c" hint-placeholder-count="3"><div onClick="{{ c.on }}" style="display:flex; align-items:center; gap:10px; padding:8px 12px; border:1.5px solid {{ c.bd }}; background:{{ c.bg }}; border-radius:9px; cursor:pointer;"><div style="width:14px; height:14px; border-radius:50%; border:1.5px solid {{ c.dot }}; display:grid; place-items:center;"><div style="width:7px; height:7px; border-radius:50%; background:{{ c.dotFill }};"></div></div><span style="font-size:13px; font-weight:500;">{{ c.nome }}</span><span style="margin-left:auto; font-size:11.5px; color:rgba(10,21,48,0.5);">{{ c.doc }}</span></div></sc-for>
+                </div>
+              </div>
+            </sc-if>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:5px;">
+            <span style="font-family:'JetBrains Mono',monospace; font-size:9.5px; letter-spacing:0.12em; color:rgba(10,21,48,0.42);">CHAVE PIX</span>
+            <div style="display:flex; align-items:center; gap:10px; padding:9px 12px; border:1.5px solid rgba(10,21,48,0.06); border-radius:9px; font-family:'JetBrains Mono',monospace; font-size:13px;">{{ m.pix }}<span style="margin-left:auto; font-family:'Inter Tight',sans-serif; font-size:11px; color:{{ m.pixFonteCor }};">{{ m.pixFonte }}</span></div>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:8px; padding:12px 14px; background:#FBFAF6; border:1px solid #E6E1D2; border-radius:9px; font-size:12.5px;">
+            <div style="display:flex; justify-content:space-between;"><span style="color:rgba(10,21,48,0.6);">Capital do caso</span><span style="font-family:'JetBrains Mono',monospace;">{{ m.capital }}</span></div>
+            <div style="display:flex; justify-content:space-between;"><span style="color:rgba(10,21,48,0.6);">Já repassado</span><span style="font-family:'JetBrains Mono',monospace;">{{ m.jaRep }}</span></div>
+            <div style="display:flex; justify-content:space-between; font-weight:600;"><span>Resta após este PIX</span><span style="font-family:'JetBrains Mono',monospace; color:{{ m.restaCor }};">{{ m.resta }}</span></div>
+            <div style="height:6px; border-radius:3px; background:#EEF0F4; overflow:hidden; display:flex;"><div style="width:{{ m.wJa }}; background:#4A7A52;"></div><div style="width:{{ m.wEste }}; background:#C9A961;"></div></div>
+          </div>
+          <div style="font-size:12px; color:rgba(10,21,48,0.5); line-height:1.5;">Ao confirmar: PIX sai pelo Asaas, esta saída é baixada como paga, o comprovante do banco vai ao credor por WhatsApp e fica anexado na ficha do caso.</div>
+        </div>
+        <div style="padding:14px 22px; border-top:1px solid rgba(10,21,48,0.10); display:flex; justify-content:flex-end; gap:8px; flex-shrink:0;">
+          <div onClick="{{ fechar }}" style="padding:8px 14px; border-radius:9px; border:1px solid rgba(10,21,48,0.10); font-size:12.5px; font-weight:600; cursor:pointer;">Cancelar</div>
+          <div onClick="{{ confirmar }}" style="padding:8px 16px; border-radius:9px; background:{{ m.okBg }}; color:{{ m.okFg }}; font-size:12.5px; font-weight:600; cursor:{{ m.okCursor }};">Confirmar PIX de {{ m.valor }}</div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ temToast }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute; bottom:24px; left:50%; transform:translateX(-50%); z-index:1100; background:#0A1530; color:#EFEAD9; padding:12px 18px; border-radius:10px; font-size:13px; display:flex; align-items:center; gap:12px; box-shadow:0 8px 24px rgba(10,21,48,0.28); animation:toastIn .18s ease; white-space:nowrap;">{{ toast }}<span onClick="{{ desfazer }}" style="font-weight:600; color:#C9A961; cursor:pointer;">Desfazer</span></div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { tab: 'Caixa', tipo: 'Tudo', st: 'Todos', sel: [], modal: null, credorEsc: null, toast: null, statusRep: {}, ultimo: null, per: 'Mês', ref: '2026-09-05', de: '2026-09-01', ate: '2026-09-30', perOpen: false, mesInput: '2026-09', metaLucro: 40000 };
+  HOJE = '2026-09-05';
+  SALDO_CONTAS = 17671.35;
+  META_MES = 40000;
+
+  // Lançamentos fora de setembro (alimentam Dia/Semana/Trimestre/Semestre/Personalizado).
+  // iso = data de competência; pago = já baixado.
+  get extra() {
+    const REP = 'Aquisição de dívidas de terceiro';
+    return [
+      { id: 101, iso: '2026-07-08', desc: 'Recebimento acordo · Odontomundi 1/10', cat: 'Recuperação de crédito', conta: 'Asaas', v: 480.00, pago: true, tipo: 'entrada' },
+      { id: 102, iso: '2026-07-10', desc: 'Repasse Odontomundi 1/10', cat: REP, conta: 'Asaas', v: -360.00, pago: true, tipo: 'repasse' },
+      { id: 103, iso: '2026-07-15', desc: 'Honorários · Multifer', cat: 'Honorários', conta: 'BTG Pactual', v: 1200.00, pago: true, tipo: 'entrada' },
+      { id: 104, iso: '2026-07-20', desc: 'Contador · competência junho', cat: 'Serviços contábeis', conta: 'BTG Pactual', v: -320.00, pago: true, tipo: 'saida' },
+      { id: 105, iso: '2026-08-05', desc: 'Recebimento acordo · Spaço Jeans 3/6', cat: 'Recuperação de crédito', conta: 'Asaas', v: 300.00, pago: true, tipo: 'entrada' },
+      { id: 106, iso: '2026-08-07', desc: 'Repasse Spaço Jeans 3/6', cat: REP, conta: 'Asaas', v: -225.00, pago: true, tipo: 'repasse' },
+      { id: 107, iso: '2026-08-12', desc: 'Recebimento acordo · La Mesi 2/5', cat: 'Recuperação de crédito', conta: 'Asaas', v: 1480.00, pago: false, tipo: 'entrada' },
+      { id: 108, iso: '2026-08-15', desc: 'Custas processuais · Bidão', cat: 'Custas judiciais', conta: 'Conta Inicial', v: -214.80, pago: true, tipo: 'saida' },
+      { id: 109, iso: '2026-08-20', desc: 'Recebimento acordo · Funilar 1/4', cat: 'Recuperação de crédito', conta: 'Asaas', v: 2410.00, pago: false, tipo: 'entrada' },
+      { id: 110, iso: '2026-08-28', desc: 'Recebimento acordo · Bidão 3/6', cat: 'Recuperação de crédito', conta: 'Asaas', v: 3200.00, pago: true, tipo: 'entrada' },
+      { id: 121, iso: '2026-09-03', desc: 'Recebimento acordo · Bidão Auto Mecânica 3/6', cat: 'Recuperação de crédito', conta: 'Asaas', v: 3200.00, pago: true, tipo: 'entrada' },
+      { id: 122, iso: '2026-09-02', desc: 'Recebimento acordo · Funilar 2/4', cat: 'Recuperação de crédito', conta: 'Asaas', v: 2410.00, pago: true, tipo: 'entrada' },
+      { id: 111, iso: '2026-09-10', desc: 'Parcela 4/10 · Odontomundi', cat: 'Recuperação de crédito', conta: 'Asaas', v: 480.00, pago: false, tipo: 'entrada' },
+      { id: 112, iso: '2026-09-12', desc: 'Repasse Odontomundi 4/10', cat: REP, conta: 'Asaas', v: -360.00, pago: false, tipo: 'repasse', previsto: true },
+      { id: 113, iso: '2026-09-15', desc: 'Parcela 3/6 · Joalheria Tic Tac', cat: 'Recuperação de crédito', conta: 'Asaas', v: 412.00, pago: false, tipo: 'entrada' },
+      { id: 114, iso: '2026-09-18', desc: 'Contador · competência setembro', cat: 'Serviços contábeis', conta: 'BTG Pactual', v: -320.00, pago: false, tipo: 'saida' },
+      { id: 115, iso: '2026-09-22', desc: 'Parcela 1/3 · Menger Serviços', cat: 'Recuperação de crédito', conta: 'Asaas', v: 2133.00, pago: false, tipo: 'entrada' },
+      { id: 116, iso: '2026-09-24', desc: 'Repasse Menger 1/3', cat: REP, conta: 'Asaas', v: -1600.00, pago: false, tipo: 'repasse', previsto: true },
+      { id: 117, iso: '2026-09-25', desc: 'Parcela 1/4 · Casa das Cores', cat: 'Recuperação de crédito', conta: 'Asaas', v: 830.00, pago: false, tipo: 'entrada' },
+      { id: 118, iso: '2026-10-08', desc: 'Parcela 5/10 · Odontomundi', cat: 'Recuperação de crédito', conta: 'Asaas', v: 480.00, pago: false, tipo: 'entrada' },
+      { id: 119, iso: '2026-10-15', desc: 'Parcela 4/6 · Joalheria Tic Tac', cat: 'Recuperação de crédito', conta: 'Asaas', v: 412.00, pago: false, tipo: 'entrada' },
+      { id: 120, iso: '2026-11-10', desc: 'Parcela 6/10 · Odontomundi', cat: 'Recuperação de crédito', conta: 'Asaas', v: 480.00, pago: false, tipo: 'entrada' }
+    ];
+  }
+
+  get acordos() {
+    return [ { iso: '2026-09-02', nome: 'Menger Serviços Automotivos', valor: 6400 }, { iso: '2026-09-04', nome: 'Casa das Cores', valor: 4980 }, { iso: '2026-08-21', nome: 'Joalheria Tic Tac', valor: 2472 }, { iso: '2026-08-26', nome: 'Diego Dutra', valor: 2480 }, { iso: '2026-07-15', nome: 'Odontomundi', valor: 4800 }, { iso: '2026-07-28', nome: 'Spaço Jeans', valor: 1800 } ];
+  }
+
+  // Lançamentos de setembro (tabela) + extras, com iso e pago normalizados.
+  get todos() {
+    const setIso = d => '2026-' + d.split('/')[1] + '-' + d.split('/')[0];
+    const base = this.data.map(r => ({ ...r, iso: setIso(r.d), pago: ['PAGO', 'CONCILIADO'].includes(r.st) }));
+    return base.concat(this.extra);
+  }
+
+  periodo() {
+    const s = this.state, iso = x => x.toISOString().slice(0, 10), D = i => new Date(i + 'T12:00:00');
+    const MES = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+    const fmt = i => i.slice(8, 10) + '/' + i.slice(5, 7) + '/' + i.slice(0, 4);
+    const cap = t => t.charAt(0).toUpperCase() + t.slice(1);
+    const d = D(s.ref);
+    if (s.per === 'Hoje') return { de: s.ref, ate: s.ref, fator: 1 / 22, label: s.ref === this.HOJE ? 'Hoje' : cap(fmt(s.ref)), nome: 'dia', faixa: fmt(s.ref) };
+    if (s.per === 'Semana') { const dow = (d.getDay() + 6) % 7, seg = new Date(d); seg.setDate(d.getDate() - dow); const dom = new Date(seg); dom.setDate(seg.getDate() + 6);
+      const de = iso(seg), ate = iso(dom); return { de, ate, fator: 1 / 4.33, label: de <= this.HOJE && ate >= this.HOJE ? 'Esta semana' : 'Semana de ' + fmt(de).slice(0, 5), nome: 'semana', faixa: fmt(de) + ' – ' + fmt(ate) }; }
+    if (s.per === 'Custom') { const de = s.de, ate = s.ate, dd = (D(ate) - D(de)) / 86400000 + 1; const meses = dd >= 28 ? Math.max(1, Math.round(dd / 30.4)) : Math.max(1 / 22, dd / 30.4);
+      return { de, ate, fator: meses, label: fmt(de).slice(0, 5) + ' – ' + fmt(ate).slice(0, 5), nome: 'período', faixa: fmt(de) + ' – ' + fmt(ate) }; }
+    const y = d.getFullYear(), m = d.getMonth(), de = iso(new Date(y, m, 1, 12)), ate = iso(new Date(y, m + 1, 0, 12));
+    return { de, ate, fator: 1, label: cap(MES[m]) + ' de ' + y, nome: 'mês', faixa: fmt(de) + ' – ' + fmt(ate) };
+  }
+  shift(dir) {
+    const s = this.state, D = i => new Date(i + 'T12:00:00'), iso = x => x.toISOString().slice(0, 10);
+    if (s.per === 'Custom') { const dd = (D(s.ate) - D(s.de)) / 86400000 + 1; const de = D(s.de), ate = D(s.ate); de.setDate(de.getDate() + dir * dd); ate.setDate(ate.getDate() + dir * dd); return this.setState({ de: iso(de), ate: iso(ate) }); }
+    const d = D(s.ref);
+    if (s.per === 'Hoje') d.setDate(d.getDate() + dir); else if (s.per === 'Semana') d.setDate(d.getDate() + dir * 7); else { d.setDate(1); d.setMonth(d.getMonth() + dir); }
+    this.setState({ ref: iso(d) });
+  }
+
+  brl(n) { const s = Math.abs(n).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); return (n < 0 ? '−' : '+') + 'R$ ' + s; }
+  brlAbs(n) { return 'R$ ' + Math.abs(n).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+
+  nav(items) {
+    return items.map(it => { const on = it.label === 'Financeiro', al = it.tom === 'alerta';
+      return { label: it.label, ic: it.ic, active: on, fg: on ? '#EFEAD9' : '#B4BCCC', bg: on ? 'rgba(201,169,97,0.14)' : 'transparent', icFg: on ? '#C9A961' : '#7E88A0', temBadge: !!it.badge, badge: it.badge || '', badgeBg: al ? '#A65A4A' : 'rgba(255,255,255,0.10)', badgeFg: al ? '#fff' : '#9AA4BC' }; });
+  }
+
+  get data() {
+    const REP = 'Aquisição de dívidas de terceiro';
+    return [
+      { id: 1, d: '05/09', dia: 'HOJE · SÁB 05/09', desc: 'Custas processuais · Multifer', sub: 'Judicial · vence hoje', cat: 'Custas judiciais', conta: 'Conta Inicial', v: -151.00, st: 'A PAGAR', tipo: 'saida' },
+      { id: 2, d: '05/09', desc: 'Repasse Bidão Auto Mecânica 3/6', sub: 'devedor Bidão · recebido em 03/09 · capital do caso', cat: REP, conta: 'Asaas', v: -2400.00, st: 'PENDENTE', tipo: 'repasse', credor: 'Casa das Baterias Ltda', sig: 'CB', doc: 'CNPJ 12.345.678/0001-90', pix: '12345678000190', pixFonte: 'chave PIX do cadastro do cliente', capital: 14400, ja: 4800, parc: 'parcela 3 de 6', dev: 'Bidão Auto Mecânica' },
+      { id: 3, d: '04/09', dia: 'QUI 04/09', desc: 'Recebimento acordo · Casa das Baterias', sub: 'boleto Asaas · conciliado', cat: 'Recuperação de crédito', conta: 'Asaas', v: 894.21, st: 'CONCILIADO', tipo: 'entrada' },
+      { id: 4, d: '04/09', desc: 'Repasse S.O.S Animal 1/1', sub: 'devedor La Mesi · recebido há 19 dias', cat: REP, conta: 'Asaas', v: -159.18, st: 'ATRASADO', tipo: 'repasse', credor: 'S.O.S Animal', sig: 'SA', doc: 'CNPJ 45.678.912/0001-33', pix: 'financeiro@sosanimal.com.br', pixFonte: 'chave PIX do cadastro do cliente', capital: 159.18, ja: 0, parc: 'parcela única', dev: 'La Mesi' },
+      { id: 5, d: '04/09', desc: 'Tarifa bancária mensal', sub: 'débito automático', cat: 'Tarifas bancárias', conta: 'BTG Pactual', v: -5.97, st: 'PAGO', tipo: 'saida' },
+      { id: 6, d: '04/09', desc: 'IOF sobre transação', sub: 'débito automático', cat: 'Impostos sobre transações', conta: 'BTG Pactual', v: -1.49, st: 'PAGO', tipo: 'saida' },
+      { id: 7, d: '03/09', dia: 'QUA 03/09', desc: 'Parcela 2/6 · Joalheria Tic Tac', sub: 'boleto Asaas · venceu 03/09', cat: 'Recuperação de crédito', conta: 'Asaas', v: 412.00, st: 'A RECEBER', tipo: 'entrada' },
+      { id: 8, d: '03/09', desc: 'Repasse Funilar 2/4 · verificar', sub: 'importado do Controlle · sem credor vinculado', cat: REP, conta: 'Asaas', v: -1807.50, st: 'PENDENTE', tipo: 'repasse', credor: null, pix: '—', pixFonte: 'será a chave do credor escolhido', capital: 7230, ja: 1807.50, parc: 'parcela 2 de 4', dev: 'Funilar' },
+      { id: 9, d: '03/09', desc: 'Honorários · Spaço Jeans', sub: 'transferência recebida', cat: 'Honorários', conta: 'BTG Pactual', v: 300.00, st: 'CONCILIADO', tipo: 'entrada' },
+      { id: 10, d: '03/09', desc: 'Assinatura Z-API · WhatsApp', sub: 'mensal', cat: 'Software', conta: 'Nubank', v: -99.00, st: 'A PAGAR', tipo: 'saida' },
+      { id: 11, d: '01/09', dia: 'SEG 01/09', desc: 'Repasse Paula Bordin 4/4', sub: 'devedor Odontomundi · recebido em 28/08', cat: REP, conta: 'Asaas', v: -150.00, st: 'PENDENTE', tipo: 'repasse', credor: 'Paula Bordin Comércio de Móveis', sig: 'PB', doc: 'CNPJ 98.765.432/0001-10', pix: '+55 41 99876-5432', pixFonte: 'chave PIX do cadastro do cliente', capital: 600, ja: 450, parc: 'parcela 4 de 4 · última', dev: 'Odontomundi' },
+      { id: 12, d: '01/09', desc: 'Contador · competência agosto', sub: 'boleto', cat: 'Serviços contábeis', conta: 'BTG Pactual', v: -320.00, st: 'PAGO', tipo: 'saida' }
+    ];
+  }
+
+  renderVals() {
+    const s = this.state, brl = n => this.brl(n), abs = n => this.brlAbs(n);
+    const STC = { 'PAGO': ['#EEF0F4', '#5A6472'], 'CONCILIADO': ['#E9F0E9', '#4A7A52'], 'ATRASADO': ['#F6E9E7', '#9B4A3F'], 'A RECEBER': ['#E8EEF5', '#3A6491'], 'A PAGAR': ['#FBF3E1', '#7A6428'], 'PENDENTE': ['#FBF3E1', '#7A6428'], 'PIX ENVIADO': ['#E8EEF5', '#3A6491'], 'REPASSADO': ['#E9F0E9', '#4A7A52'] };
+    const all = this.data.map(r => { const rs = s.statusRep[r.id]; return rs ? { ...r, st: rs === 'preparado' ? 'PIX ENVIADO' : 'REPASSADO' } : r; });
+    const fT = r => s.tipo === 'Tudo' || (s.tipo === 'Entradas' && r.tipo === 'entrada') || (s.tipo === 'Saídas' && r.tipo === 'saida') || (s.tipo === 'Repasses' && r.tipo === 'repasse');
+    const fS = r => s.st === 'Todos' || (s.st === 'Pendentes' && ['A PAGAR', 'A RECEBER', 'PENDENTE'].includes(r.st)) || (s.st === 'Em atraso' && r.st === 'ATRASADO') || (s.st === 'Conciliados' && ['CONCILIADO', 'PAGO', 'REPASSADO'].includes(r.st));
+    const list = all.filter(r => fT(r) && fS(r));
+    const chip = (l, on, fn, n) => ({ l, on: fn, temN: !!n, n: n || '', bg: on ? '#0A1530' : '#fff', fg: on ? '#EFEAD9' : '#0A1530', bd: on ? '#0A1530' : 'rgba(10,21,48,0.14)' });
+    const nRep = all.filter(r => r.tipo === 'repasse' && !s.statusRep[r.id]).length;
+    const rows = []; let lastDay = null;
+    list.forEach(r => {
+      if (r.d !== lastDay) { lastDay = r.d; const dayRows = list.filter(x => x.d === r.d); const tot = dayRows.reduce((a, x) => a + x.v, 0); rows.push({ grupo: true, linha: false, dia: all.find(x => x.d === r.d && x.dia).dia, tot: brl(tot) }); }
+      const sel = s.sel.includes(r.id), isRep = r.tipo === 'repasse', rs = s.statusRep[r.id];
+      const [sbg, sfg] = STC[r.st] || STC.PAGO;
+      rows.push({ linha: true, grupo: false, desc: r.desc, sub: r.sub, cat: r.cat, conta: r.conta, val: brl(r.v), cor: r.v > 0 ? '#4A7A52' : '#9B4A3F', st: r.st, sbg, sfg,
+        ti: r.v > 0 ? '↓' : '↑', tiBg: r.v > 0 ? '#E9EDE2' : '#F3E7E2', tiFg: r.v > 0 ? '#4A7A52' : '#A65A4A',
+        bg: sel ? '#F6F3EA' : (isRep && !rs ? '#FBFAF6' : '#fff'), cbBg: sel ? '#0A1530' : '#fff', cbMark: sel ? '✓' : '',
+        toggle: () => this.setState(p => ({ sel: p.sel.includes(r.id) ? p.sel.filter(i => i !== r.id) : [...p.sel, r.id] })),
+        podeRepassar: isRep && !rs, preparado: rs === 'preparado', temComprovante: rs === 'efetuado', podeConfirmar: !isRep && ['A PAGAR', 'A RECEBER'].includes(r.st),
+        repassar: () => this.setState({ modal: r.id, credorEsc: null }) });
+    });
+    const tIn = list.filter(r => r.v > 0).reduce((a, r) => a + r.v, 0), tOut = list.filter(r => r.v < 0).reduce((a, r) => a + r.v, 0);
+    const selRows = all.filter(r => s.sel.includes(r.id)), selRep = selRows.filter(r => r.tipo === 'repasse' && !s.statusRep[r.id]);
+    const m = all.find(r => r.id === s.modal) || this.extra.find(r => r.id === s.modal) || {};
+    const credores = [ { nome: 'Funilar Comércio de Autopeças', doc: 'CNPJ 33.222.111/0001-55', pix: '33222111000155' }, { nome: 'Casa das Baterias Ltda', doc: 'CNPJ 12.345.678/0001-90', pix: '12345678000190' }, { nome: 'Paula Bordin Comércio de Móveis', doc: 'CNPJ 98.765.432/0001-10', pix: '+55 41 99876-5432' } ];
+    const esc = credores.find(c => c.nome === s.credorEsc);
+    const valor = Math.abs(m.v || 0), resta = (m.capital || 0) - (m.ja || 0) - valor, ok = !!(m.credor || esc) && resta >= -0.005;
+    const TABS = [{ label: 'Caixa' }, { label: 'Movimentações', n: String(nRep), act: true }, { label: 'Judicial' }, { label: 'Fluxo de caixa' }, { label: 'Outros', legado: true }, { label: 'Configurações' }];
+    const isMov = s.tab === 'Movimentações', isCaixa = s.tab === 'Caixa';
+
+    // ===== CAIXA (1c) =====
+    const P = this.periodo(), H = this.HOJE;
+    const T = this.todos.map(r => { const rs = s.statusRep[r.id]; return rs === 'efetuado' ? { ...r, pago: true } : r; });
+    const inP = r => r.iso >= P.de && r.iso <= P.ate;
+    const sum = a => a.reduce((x, r) => x + Math.abs(r.v), 0);
+    const ent = T.filter(r => r.tipo === 'entrada'), rep = T.filter(r => r.tipo === 'repasse'), sai = T.filter(r => r.tipo === 'saida');
+    const entPagas = sum(ent.filter(r => inP(r) && r.pago)), repPagos = rep.filter(r => inP(r) && r.pago);
+    const entPrevL = ent.filter(r => inP(r) && !r.pago), repPrev = sum(rep.filter(r => inP(r) && !r.pago && r.previsto));
+    const realizado = entPagas - sum(repPagos), aEntrar = sum(entPrevL) - repPrev;
+    const custL = rep.filter(r => !r.pago && !r.previsto), custodia = sum(custL);
+    const livre = this.SALDO_CONTAS - custodia;
+    const meta = this.META_MES * P.fator, pReal = meta ? Math.max(0, realizado) / meta : 0, pPrev = meta ? Math.max(0, aEntrar) / meta : 0;
+    const aPagarL = sai.filter(r => inP(r) && !r.pago).sort((a, b) => a.iso < b.iso ? -1 : 1);
+    const vencL = ent.filter(r => inP(r) && !r.pago && r.iso < H);
+    const dias = i => Math.round((new Date(H) - new Date(i)) / 86400000);
+    const fmtD = i => i.slice(8, 10) + '/' + i.slice(5, 7);
+    const fila = custL.slice().sort((a, b) => a.iso < b.iso ? -1 : 1).slice(0, 4);
+    const brlS = n => 'R$ ' + n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    // barras: divide o período em até 14 baldes
+    const dDe = new Date(P.de + 'T12:00:00'), dAte = new Date(P.ate + 'T12:00:00'), nd = Math.round((dAte - dDe) / 86400000) + 1, nb = Math.min(14, nd), bsz = nd / nb;
+    const bk = Array.from({ length: nb }, () => ({ i: 0, o: 0 }));
+    T.filter(inP).forEach(r => { const k = Math.min(nb - 1, Math.floor(Math.round((new Date(r.iso + 'T12:00:00') - dDe) / 86400000) / bsz)); if (r.v > 0) bk[k].i += r.v; else bk[k].o += Math.abs(r.v); });
+    const mx = Math.max(1, ...bk.map(x => x.i + x.o));
+    const bars = bk.map(x => ({ i: (x.i / mx * 100) + '%', o: (x.o / mx * 100) + '%' }));
+    const lab = i => i.slice(8, 10) + '/' + i.slice(5, 7);
+    const barLabels = nb <= 1 ? [{ t: lab(P.de) }] : [0, .25, .5, .75, 1].map(f => { const x = new Date(dDe); x.setDate(dDe.getDate() + Math.round((nd - 1) * f)); return { t: lab(x.toISOString().slice(0, 10)) }; });
+    // vencidas (independe do período): a pagar (sem repasse) e a receber com data < hoje
+    const vpL = sai.filter(r => !r.pago && r.iso < H).sort((a, b) => a.iso < b.iso ? -1 : 1);
+    const vrL = ent.filter(r => !r.pago && r.iso < H).sort((a, b) => a.iso < b.iso ? -1 : 1);
+    const hojeL = T.filter(r => !r.pago && r.iso === H && r.tipo !== 'repasse');
+    const temVencidas = vpL.length + vrL.length > 0;
+    const avisoPartes = [];
+    if (hojeL.some(r => r.tipo === 'saida')) avisoPartes.push(hojeL.filter(r => r.tipo === 'saida').length + ' conta(s) a pagar vence(m) hoje · ' + brlS(sum(hojeL.filter(r => r.tipo === 'saida'))));
+    if (hojeL.some(r => r.tipo === 'entrada')) avisoPartes.push(hojeL.filter(r => r.tipo === 'entrada').length + ' parcela(s) a receber vence(m) hoje · ' + brlS(sum(hojeL.filter(r => r.tipo === 'entrada'))));
+    // decidir agora: repasses em aberto + o que vence hoje (vencidas têm card próprio)
+    const decide = [];
+    custL.slice().sort((a, b) => a.iso < b.iso ? -1 : 1).forEach(r => decide.push({ t: r.desc.replace(' · verificar', ''), s: r.credor === null ? 'sem credor vinculado · escolher no PIX' : 'recebido há ' + dias(r.iso) + ' dias · ' + (r.credor || ''), v: brlS(Math.abs(r.v)), a: 'Repassar', cor: dias(r.iso) > 5 || r.credor === null ? '#9B4A3F' : '#97793A', aBg: '#0A1530', aFg: '#EFEAD9', aBd: '#0A1530', on: () => this.setState({ modal: r.id, credorEsc: null }) }));
+    hojeL.filter(r => r.tipo === 'saida').forEach(r => decide.push({ t: r.desc, s: 'vence hoje · ' + r.conta, v: '−' + brlS(Math.abs(r.v)), a: 'Pagar', cor: '#97793A', aBg: '#fff', aFg: '#0A1530', aBd: 'rgba(10,21,48,0.18)', on: () => {} }));
+    const gReal = Math.min(100, pReal * 100), gPrev = Math.min(100, gReal + pPrev * 100);
+    const livreStr = brlS(livre), livreDot = livreStr.lastIndexOf(',');
+    const titulos = { 'Movimentações': ['Movimentações · ' + (P.nome === 'mês' ? P.label.toLowerCase() : P.label), nRep + ' repasses ao credor pendentes · ' + list.filter(r => r.st === 'ATRASADO').length + ' em atraso · lote confirma pagamento, categoria ou repasse.'], 'Caixa': ['Caixa', 'Quanto a COBRASQ tem livre agora e o que precisa decidir.'], 'Judicial': ['Judicial', ''], 'Fluxo de caixa': ['Fluxo de caixa', ''], 'Outros': ['Outros', ''], 'Configurações': ['Configurações', ''] };
+    return {
+      navTree: [
+        { titulo: 'HOJE', itens: this.nav([{ label: 'Painel', ic: 'M3 3h5v5H3zM10 3h5v5h-5zM3 10h5v5H3zM10 10h5v5h-5z' }, { label: 'Fila de decisões', badge: '99+', tom: 'alerta', ic: 'M3 4.5h1M6 4.5h9M3 9h1M6 9h9M3 13.5h1M6 13.5h9' }, { label: 'Tarefas', ic: 'M3.5 3.5h11v11h-11zM6 9l2 2 4-4' }, { label: 'Audiências', badge: '22', ic: 'M3.5 5h11v9.5h-11zM6 3v3M12 3v3M3.5 8h11' }]) },
+        { titulo: 'CARTEIRA', itens: this.nav([{ label: 'Cobranças', badge: '99+', ic: 'M5 2.5h6l3 3v11H5zM7.5 8.5h4M7.5 11.5h4' }, { label: 'QuitaFácil', ic: 'M9 15.5A6.5 6.5 0 109 2.5a6.5 6.5 0 000 13zM6 9l2 2 4-4' }, { label: 'Devedores', ic: 'M9 8.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5zM4 15.5c0-2.8 2.2-5 5-5s5 2.2 5 5' }, { label: 'Clientes', ic: 'M7 8a2.2 2.2 0 100-4.5A2.2 2.2 0 007 8zM2.5 15c0-2.5 2-4.5 4.5-4.5s4.5 2 4.5 4.5M12 4.5a2.2 2.2 0 010 3.8M13.5 10.8c1.5.6 2.5 2.2 2.5 4.2' }]) },
+        { titulo: 'JURÍDICO', itens: this.nav([{ label: 'Intimações', badge: '67', tom: 'alerta', ic: 'M9 3a4 4 0 00-4 4c0 3-1.5 4.5-1.5 4.5h11S13 10 13 7a4 4 0 00-4-4zM7.5 14a1.5 1.5 0 003 0' }, { label: 'Peças e ações judiciais', ic: 'M9 3v12.5M4 6.5h10M6 6.5l-2 4h4zM12 6.5l-2 4h4zM6 15.5h6' }, { label: 'Consultas', ic: 'M8 13a5.5 5.5 0 100-11 5.5 5.5 0 000 11zM12 12l3.5 3.5' }]) },
+        { titulo: 'DINHEIRO', itens: this.nav([{ label: 'Financeiro', ic: 'M9 2.5v13M11.8 5.4C11.2 4.4 10.2 4 9 4 7.4 4 6.3 5 6.3 6.3c0 2.9 5.4 1.8 5.4 4.7C11.7 12.4 10.4 14 9 14c-1.3 0-2.4-.7-2.9-1.7' }, { label: 'Emitir NF', badge: '94', tom: 'alerta', ic: 'M5 2.5h8v14l-2-1.5L9 16.5l-2-1.5L5 16.5zM7.5 6.5h3M7.5 9.5h3' }]) },
+        { titulo: 'CANAIS', itens: this.nav([{ label: 'WhatsApp', badge: '99+', tom: 'alerta', ic: 'M3.5 9c0-3 2.5-5.5 5.5-5.5S14.5 6 14.5 9 12 14.5 9 14.5c-.9 0-1.8-.2-2.5-.6L3.5 15l1-3.1C3.9 11 3.5 10 3.5 9z' }, { label: 'Documentos', ic: 'M2.5 5h4.5l1.5 2h7v7.5h-13z' }]) }
+      ],
+      crumb: s.tab, titulo: titulos[s.tab][0], subtitulo: titulos[s.tab][1],
+      finTabs: TABS.map(t => { const on = t.label === s.tab; return { label: t.label, w: on ? 600 : 500, fg: on ? '#0A1530' : 'rgba(10,21,48,0.6)', bd: on ? '#C9A961' : 'transparent', temN: !!t.n && t.n !== '0', n: t.n || '', nBg: t.act ? '#F6E9E7' : '#F4F5F7', nFg: t.act ? '#7D3F33' : '#5A6472', legado: !!t.legado, on: () => this.setState({ tab: t.label, sel: [] }) }; }),
+      isMov, isCaixa, isOutra: !isMov && !isCaixa,
+      perOpen: s.perOpen, perToggle: () => this.setState(p => ({ perOpen: !p.perOpen })), perPrev: () => this.shift(-1), perNext: () => this.shift(1),
+      perAtalhos: [['Hoje', 'Hoje'], ['Esta semana', 'Semana'], ['Este mês', 'Mês']].map(([label, k]) => ({ label, on: () => this.setState({ per: k, ref: this.HOJE, perOpen: false }), bg: s.per === k && s.ref === this.HOJE ? '#0A1530' : 'transparent', fg: s.per === k && s.ref === this.HOJE ? '#EFEAD9' : '#0A1530' })),
+      mesVal: s.mesInput, setMes: ev => this.setState({ mesInput: ev.target.value }), irMes: () => this.setState({ per: 'Mês', ref: (s.mesInput || '2026-09') + '-01', perOpen: false }),
+      deVal: s.de, ateVal: s.ate, setDe: ev => this.setState({ de: ev.target.value }), setAte: ev => this.setState({ ate: ev.target.value }),
+      aplicarCustom: () => this.setState({ per: 'Custom', perOpen: false }),
+      periodoNome: P.nome, periodoFaixa: P.faixa, periodoFaixaCurta: P.faixa.replace(' – ', ' — '),
+      periodoLabel: P.label,
+      bars, barLabels, decide, decideN: decide.length, temDecide: decide.length > 0, semDecide: decide.length === 0, contasN: 7,
+      periodoNomeUp: P.nome.toUpperCase(),
+      setMeta: ev => { const n = parseFloat(String(ev.target.value).replace(/\./g, '').replace(',', '.')); if (isFinite(n) && n >= 0) this.setState({ metaLucro: n }); },
+      lq: (() => { const e = sum(ent.filter(inP)), rp = sum(rep.filter(inP)), l = e - rp, metaP = s.metaLucro * P.fator, pct = metaP ? Math.max(0, l) / metaP : 0, falta = metaP - l;
+        return { valor: (l < 0 ? '−' : '') + brlS(Math.abs(l)), cor: l >= 0 ? '#EFEAD9' : '#E2B4AA', ent: brlS(e), rep: '−' + brlS(rp), metaInput: s.metaLucro.toLocaleString('pt-BR', { minimumFractionDigits: 2 }), pct: Math.min(100, pct * 100) + '%', barCor: pct >= 1 ? '#4A7A52' : '#C9A961',
+          garantido: l < 0 ? 'lucro negativo no período' : brlS(l), faltaLabel: l < 0 ? '= falta fechar (meta inteira)' : falta > 0 ? ('= falta fechar' + (P.fator === 1 ? '' : ' (meta proporcional ' + brlS(metaP) + ')')) : '= meta batida, excedente', faltaVal: brlS(l < 0 ? metaP : Math.abs(falta)), faltaCor: falta > 0 ? '#9B4A3F' : '#4A7A52' }; })(),
+      dc: (() => { const v = ent.filter(x => inP(x) && !x.pago && x.iso < H); const dev = [...new Set(v.map(x => x.desc.split(' · ').pop().replace(/^Parcela \d+\/\d+ /, '').trim()))]; const ativos = this.acordos.length + 5; const n = dev.length;
+        return { n, nSub: n === 1 ? 'acordo com parcela vencida' : 'acordos com parcela vencida', valor: brlS(sum(v)), quem: n ? dev.slice(0, 3).join(', ') : 'nenhum devedor em atraso', pct: ativos ? Math.round(n / ativos * 100) + '% de ' + ativos + ' ativos' : '—', cor: n ? '#9B4A3F' : '#0A1530', bd: n ? '#E7CFC7' : 'rgba(10,21,48,0.10)' }; })(),
+      ac: (() => { const A = this.acordos.filter(x => x.iso >= P.de && x.iso <= P.ate), t = A.reduce((a, x) => a + x.valor, 0);
+        return { n: A.length, nSub: A.length === 1 ? 'acordo assinado' : 'acordos assinados', total: brlS(t), ticket: A.length ? brlS(t / A.length) : '—' }; })(),
+      rz: (() => { const e = ent.filter(inP), rec = sum(e.filter(x => x.pago)), prev = sum(e.filter(x => !x.pago)), tot = rec + prev; return { pct: (tot ? Math.round(rec / tot * 100) : 0) + '%', rec: brlS(rec), prev: brlS(prev) }; })(),
+      pt: (() => {
+        const MESA = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+        const dm = new Date(P.de + 'T12:00:00'), mes = P.nome === 'mês' ? MESA[dm.getMonth()] + '/' + String(dm.getFullYear()).slice(2) : (P.nome === 'dia' ? P.label.toLowerCase() : P.faixa.replace(/\/2026/g, ''));
+        const realiz = 0.85;
+        const e = ent.filter(inP), rp = rep.filter(inP);
+        // lucro líquido com realização: o que já caiu vale 100%, o previsto vale 85%; repasse contingente segue a realização
+        const lucro = sum(e.filter(x => x.pago)) + realiz * sum(e.filter(x => !x.pago)) - sum(rp.filter(x => !x.previsto)) - realiz * sum(rp.filter(x => x.previsto));
+        const venc = T.filter(x => !x.pago && x.iso < P.de && x.tipo !== 'repasse').reduce((acc, x) => acc + x.v, 0) - sum(custL.filter(x => x.iso < P.de));
+        const backlog = -custodia / 3;
+        const recorr = -3098.93;
+        const rpv = lucro + venc + backlog + recorr;
+        const das = -Math.max(0, rpv) * 0.09;
+        const fim = rpv + das;
+        const f = n => (n < 0 ? '−' : '') + brlS(Math.abs(n)), neg = n => n < 0 ? '#7D3F33' : '#0A1530';
+        return { mes, realiz: Math.round(realiz * 100) + '%', inicio: f(lucro), fim: f(fim), fimCor: fim < 0 ? '#7D3F33' : '#0A1530',
+          linhas: [ ['Vencidos de meses anteriores puxados para este mês', venc], ['Parcela do mês dos repasses vencidos com devedor já pago', backlog], ['Recorrências que ainda não viraram lançamento', recorr], ['DAS de 9,0% sobre a receita própria', das] ].map(([t, v]) => ({ t, v: f(v), cor: neg(v) })) };
+      })(),
+      fl: (() => {
+        const prem = { realizacao: 0.8, dasPct: 0.06, backlogMeses: 3, prolaboreAlvo: 5000, dividasNaoLancadas: 0, fixosNaoLancados: 0 };
+        const MES = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+        const carteira = [ [31407, 9227, 6800, 1650, 1200], [24800, 3100, 9900, 1650, 1200], [21900, 2400, 8600, 1650, 1200], [19400, 1800, 7700, 1650, 1200], [17200, 1600, 6900, 1650, 1200], [15600, 1200, 6200, 1650, 900], [13900, 900, 5600, 1650, 900], [12100, 700, 4800, 1650, 900], [10400, 500, 4200, 1650, 900], [8900, 400, 3600, 1650, 600], [7300, 300, 2900, 1650, 600], [5800, 200, 2300, 1650, 600] ];
+        let caixa = livre, backlog = custodia, backlogRest = backlog;
+        const rows = carteira.map(([ent, repFixo, repCont, fixos, dividas], i) => {
+          const m = (8 + i) % 12, y = 26 + Math.floor((8 + i) / 12);
+          const totalRec = ent * prem.realizacao, repC = repCont * prem.realizacao, repB = i < prem.backlogMeses ? backlog / prem.backlogMeses : 0;
+          const totalRep = repFixo + repC + repB, prop = totalRec - totalRep, das = Math.max(0, prop) * prem.dasPct;
+          const disponivel = prop - fixos - das - dividas, ret = Math.min(prem.prolaboreAlvo, Math.max(0, disponivel)), falta = prem.prolaboreAlvo - ret;
+          const caixaIni = caixa, caixaFim = caixaIni + prop - (fixos + das + dividas + ret); caixa = caixaFim; backlogRest -= repB;
+          return { label: MES[m] + '/' + y, rec: totalRec, rep: totalRep, prop, fix: fixos + das, div: dividas, ret, falta, cxFim: caixaFim, cxLivre: caixaFim - Math.max(0, backlogRest), fatur: totalRec - totalRep };
+        });
+        const mx = Math.max(1, ...rows.map(r => Math.abs(r.cxFim))), minRow = rows.reduce((a, r) => r.cxFim < a.cxFim ? r : a, rows[0]);
+        const k = n => 'R$ ' + Math.round(n).toLocaleString('pt-BR');
+        return {
+          premissas: [ { l: 'Realização', v: Math.round(prem.realizacao * 100) + '%' }, { l: 'DAS', v: Math.round(prem.dasPct * 100) + '%' }, { l: 'Backlog em', v: prem.backlogMeses + ' meses' }, { l: 'Retirada alvo', v: k(prem.prolaboreAlvo) } ],
+          rows: rows.map((r, i) => ({ label: r.label, rec: k(r.rec), rep: '−' + k(r.rep), prop: k(r.prop), fix: '−' + k(r.fix), div: '−' + k(r.div), ret: '−' + k(r.ret), falta: r.falta > 0.5 ? k(r.falta) : '—', faltaCor: r.falta > 0.5 ? '#9B4A3F' : 'rgba(10,21,48,0.42)', cxFim: k(r.cxFim), cxLivre: k(r.cxLivre), cxCor: r.cxFim < 0 ? '#9B4A3F' : '#0A1530', bg: i === 0 ? '#FBFAF6' : '#fff', barH: Math.max(4, Math.abs(r.cxFim) / mx * 100) + '%', barCor: r.cxFim < 0 ? '#D8B7AF' : (i === 0 ? '#0A1530' : '#C9D9C7') })),
+          retMedia: k(rows.reduce((a, r) => a + r.ret, 0) / rows.length), alvo: k(prem.prolaboreAlvo), caixaMin: k(minRow.cxFim), minCor: minRow.cxFim < 0 ? '#9B4A3F' : '#0A1530', minMes: minRow.label,
+          backlog: brlS(backlog), backlogMeses: prem.backlogMeses, mesAtual: rows[0].label.toUpperCase(), fatur: k(rows[0].fatur)
+        }; })(),
+      fx: (() => { const inP_ = T.filter(inP); const ins = inP_.filter(r => r.v > 0), outs = inP_.filter(r => r.v < 0);
+        const tin = sum(ins), tout = sum(outs), prevIn = ins.filter(r => !r.pago), prevOut = outs.filter(r => !r.pago && !(r.tipo === 'repasse' && !r.previsto));
+        const proj = livre + sum(prevIn) - sum(prevOut);
+        const mi = prevIn.slice().sort((a, b) => Math.abs(b.v) - Math.abs(a.v))[0], mo = prevOut.slice().sort((a, b) => Math.abs(b.v) - Math.abs(a.v))[0];
+        return { in: brlS(tin), out: brlS(tout), net: (tin - tout < 0 ? '−' : '+') + brlS(Math.abs(tin - tout)), netCor: tin - tout >= 0 ? '#4A7A52' : '#9B4A3F', proj: brlS(proj), projCor: proj >= 0 ? '#0A1530' : '#9B4A3F',
+          maxIn: mi ? brlS(Math.abs(mi.v)) : '—', maxInT: mi ? mi.desc + ' · ' + fmtD(mi.iso) : 'nenhuma prevista', maxOut: mo ? brlS(Math.abs(mo.v)) : '—', maxOutT: mo ? mo.desc + ' · ' + fmtD(mo.iso) : 'nenhuma prevista' }; })(),
+      temVencidas, temAvisoHoje: !temVencidas && avisoPartes.length > 0, avisoHoje: 'Nada vencido. ' + avisoPartes.join(' · ') + '.',
+      vp: { n: vpL.length + (vpL.length === 1 ? ' conta' : ' contas'), tot: '−' + brlS(sum(vpL)), vazio: vpL.length === 0, itens: vpL.map(r => ({ t: r.desc, s: 'venceu ' + fmtD(r.iso) + ' · há ' + dias(r.iso) + ' dias · ' + r.conta, v: '−' + brlS(Math.abs(r.v)) })) },
+      vr: { n: vrL.length + (vrL.length === 1 ? ' parcela' : ' parcelas'), tot: brlS(sum(vrL)), vazio: vrL.length === 0, itens: vrL.map(r => ({ t: r.desc, s: 'venceu ' + fmtD(r.iso) + ' · há ' + dias(r.iso) + ' dias · ' + r.conta, v: brlS(Math.abs(r.v)) })) },
+      cx: {
+        gReal: gReal + '%', gPrev: gPrev + '%', pTot: Math.round(gPrev) + '%', realCorL: realizado >= 0 ? '#4A7A52' : '#9B4A3F', faltaCor: realizado + aEntrar >= meta ? '#4A7A52' : '#9B4A3F',
+        livre: brlS(livre), livreInt: livreStr.slice(0, livreDot), livreDec: livreStr.slice(livreDot), saldo: brlS(this.SALDO_CONTAS), custodia: brlS(custodia),
+        realizado: (realizado < 0 ? '−' : '') + brlS(Math.abs(realizado)), realCor: realizado >= 0 ? '#BFD4B9' : '#E2B4AA', entPagas: brlS(entPagas), repPagos: brlS(sum(repPagos)),
+        aEntrar: (aEntrar < 0 ? '−' : '') + brlS(Math.abs(aEntrar)), entPrev: brlS(sum(entPrevL)), repPrev: brlS(repPrev),
+        meta: brlS(meta), metaSub: s.per === 'Mês' ? 'meta mensal de comissão' : 'proporcional à meta mensal de ' + brlS(this.META_MES),
+        wReal: Math.min(100, pReal * 100) + '%', wPrev: Math.min(100 - Math.min(100, pReal * 100), pPrev * 100) + '%',
+        pReal: Math.round(pReal * 100) + '%', pPrev: Math.round(pPrev * 100) + '%',
+        faltaMeta: realizado + aEntrar >= meta ? 'meta coberta com o que está previsto' : 'faltam ' + brlS(meta - realizado - aEntrar) + ' sem cobertura',
+        aPagarN: aPagarL.length, aPagarTot: brlS(sum(aPagarL)), aPagarVazio: aPagarL.length === 0,
+        aPagar: aPagarL.slice(0, 5).map(r => ({ t: r.desc, v: '−' + brlS(Math.abs(r.v)), d: r.iso < H ? 'atrasado ' + dias(r.iso) + 'd' : (r.iso === H ? 'hoje' : fmtD(r.iso)), dCor: r.iso <= H ? '#E2B4AA' : 'rgba(239,234,217,0.55)' }))
+      },
+      tc: {
+        custodia: brlS(custodia), n: custL.length, maisAntigo: custL.length ? Math.max(...custL.map(r => dias(r.iso))) : 0,
+        entPrev: brlS(sum(entPrevL)), entPrevN: entPrevL.length, vencido: brlS(sum(vencL)), vencidoN: vencL.length,
+        repPagos: brlS(sum(repPagos)), repPagosN: repPagos.length, filaVazia: fila.length === 0,
+        fila: fila.map(r => ({ t: r.desc.replace(' · verificar', ''), v: brlS(Math.abs(r.v)), s: r.credor === null ? 'sem credor vinculado · escolher no modal' : 'recebido há ' + dias(r.iso) + ' dias · ' + (r.credor || ''), sCor: r.credor === null || dias(r.iso) > 5 ? '#9B4A3F' : '#5A5F66', on: () => this.setState({ modal: r.id, credorEsc: null }) }))
+      },
+      irMovRep: () => this.setState({ tab: 'Movimentações', tipo: 'Repasses', st: 'Todos', sel: [] }),
+      contas: [
+        { sig: 'A', nome: 'Asaas', tipo: 'Conta corrente', bg: '#1E6FE8', saldo: 'R$ 9.386,06' },
+        { sig: 'BTG', nome: 'BTG Pactual', tipo: 'Conta corrente', bg: '#0A1530', saldo: 'R$ 5.902,40' },
+        { sig: 'CE', nome: 'CENSEC', tipo: 'Poupança', bg: '#5A6472', saldo: 'R$ 1.204,00' },
+        { sig: 'CI', nome: 'Conta Inicial', tipo: 'Caixa físico', bg: '#4A7A52', saldo: 'R$ 620,14' },
+        { sig: 'NU', nome: 'Nubank', tipo: 'Conta corrente', bg: '#7B2CBF', saldo: 'R$ 318,26' },
+        { sig: 'RC', nome: 'Registro Civil', tipo: 'Caixa físico', bg: '#97793A', saldo: 'R$ 234,00' },
+        { sig: 'TJ', nome: 'Tribunal de Justiça', tipo: 'Custódia judicial', bg: '#3A6491', saldo: 'R$ 6,49' }
+      ],
+      outraMsg: s.tab === 'Outros' ? 'Aba legado — fica exatamente como está hoje, sem alterações.' : 'Ainda sem captura desta aba. Envie um print de página inteira e eu a redesenho no mesmo padrão de Movimentações.',
+      tipoChips: [['Tudo'], ['Entradas'], ['Saídas'], ['Repasses', String(nRep)]].map(([l, n]) => chip(l, s.tipo === l, () => this.setState({ tipo: l, sel: [] }), n)),
+      stChips: ['Todos', 'Pendentes', 'Em atraso', 'Conciliados'].map(l => chip(l, s.st === l, () => this.setState({ st: l, sel: [] }))),
+      contador: list.length + ' de ' + all.length + ' lançamentos', temRepFiltro: s.tipo === 'Repasses',
+      rows, vazio: list.length === 0, limpar: () => this.setState({ tipo: 'Tudo', st: 'Todos' }),
+      toggleAll: () => this.setState({ sel: s.sel.length === list.length ? [] : list.map(r => r.id) }), allBg: list.length && s.sel.length === list.length ? '#0A1530' : '#fff', allMark: list.length && s.sel.length === list.length ? '✓' : '',
+      totIn: brl(tIn), totOut: brl(tOut), totNet: brl(tIn + tOut),
+      semSel: s.sel.length === 0, temSel: s.sel.length > 0, selLabel: s.sel.length + (s.sel.length === 1 ? ' selecionado' : ' selecionados'), selSum: brl(selRows.reduce((a, r) => a + r.v, 0)),
+      selTemRepasse: selRep.length > 0, selRepN: selRep.length, repassarLote: () => this.setState({ modal: selRep[0].id, credorEsc: null }), limparSel: () => this.setState({ sel: [] }),
+      modalAberto: !!s.modal, fechar: () => this.setState({ modal: null }), stop: e => e.stopPropagation(),
+      m: { titulo: m.desc || '', valor: abs(valor), parcela: (m.parc || '') + ' · devedor ' + (m.dev || ''), pixDesc: (m.parc ? m.parc.replace('parcela ', '').replace(' de ', '/').split(' ·')[0] : '1/1') + ' - ' + (m.dev || ''),
+        temCredor: !!m.credor, semCredor: !m.credor, credor: m.credor || '', credorSig: m.sig || '', credorDoc: m.doc || '',
+        pix: esc ? esc.pix : (m.pix || ''), pixFonte: esc ? 'chave PIX do credor escolhido' : (m.pixFonte || ''), pixFonteCor: (m.credor || esc) ? '#4A7A52' : '#97793A',
+        capital: abs(m.capital || 0), jaRep: abs(m.ja || 0), resta: resta < -0.005 ? 'passa do teto em ' + abs(resta) : abs(resta), restaCor: resta < -0.005 ? '#9B4A3F' : '#0A1530',
+        wJa: (m.capital ? (m.ja / m.capital * 100) : 0) + '%', wEste: (m.capital ? (valor / m.capital * 100) : 0) + '%',
+        okBg: ok ? '#4A7A52' : '#EEF0F4', okFg: ok ? '#fff' : 'rgba(10,21,48,0.42)', okCursor: ok ? 'pointer' : 'not-allowed' },
+      credores: credores.map(c => ({ nome: c.nome, doc: c.doc, on: () => this.setState({ credorEsc: c.nome }), bd: s.credorEsc === c.nome ? '#0A1530' : 'rgba(10,21,48,0.10)', bg: s.credorEsc === c.nome ? '#F6F3EA' : '#fff', dot: s.credorEsc === c.nome ? '#0A1530' : 'rgba(10,21,48,0.3)', dotFill: s.credorEsc === c.nome ? '#0A1530' : 'transparent' })),
+      confirmar: () => { if (!ok) return; const id = s.modal; const status = m.id === 4 ? 'preparado' : 'efetuado';
+        this.setState(p => ({ modal: null, sel: p.sel.filter(i => i !== id), statusRep: { ...p.statusRep, [id]: status }, ultimo: id, toast: status === 'efetuado' ? 'PIX de ' + abs(valor) + ' enviado · comprovante indo ao credor por WhatsApp' : 'PIX de ' + abs(valor) + ' disparado · Asaas ainda processando' }));
+        clearTimeout(this._t); this._t = setTimeout(() => this.setState({ toast: null }), 6000); },
+      temToast: !!s.toast, toast: s.toast || '', desfazer: () => this.setState(p => { const sr = { ...p.statusRep }; delete sr[p.ultimo]; return { statusRep: sr, toast: null }; })
+    };
+  }
+}
+</script>
+</body>
+</html>

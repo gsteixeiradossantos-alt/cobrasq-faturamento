@@ -29958,7 +29958,10 @@ function finDivideCascata(lancamento, valorRecebido, contrato){
 // FIN_CASCATA_UI_TABS; o resto vive nos menus suspensos (FIN_MENUS). Id fora desta
 // lista fica inalcançável — ao acrescentar uma tela, entrar aqui E num dos dois.
 // O corpo de toda aba continua sendo montado por renderFinTab, que não mudou.
-const FIN_CASCATA_TABS = ['credores','fila','visao','lancamentos','repasses','previsaocredor','receitasjudiciais',
+// 'credores' e 'fila' (aba "Recebíveis e repasses") saíram em 05/09/2026 (handoff Financeiro
+// v2): a função dela — repassar ao credor — virou o botão Repassar de Movimentações.
+// setFinTab() ainda aceita os dois ids e manda para lá, já com o filtro Repasses.
+const FIN_CASCATA_TABS = ['visao','lancamentos','repasses','previsaocredor','receitasjudiciais',
   'fluxocaixa','conciliacao','fechamento','contas','cartoes','categorias','contatos','centroscusto',
   'transferencias','recorrencias','asaas','judicial','relatorios','diagnostico'];
 // Menus suspensos da barra. Só Painel e Lançamentos ficam como aba fixa; o resto vive
@@ -29966,7 +29969,7 @@ const FIN_CASCATA_TABS = ['credores','fila','visao','lancamentos','repasses','pr
 // que ainda não têm destino decidido — nada foi removido, só saiu da barra para poder
 // ser avaliado uma a uma antes de fundir, mover ou aposentar.
 const FIN_MENUS = [
-  {id:'outros', label:'Outros', grupos:[
+  {id:'outros', label:'Outros', legado:true, grupos:[
     {grupo:'Sem destino decidido', itens:[
       // 'receitasjudiciais' saiu daqui em 29/08: virou a 4ª aba fixa (FIN_CASCATA_UI_TABS).
       {id:'conciliacao', label:'Conciliação bancária'},
@@ -30008,6 +30011,8 @@ const FIN_SALDO_STALE_DIAS = 7;
 // com o número velho — o defeito nº 1 do handoff. Quem escreve chama esta função.
 function _finFinanceiroInvalidaCaches(){
   try{ _finRepasseAggCache = { at:0, v:null }; }catch(_){}
+  try{ _finRepAbertosCache = { at:0, v:null }; }catch(_){}
+  try{ _finCaixaV2Cache = { at:0, key:'', v:null }; }catch(_){}
   try{ _finCascataCache = { at:0, m:null }; }catch(_){}
   try{ _finCaixaAggCache = { at:0, v:null }; }catch(_){}
   try{ window._finCnt = {}; }catch(_){}
@@ -30017,7 +30022,7 @@ function _finFinanceiroInvalidaCaches(){
 // conteúdo enquanto a barra continuava acesa na Judicial.
 function _finAbaAtualParaRender(){
   const t = window._finTab;
-  return (t === 'receitasjudiciais' || t === 'credores' || t === 'visao') ? t : 'lancamentos';
+  return (t === 'receitasjudiciais' || t === 'visao') ? t : 'lancamentos';
 }
 // Saldo de UMA conta, num lugar só — as três telas que mostram saldo (cascata, Visão e o
 // resumo do fechamento) repetiam esta expressão e podiam divergir.
@@ -30066,7 +30071,7 @@ function renderFinanceiro(){
   // Uma shell só desde 26/08. Aba desconhecida (link antigo, hash salvo) cai na Fila em
   // vez de renderizar uma página sem corpo.
   if(!FIN_CASCATA_TABS.includes(activeTab)){
-    window._finTab = activeTab = 'fila';
+    window._finTab = activeTab = 'lancamentos';
   }
   renderFinanceiroCascata(el, activeTab);
   // Sync com o Controlle DESATIVADO (a pedido, 2026-07-09): o financeiro do cobrasq
@@ -30252,6 +30257,9 @@ function setFinTab(tab, el){
   // Router de aba (o nome e a assinatura ficam por causa das ~15 chamadas internas).
   // Com uma shell só, trocar de aba é sempre reconstruir a página: a faixa escura traz
   // métricas e contadores próprios, que precisam ser recalculados.
+  // Alias da aba removida "Recebíveis e repasses" (05/09/2026): quem chega por link
+  // antigo ou por "Ver os repasses →" cai em Movimentações com o filtro Repasses.
+  if(tab === 'credores' || tab === 'fila'){ _finIrMovimentacoes('tudo', { fTipo:'repasses' }); return; }
   window._finTab = tab;
   renderFinanceiro();
 }
@@ -30559,8 +30567,9 @@ async function _finCascataMetricas(force){
 //   receitasjudiciais → Judicial          (o que depende de o juízo liberar)
 const FIN_CASCATA_UI_TABS = [
   {id:'visao', label:'Caixa'},                                        // sem contador: a aba É o resumo
-  {id:'lancamentos', label:'Movimentações', cnt:true},
-  {id:'credores', label:'Recebíveis e repasses', cnt:true, acao:true},
+  // O badge é o nº de repasses em aberto (saída de aquisição de dívidas, status 0), não o
+  // nº de lançamentos do período — é o que pede ação (handoff Financeiro v2, 05/09/2026).
+  {id:'lancamentos', label:'Movimentações', badge:'repasses'},
   {id:'receitasjudiciais', label:'Judicial', cnt:true},
   // Projeção de 12 meses (04/09/2026): quanto sobra para o sócio. Sem contador — é
   // uma leitura, não uma fila.
@@ -30859,6 +30868,51 @@ function _finAtalhosInstalar(){
 }
 
 // Título do cabeçalho: nome da aba + mês, para o mês nunca sair da tela ao trocar de aba.
+// ══════════════════════════════════════════════════════════════
+// REPASSES EM ABERTO — fonte única (handoff Financeiro v2, 05/09/2026)
+// ──────────────────────────────────────────────────────────────
+// Saídas de "Aquisição de dívidas de terceiro" com status 0. A classificação é a mesma do
+// Fluxo de caixa (_finFluxoClassificaSaida: credor_id OU categoria; tarifa nunca é
+// repasse). Alimenta o badge da aba Movimentações, a custódia e o caixa livre do Caixa.
+// Sem recorte de período, de propósito: é "hoje", não "no mês".
+let _finRepAbertosCache = { at:0, v:null };
+async function _finCatNomePorLanc(ids){
+  const sb = getSupabase(); const out = {};
+  for(let i = 0; i < ids.length; i += 300){
+    try{
+      const { data } = await sb.from('fin_lancamento_categoria').select('lancamento_id,valor,fin_categoria(descricao)')
+        .in('lancamento_id', ids.slice(i, i+300)).limit(4000);
+      const agg = {};
+      for(const c of (data||[])){
+        const nm = (c.fin_categoria && c.fin_categoria.descricao) || null; if(!nm) continue;
+        (agg[c.lancamento_id] = agg[c.lancamento_id] || []).push({ nome:nm, valor:Math.abs(+c.valor||0) });
+      }
+      // Rateio inteiro, do maior para o menor: um lançamento dividido entre aquisição e
+      // outra coisa continua sendo repasse (mesma leitura de _finLancEhFaturamentoPrevisto).
+      for(const [k, v] of Object.entries(agg)){ v.sort((a,b)=>b.valor-a.valor); out[k] = v.map(x=>x.nome).join(' / '); }
+    }catch(_){ /* sem categoria a linha cai em "outros" */ }
+  }
+  return out;
+}
+async function _finRepassesAbertos(force){
+  if(!force && _finRepAbertosCache.v && (Date.now() - _finRepAbertosCache.at) < 30000) return _finRepAbertosCache.v;
+  const sb = getSupabase();
+  const rows = [];
+  for(let from = 0;; from += 1000){
+    const { data, error } = await sb.from('fin_lancamento')
+      .select('id,descricao,valor,data_vencimento,credor_id,cobranca_id,numero_parcela,total_parcelas,conta_id')
+      .eq('tipo_movimento', 0).eq('status', 0).order('id',{ascending:true}).range(from, from+999);
+    if(error) throw error;
+    rows.push(...(data||[]));
+    if(!data || data.length < 1000 || from >= 20000) break;
+  }
+  const catPorLanc = await _finCatNomePorLanc(rows.map(r => r.id));
+  const itens = rows.filter(l => _finFluxoClassificaSaida(l, catPorLanc[l.id] || '') === 'repasse')
+    .map(l => Object.assign({}, l, { valor: Math.abs(+l.valor||0), categoria: catPorLanc[l.id] || '' }));
+  const v = { itens, n: itens.length, total: +itens.reduce((s,l) => s + l.valor, 0).toFixed(2), catPorLanc };
+  _finRepAbertosCache = { at: Date.now(), v };
+  return v;
+}
 function _finTituloAba(tab){
   const mes = new Date().toLocaleDateString('pt-BR', { month:'long' });
   const t = (FIN_CASCATA_UI_TABS.find(x=>x.id===tab) || {}).label
@@ -30914,6 +30968,9 @@ async function renderFinanceiroCascata(el, activeTab){
       .fincx-cnt{font-family:'JetBrains Mono',monospace;font-size:10px;color:#8A94A6;}
       .fincx-tab.active .fincx-cnt{color:#9C7F40;}
       .fincx-tab[data-acao="1"] .fincx-cnt{color:#A65A4A;}
+      /* Badge vermelho de repasses em aberto (só existe quando > 0) e rótulo LEGADO. */
+      .fincx-badge{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;line-height:1;padding:3px 6px;border-radius:20px;background:#F6E9E7;color:#7D3F33;}
+      .fincx-legado{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.08em;color:rgba(10,21,48,.42);}
       .fincx-tab-menu{gap:6px;}
       .fincx-caret{font-size:10px;opacity:.7;}
       .fincx-body{margin:0 -28px;padding:22px 28px 60px;background:#FBFAF6;min-height:60vh;}
@@ -30927,15 +30984,13 @@ async function renderFinanceiroCascata(el, activeTab){
       <div class="fincx-l1">
         <span class="fincx-eyebrow">FINANCEIRO · ${escHtml(hojeStr.toUpperCase())}</span>
         <div class="fincx-l1-r">
-          ${FIN_TABS_COM_PERIODO.includes(activeTab) ? `<div class="fincx-nav">
+          ${activeTab === 'receitasjudiciais' ? `<div class="fincx-nav">
             <button class="fincx-nav-seta" title="Anterior" onclick="_finPeriodoPasso(-1)">&lsaquo;</button>
             <button class="fincx-nav-lbl" id="fincx-periodo-lbl" onclick="_finPeriodoAbrirMenu(event)">${escHtml(_finPeriodoRotulo())}</button>
             <button class="fincx-nav-seta" title="Próximo" onclick="_finPeriodoPasso(1)">&rsaquo;</button>
           </div>` : ''}
           <span id="fincx-sync"></span>
-          <button class="fincx-btn-novo ghost" onclick="_finBuscaAbrir()" title="Buscar contato, valor, parcela, categoria (⌘K)">${ico('search',13)} Buscar <span style="font-family:'JetBrains Mono',monospace;font-size:9.5px;opacity:.7;margin-left:4px;">⌘K</span></button>
           <button class="fincx-btn-novo ghost" onclick="importarBoletosAsaas('dry')" title="Cadastra os boletos ativos do Asaas como lançamentos (prévia → cria 1 → cria todos)">${ico('sync',13)} Importar boletos Asaas</button>
-          <button class="fincx-btn-novo ghost" onclick="abrirNovaCobrancaAsaasGlobal()">${ico('plus',13)} Nova cobrança</button>
           <button class="fincx-btn-novo" onclick="abrirNovoLancamento()">${ico('plus',13)} Novo lançamento</button>
         </div>
       </div>
@@ -30945,12 +31000,12 @@ async function renderFinanceiroCascata(el, activeTab){
       </div>
       <div class="fincx-l3">
         ${FIN_CASCATA_UI_TABS.map(t=>`<div class="fincx-tab ${t.id===activeTab?'active':''}" ${t.acao?'data-acao="1"':''} onclick="_finCascataIrPara('${t.id}')">
-          <span>${t.label}</span>${t.cnt?`<span class="fincx-cnt" id="fincx-cnt-${t.id}">${window._finCnt[t.id] != null ? window._finCnt[t.id] : '—'}</span>`:''}
+          <span>${t.label}</span>${t.cnt?`<span class="fincx-cnt" id="fincx-cnt-${t.id}">${window._finCnt[t.id] != null ? window._finCnt[t.id] : '—'}</span>`:''}${t.badge?`<span class="fincx-badge" id="fincx-badge-${t.id}" hidden>—</span>`:''}
         </div>`).join('')}
         ${FIN_MENUS.map(m=>{
           const dentro = FIN_MENU_DE[activeTab] && FIN_MENU_DE[activeTab].menu===m.id;
           return `<div class="fincx-tab fincx-tab-menu ${dentro?'active':''}" onclick="_finMenuAbrir(event,'${m.id}')">
-            <span>${escHtml(m.label)}</span>${dentro?`<span class="fincx-cnt" style="background:rgba(201,169,97,.22);color:#E2C98A;">${escHtml(FIN_MENU_DE[activeTab].label)}</span>`:''}<span class="fincx-caret">&#9662;</span>
+            <span>${escHtml(m.label)}</span>${m.legado?'<span class="fincx-legado">LEGADO</span>':''}${dentro?`<span class="fincx-cnt" style="background:rgba(201,169,97,.22);color:#E2C98A;">${escHtml(FIN_MENU_DE[activeTab].label)}</span>`:''}<span class="fincx-caret">&#9662;</span>
           </div>`;
         }).join('')}
       </div>
@@ -30959,6 +31014,10 @@ async function renderFinanceiroCascata(el, activeTab){
   `;
   _finAtalhosInstalar();
   renderFinTab(activeTab);
+  _finRepassesAbertos().then(r=>{
+    const e = document.getElementById('fincx-badge-lancamentos'); if(!e) return;
+    e.textContent = r.n; e.hidden = !r.n;
+  }).catch(e=>console.warn('badge de repasses:', e));
   // Subtítulo do cabeçalho: a frase-resumo do handoff. Sai do MESMO _finCaixaAgg() que
   // desenha a aba Caixa (cacheado, então não custa uma segunda rodada de consultas) —
   // se saísse de outra conta, o topo e o corpo poderiam discordar na mesma tela.
@@ -37656,16 +37715,19 @@ function _finCaixaAjustarMeta(){
 }
 // Ir para Movimentações já numa visão salva, limpando busca e seleção (handoff:
 // "Ver os atrasados →" e os KPIs clicáveis levam para a lista já filtrada).
-function _finIrMovimentacoes(visao){
+function _finIrMovimentacoes(visao, patch){
   const s = _finLancCascataState;
   s.visao = visao || 'tudo';
   s.busca = '';
   // Chegar de outra aba com filtro de painel grudado já fez a lista parecer vazia sem
   // explicação: quem vem de um KPI quer o recorte daquele KPI, não o da última visita.
   _finMovZerarFiltros(s);
+  // `patch` = chips que a tela de origem quer acesos (ex.: { fTipo:'repasses' }).
+  if(patch) Object.assign(s, patch);
   s.filtrosAbertos = false; s.maisFiltros = false;
   _finMovReset();
-  setFinTab('lancamentos');
+  window._finTab = 'lancamentos';
+  renderFinanceiro();
 }
 
 async function _carregarResumoAsaasVisao(){
