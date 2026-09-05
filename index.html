@@ -29958,7 +29958,10 @@ function finDivideCascata(lancamento, valorRecebido, contrato){
 // FIN_CASCATA_UI_TABS; o resto vive nos menus suspensos (FIN_MENUS). Id fora desta
 // lista fica inalcançável — ao acrescentar uma tela, entrar aqui E num dos dois.
 // O corpo de toda aba continua sendo montado por renderFinTab, que não mudou.
-const FIN_CASCATA_TABS = ['credores','fila','visao','lancamentos','repasses','previsaocredor','receitasjudiciais',
+// 'credores' e 'fila' (aba "Recebíveis e repasses") saíram em 05/09/2026 (handoff Financeiro
+// v2): a função dela — repassar ao credor — virou o botão Repassar de Movimentações.
+// setFinTab() ainda aceita os dois ids e manda para lá, já com o filtro Repasses.
+const FIN_CASCATA_TABS = ['visao','lancamentos','repasses','previsaocredor','receitasjudiciais',
   'fluxocaixa','conciliacao','fechamento','contas','cartoes','categorias','contatos','centroscusto',
   'transferencias','recorrencias','asaas','judicial','relatorios','diagnostico'];
 // Menus suspensos da barra. Só Painel e Lançamentos ficam como aba fixa; o resto vive
@@ -29966,7 +29969,7 @@ const FIN_CASCATA_TABS = ['credores','fila','visao','lancamentos','repasses','pr
 // que ainda não têm destino decidido — nada foi removido, só saiu da barra para poder
 // ser avaliado uma a uma antes de fundir, mover ou aposentar.
 const FIN_MENUS = [
-  {id:'outros', label:'Outros', grupos:[
+  {id:'outros', label:'Outros', legado:true, grupos:[
     {grupo:'Sem destino decidido', itens:[
       // 'receitasjudiciais' saiu daqui em 29/08: virou a 4ª aba fixa (FIN_CASCATA_UI_TABS).
       {id:'conciliacao', label:'Conciliação bancária'},
@@ -29996,7 +29999,8 @@ const FIN_MENU_DE = (()=>{ const m={}; for(const menu of FIN_MENUS) for(const g 
 // Abas cujo conteúdo é recortado pelo seletor de período da faixa escura. Nas demais o
 // seletor não faz nada, então nem é desenhado — antes ele aparecia em todas e ficava
 // inerte, e na Judicial chegava a mostrar um mês diferente do da lista logo abaixo.
-const FIN_TABS_COM_PERIODO = ['lancamentos','receitasjudiciais'];
+const FIN_TABS_COM_PERIODO = ['visao','lancamentos','receitasjudiciais'];
+const FIN_PERIODO_KEY = 'cobrasq_fin_periodo_v2';
 // Idade do saldo bancário DECLARADO (fin_conta.bank_balance + bank_balance_at). Toda
 // tela de saldo prefere esse número ao razão, porque ele é o conferido contra o extrato
 // — mas nada o atualiza sozinho desde que a sync do Controlle foi desligada. Um valor
@@ -30008,6 +30012,8 @@ const FIN_SALDO_STALE_DIAS = 7;
 // com o número velho — o defeito nº 1 do handoff. Quem escreve chama esta função.
 function _finFinanceiroInvalidaCaches(){
   try{ _finRepasseAggCache = { at:0, v:null }; }catch(_){}
+  try{ _finRepAbertosCache = { at:0, v:null }; }catch(_){}
+  try{ _finCaixaV2Cache = { at:0, key:'', v:null }; }catch(_){}
   try{ _finCascataCache = { at:0, m:null }; }catch(_){}
   try{ _finCaixaAggCache = { at:0, v:null }; }catch(_){}
   try{ window._finCnt = {}; }catch(_){}
@@ -30017,7 +30023,7 @@ function _finFinanceiroInvalidaCaches(){
 // conteúdo enquanto a barra continuava acesa na Judicial.
 function _finAbaAtualParaRender(){
   const t = window._finTab;
-  return (t === 'receitasjudiciais' || t === 'credores' || t === 'visao') ? t : 'lancamentos';
+  return (t === 'receitasjudiciais' || t === 'visao') ? t : 'lancamentos';
 }
 // Saldo de UMA conta, num lugar só — as três telas que mostram saldo (cascata, Visão e o
 // resumo do fechamento) repetiam esta expressão e podiam divergir.
@@ -30066,7 +30072,7 @@ function renderFinanceiro(){
   // Uma shell só desde 26/08. Aba desconhecida (link antigo, hash salvo) cai na Fila em
   // vez de renderizar uma página sem corpo.
   if(!FIN_CASCATA_TABS.includes(activeTab)){
-    window._finTab = activeTab = 'fila';
+    window._finTab = activeTab = 'lancamentos';
   }
   renderFinanceiroCascata(el, activeTab);
   // Sync com o Controlle DESATIVADO (a pedido, 2026-07-09): o financeiro do cobrasq
@@ -30252,6 +30258,9 @@ function setFinTab(tab, el){
   // Router de aba (o nome e a assinatura ficam por causa das ~15 chamadas internas).
   // Com uma shell só, trocar de aba é sempre reconstruir a página: a faixa escura traz
   // métricas e contadores próprios, que precisam ser recalculados.
+  // Alias da aba removida "Recebíveis e repasses" (05/09/2026): quem chega por link
+  // antigo ou por "Ver os repasses →" cai em Movimentações com o filtro Repasses.
+  if(tab === 'credores' || tab === 'fila'){ _finIrMovimentacoes('tudo', { fTipo:'repasses' }); return; }
   window._finTab = tab;
   renderFinanceiro();
 }
@@ -30559,8 +30568,9 @@ async function _finCascataMetricas(force){
 //   receitasjudiciais → Judicial          (o que depende de o juízo liberar)
 const FIN_CASCATA_UI_TABS = [
   {id:'visao', label:'Caixa'},                                        // sem contador: a aba É o resumo
-  {id:'lancamentos', label:'Movimentações', cnt:true},
-  {id:'credores', label:'Recebíveis e repasses', cnt:true, acao:true},
+  // O badge é o nº de repasses em aberto (saída de aquisição de dívidas, status 0), não o
+  // nº de lançamentos do período — é o que pede ação (handoff Financeiro v2, 05/09/2026).
+  {id:'lancamentos', label:'Movimentações', badge:'repasses'},
   {id:'receitasjudiciais', label:'Judicial', cnt:true},
   // Projeção de 12 meses (04/09/2026): quanto sobra para o sócio. Sem contador — é
   // uma leitura, não uma fila.
@@ -30597,38 +30607,69 @@ const _finBR = s => { const p = String(s).split('-'); return p[2]+'/'+p[1]+'/'+p
 
 function _finPeriodoEstado(){
   if(!window._finPeriodo){
+    // Um estado só para Caixa e Movimentações (handoff Financeiro v2): trocar o período
+    // numa aba vale na outra. Fica no localStorage — preferência de quem usa, não dado da
+    // empresa. "Hoje" e "Esta semana" voltam ancorados no dia de hoje, porque é isso que
+    // os nomes prometem; mês e período personalizado voltam como ficaram, e o rótulo
+    // anuncia qual é (filtro que persiste tem que se anunciar na tela).
     const h = new Date();
-    window._finPeriodo = { modo:'mes', ref:isoLocal(new Date(h.getFullYear(), h.getMonth(), 1)), ini:null, fim:null };
+    const padrao = { modo:'mes', ref:isoLocal(new Date(h.getFullYear(), h.getMonth(), 1)), ini:null, fim:null };
+    let s = null;
+    try{ s = JSON.parse(localStorage.getItem(FIN_PERIODO_KEY) || 'null'); }catch(_){}
+    if(s && ['dia','semana','mes','custom'].includes(s.modo)){
+      if(s.modo === 'dia' || s.modo === 'semana') s.ref = isoLocal(h);
+      if(s.modo === 'custom' && !(/^\d{4}-\d{2}-\d{2}$/.test(s.ini||'') && /^\d{4}-\d{2}-\d{2}$/.test(s.fim||''))) s = null;
+      if(s && s.modo === 'mes' && !/^\d{4}-\d{2}-\d{2}$/.test(s.ref||'')) s = null;
+    } else s = null;
+    window._finPeriodo = s ? { modo:s.modo, ref:s.ref || padrao.ref, ini:s.ini || null, fim:s.fim || null } : padrao;
   }
   return window._finPeriodo;
 }
 
 // { ini, fim, label } — ini/fim em 'AAAA-MM-DD'.
 function _finCascataPeriodoBounds(){
+  // Devolve a janela e os quatro jeitos de nomeá-la que as telas usam:
+  //   label  → o rótulo do seletor centralizado do Caixa ("Hoje", "Esta semana",
+  //            "Setembro de 2026", "01/09 – 15/09");
+  //   datas  → a faixa de datas do seletor de Movimentações ("01/09/2026 — 30/09/2026");
+  //   nome   → o complemento do H1 ("setembro de 2026", "hoje", "31/08 — 06/09");
+  //   curto  → o sufixo dos cards ("MÊS", "HOJE", "SEMANA", "PERÍODO");
+  //   ponte  → o mês do título da ponte ("set/26", "31/08 — 06/09").
   const p = _finPeriodoEstado();
+  const h = isoLocal(new Date());
+  const dm = s => s.slice(8,10) + '/' + s.slice(5,7);
+  const mesCurto = d => d.toLocaleDateString('pt-BR',{month:'short'}).replace('.','') + '/' + String(d.getFullYear()).slice(2);
   if(p.modo==='custom' && p.ini && p.fim){
-    return { ini:p.ini, fim:p.fim, label:_finBR(p.ini)+' — '+_finBR(p.fim) };
+    const faixa = dm(p.ini) + ' – ' + dm(p.fim);
+    return { ini:p.ini, fim:p.fim, modo:'custom', label:faixa, datas:_finBR(p.ini)+' — '+_finBR(p.fim), nome:faixa, curto:'PERÍODO', ponte:dm(p.ini)+' — '+dm(p.fim) };
   }
   const r = _finDeISO(p.ref);
   if(p.modo==='dia'){
-    return { ini:isoLocal(r), fim:isoLocal(r), label:r.getDate()+' de '+_FIN_MESES[r.getMonth()]+' de '+r.getFullYear() };
+    const iso = isoLocal(r), ehHoje = iso === h;
+    return { ini:iso, fim:iso, modo:'dia', label: ehHoje ? 'Hoje' : _finBR(iso), datas:_finBR(iso), nome: ehHoje ? 'hoje' : _finBR(iso), curto:'HOJE', ponte:dm(iso) };
   }
   if(p.modo==='semana'){
     const ini = new Date(r); ini.setDate(r.getDate()-r.getDay());          // domingo
     const fim = new Date(ini); fim.setDate(ini.getDate()+6);               // sábado
-    return { ini:isoLocal(ini), fim:isoLocal(fim), label:'Semana de '+_finBR(isoLocal(ini)) };
+    const a = isoLocal(ini), b = isoLocal(fim), atual = h >= a && h <= b;
+    return { ini:a, fim:b, modo:'semana', label: atual ? 'Esta semana' : dm(a)+' – '+dm(b), datas:_finBR(a)+' — '+_finBR(b), nome:dm(a)+' — '+dm(b), curto:'SEMANA', ponte:dm(a)+' — '+dm(b) };
   }
   const ini = new Date(r.getFullYear(), r.getMonth(), 1);
   const fim = new Date(r.getFullYear(), r.getMonth()+1, 0);
-  const nome = _FIN_MESES[ini.getMonth()];
-  return { ini:isoLocal(ini), fim:isoLocal(fim), label: nome.charAt(0).toUpperCase()+nome.slice(1)+' de '+ini.getFullYear() };
+  const nome = _FIN_MESES[ini.getMonth()] + ' de ' + ini.getFullYear();
+  return { ini:isoLocal(ini), fim:isoLocal(fim), modo:'mes', label: nome.charAt(0).toUpperCase()+nome.slice(1), datas:_finBR(isoLocal(ini))+' — '+_finBR(isoLocal(fim)), nome, curto:'MÊS', ponte:mesCurto(ini) };
 }
 
 function _finPeriodoRotulo(){ return _finCascataPeriodoBounds().label; }
 
 function _finPeriodoAplicar(){
+  try{ localStorage.setItem(FIN_PERIODO_KEY, JSON.stringify(_finPeriodoEstado())); }catch(_){}
+  const b = _finCascataPeriodoBounds();
   const lbl = document.getElementById('fincx-periodo-lbl');
-  if(lbl) lbl.textContent = _finPeriodoRotulo();
+  if(lbl) lbl.textContent = lbl.dataset.formato === 'datas' ? b.datas : b.label;
+  // O H1 de Movimentações carrega o período ("Movimentações · setembro de 2026").
+  const h1 = document.querySelector('#page-fin .fincx-h1');
+  if(h1) h1.textContent = _finTituloAba(window._finTab);
   // O contador de Movimentações é recortado pelo período. Sem apagá-lo aqui, mudar de mês
   // estando na aba Judicial deixava o chip exibindo a contagem do mês anterior.
   try{ FIN_TABS_COM_PERIODO.forEach(t => { delete window._finCnt[t]; const e = document.getElementById('fincx-cnt-'+t); if(e) e.textContent='—'; }); }catch(_){}
@@ -30714,16 +30755,21 @@ function _finPeriodoClickFora(e){
   if(pop && !pop.contains(e.target) && !e.target.closest('.fincx-nav')) _finPeriodoFecharMenu();
 }
 
-function _finPeriodoAbrirMenu(ev){
+function _finPeriodoAbrirMenu(ev, opts){
+  // Painel do seletor (handoff Financeiro v2, §2.1): atalhos Hoje · Esta semana · Este mês,
+  // "ir para um mês" e período personalizado. O MESMO painel serve o seletor centralizado
+  // do Caixa e o da linha de filtros de Movimentações (`opts.align:'right'`).
+  opts = opts || {};
   if(document.getElementById('fincx-pop')){ _finPeriodoFecharMenu(); return; }
   const p = _finPeriodoEstado(), b = _finCascataPeriodoBounds();
-  const mesRef = (p.modo==='mes' ? p.ref : isoLocal(new Date())).slice(0,7);
+  const hojeIso = isoLocal(new Date());
+  const mesRef = (p.modo==='mes' ? p.ref : hojeIso).slice(0,7);
   const pop = document.createElement('div');
-  pop.id='fincx-pop'; pop.className='fincx-pop';
+  pop.id='fincx-pop'; pop.className='fincx-pop fincx-pop-periodo';
   pop.innerHTML = `
     <button class="fincx-pop-it ${p.modo==='dia'?'on':''}" onclick="_finPeriodoSetModo('dia')">Hoje</button>
     <button class="fincx-pop-it ${p.modo==='semana'?'on':''}" onclick="_finPeriodoSetModo('semana')">Esta semana</button>
-    <button class="fincx-pop-it ${(p.modo==='mes'&&mesRef===isoLocal(new Date()).slice(0,7))?'on':''}" onclick="_finPeriodoSetModo('mes')">Este mês</button>
+    <button class="fincx-pop-it ${(p.modo==='mes'&&mesRef===hojeIso.slice(0,7))?'on':''}" onclick="_finPeriodoSetModo('mes')">Este mês</button>
     <div class="fincx-pop-sep"></div>
     <div class="fincx-pop-lb">Ir para um mês</div>
     <div class="fincx-pop-row">
@@ -30740,8 +30786,40 @@ function _finPeriodoAbrirMenu(ev){
   document.body.appendChild(pop);
   const r = (ev.currentTarget||ev.target).getBoundingClientRect();
   pop.style.top = (r.bottom+6)+'px';
-  pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - pop.offsetWidth - 8))+'px';
+  const w = pop.offsetWidth;
+  const left = opts.align === 'right' ? r.right - w : (opts.align === 'center' ? r.left + r.width/2 - w/2 : r.left);
+  pop.style.left = Math.max(8, Math.min(left, window.innerWidth - w - 8))+'px';
   setTimeout(()=>document.addEventListener('mousedown', _finPeriodoClickFora, true), 0);
+}
+
+// Seletor `‹ rótulo ›` que Caixa (centralizado, rótulo por nome) e Movimentações (à
+// direita, faixa de datas em mono) reaproveitam — a mesma casca .fincx-nav do topo.
+function _finPeriodoNavHtml(opts){
+  opts = opts || {};
+  const b = _finCascataPeriodoBounds();
+  const datas = opts.formato === 'datas';
+  const lbl = datas ? b.datas : b.label;
+  const st = datas
+    ? "font-family:'JetBrains Mono',monospace;font-size:12.5px;font-weight:500;min-width:0;padding:4px 10px;"
+    : "font-size:14px;font-weight:600;min-width:190px;padding:7px 12px;";
+  return `<div class="fincx-nav" style="${datas ? 'height:28px;' : ''}${opts.style||''}">
+    <button class="fincx-nav-seta" title="Anterior" onclick="_finPeriodoPasso(-1)">&lsaquo;</button>
+    <button class="fincx-nav-lbl" id="fincx-periodo-lbl" data-formato="${datas?'datas':'nome'}" style="${st}" onclick="_finPeriodoAbrirMenu(event,{align:'${escHtml(opts.align||'left')}'})">${escHtml(lbl)}</button>
+    <button class="fincx-nav-seta" title="Próximo" onclick="_finPeriodoPasso(1)">&rsaquo;</button>
+  </div>`;
+}
+
+// Meta do período a partir da meta MENSAL (regra fechada com o gestor, handoff §0):
+// dia = meta/22 · semana = meta/4,33 · personalizado = meta × meses arredondados quando o
+// intervalo tem ≥ 28 dias, senão meta × dias/30,4.
+function _finMetaPeriodo(metaMensal, b){
+  metaMensal = +metaMensal || 0;
+  b = b || _finCascataPeriodoBounds();
+  if(b.modo === 'mes') return metaMensal;
+  if(b.modo === 'dia') return metaMensal / 22;
+  if(b.modo === 'semana') return metaMensal / 4.33;
+  const dias = Math.round((_finDeISO(b.fim) - _finDeISO(b.ini)) / 86400000) + 1;
+  return dias >= 28 ? metaMensal * Math.max(1, Math.round(dias / 30.4)) : metaMensal * dias / 30.4;
 }
 
 
@@ -30859,7 +30937,73 @@ function _finAtalhosInstalar(){
 }
 
 // Título do cabeçalho: nome da aba + mês, para o mês nunca sair da tela ao trocar de aba.
+// ══════════════════════════════════════════════════════════════
+// REPASSES EM ABERTO — fonte única (handoff Financeiro v2, 05/09/2026)
+// ──────────────────────────────────────────────────────────────
+// Saídas de "Aquisição de dívidas de terceiro" com status 0. A classificação é a mesma do
+// Fluxo de caixa (_finFluxoClassificaSaida: credor_id OU categoria; tarifa nunca é
+// repasse). Alimenta o badge da aba Movimentações, a custódia e o caixa livre do Caixa.
+// Sem recorte de período, de propósito: é "hoje", não "no mês".
+let _finRepAbertosCache = { at:0, v:null };
+async function _finCatNomePorLanc(ids){
+  const sb = getSupabase(); const out = {};
+  for(let i = 0; i < ids.length; i += 300){
+    try{
+      const { data } = await sb.from('fin_lancamento_categoria').select('lancamento_id,valor,fin_categoria(descricao)')
+        .in('lancamento_id', ids.slice(i, i+300)).limit(4000);
+      const agg = {};
+      for(const c of (data||[])){
+        const nm = (c.fin_categoria && c.fin_categoria.descricao) || null; if(!nm) continue;
+        (agg[c.lancamento_id] = agg[c.lancamento_id] || []).push({ nome:nm, valor:Math.abs(+c.valor||0) });
+      }
+      // Rateio inteiro, do maior para o menor: um lançamento dividido entre aquisição e
+      // outra coisa continua sendo repasse (mesma leitura de _finLancEhFaturamentoPrevisto).
+      for(const [k, v] of Object.entries(agg)){ v.sort((a,b)=>b.valor-a.valor); out[k] = v.map(x=>x.nome).join(' / '); }
+    }catch(_){ /* sem categoria a linha cai em "outros" */ }
+  }
+  return out;
+}
+async function _finRepassesAbertos(force){
+  if(!force && _finRepAbertosCache.v && (Date.now() - _finRepAbertosCache.at) < 30000) return _finRepAbertosCache.v;
+  const sb = getSupabase();
+  const rows = [];
+  for(let from = 0;; from += 1000){
+    const { data, error } = await sb.from('fin_lancamento')
+      .select('id,descricao,valor,data_vencimento,credor_id,cobranca_id,numero_parcela,total_parcelas,conta_id')
+      .eq('tipo_movimento', 0).eq('status', 0).order('id',{ascending:true}).range(from, from+999);
+    if(error) throw error;
+    rows.push(...(data||[]));
+    if(!data || data.length < 1000 || from >= 20000) break;
+  }
+  const catPorLanc = await _finCatNomePorLanc(rows.map(r => r.id));
+  const itens = rows.filter(l => _finFluxoClassificaSaida(l, catPorLanc[l.id] || '') === 'repasse')
+    .map(l => Object.assign({}, l, { valor: Math.abs(+l.valor||0), categoria: catPorLanc[l.id] || '' }));
+  const v = { itens, n: itens.length, total: +itens.reduce((s,l) => s + l.valor, 0).toFixed(2), catPorLanc };
+  _finRepAbertosCache = { at: Date.now(), v };
+  return v;
+}
+// Frase-resumo do cabeçalho, por aba. Caixa: quanto sobrou e o que falta; Movimentações:
+// os repasses que pedem ação e o que o lote faz.
+function _finCabecalhoResumo(A, tab){
+  const plural = (n, s, p) => n === 1 ? s : (p || s+'s');
+  if(tab === 'lancamentos'){
+    const partes = [`${A.repassesN} ${plural(A.repassesN,'repasse ao credor pendente','repasses ao credor pendentes')}`];
+    if(A.repVencidosN) partes.push(`${A.repVencidosN} em atraso`);
+    partes.push('lote confirma pagamento, categoria ou repasse');
+    return partes.join(' · ') + '.';
+  }
+  const partes = [`Lucro líquido de ${A.b.nome}: ${fmtRs(A.lucro)}`];
+  if(A.meta > 0) partes.push(A.lucro >= A.meta ? 'meta batida' : `faltam ${fmtR(A.falta)} para a meta`);
+  const nVenc = A.vencPagar.length + A.vencReceber.length;
+  if(nVenc) partes.push(`${nVenc} ${plural(nVenc,'conta vencida','contas vencidas')}`);
+  if(A.repassesN) partes.push(`${A.repassesN} ${plural(A.repassesN,'repasse em aberto','repasses em aberto')} (${fmtR(A.custodia)} em custódia · caixa livre ${fmtRs(A.caixaLivre)})`);
+  return partes.join(' · ') + '.';
+}
 function _finTituloAba(tab){
+  // Caixa é "Caixa" (o período mora no seletor do corpo); Movimentações leva o período
+  // no título ("Movimentações · setembro de 2026"); o resto continua "<aba> de <mês>".
+  if(tab === 'visao') return 'Caixa';
+  if(tab === 'lancamentos') return 'Movimentações · ' + _finCascataPeriodoBounds().nome;
   const mes = new Date().toLocaleDateString('pt-BR', { month:'long' });
   const t = (FIN_CASCATA_UI_TABS.find(x=>x.id===tab) || {}).label
          || (FIN_MENU_DE[tab] && FIN_MENU_DE[tab].label) || 'Financeiro';
@@ -30898,6 +31042,14 @@ async function renderFinanceiroCascata(el, activeTab){
       .fincx-pop-row{display:flex;gap:7px;align-items:center;padding:3px 11px 7px;}
       .fincx-pop-row input{flex:1;min-width:0;border:1px solid #DDD7C8;border-radius:6px;padding:6px 8px;font-family:inherit;font-size:12.5px;color:#0A1530;background:#fff;}
       .fincx-pop-ok{background:#0A1530;color:#fff;border:none;border-radius:6px;padding:7px 13px;font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer;}
+      .fincx-pop-periodo{width:340px;border-radius:16px;box-shadow:0 8px 32px rgba(10,21,48,.14);padding:12px;border-color:#E6E1D2;}
+      .fincx-pop-periodo .fincx-pop-it{font-size:15px;font-weight:500;padding:12px 16px;border-radius:9px;}
+      .fincx-pop-periodo .fincx-pop-it.on{background:#0A1530;color:#EFEAD9;}
+      .fincx-pop-periodo .fincx-pop-lb{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.12em;color:rgba(10,21,48,.5);padding:8px 4px 6px;}
+      .fincx-pop-periodo .fincx-pop-sep{margin:8px 0;}
+      .fincx-pop-periodo .fincx-pop-row{padding:3px 0 7px;}
+      .fincx-pop-periodo .fincx-pop-row input{padding:10px 12px;border:1.5px solid rgba(10,21,48,.14);border-radius:9px;font-size:14px;}
+      .fincx-pop-periodo .fincx-pop-ok{border-radius:9px;padding:10px 16px;font-size:13px;}
       .fincx-btn-novo{background:#0A1530;color:#fff;border:none;padding:7px 13px;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;font-family:inherit;}
       .fincx-btn-novo:hover{background:#15224A;}
       .fincx-btn-novo.ghost{background:#fff;color:#0A1530;border:1px solid #D8D2C5;font-weight:500;}
@@ -30914,9 +31066,12 @@ async function renderFinanceiroCascata(el, activeTab){
       .fincx-cnt{font-family:'JetBrains Mono',monospace;font-size:10px;color:#8A94A6;}
       .fincx-tab.active .fincx-cnt{color:#9C7F40;}
       .fincx-tab[data-acao="1"] .fincx-cnt{color:#A65A4A;}
+      /* Badge vermelho de repasses em aberto (só existe quando > 0) e rótulo LEGADO. */
+      .fincx-badge{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;line-height:1;padding:3px 6px;border-radius:20px;background:#F6E9E7;color:#7D3F33;}
+      .fincx-legado{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.08em;color:rgba(10,21,48,.42);}
       .fincx-tab-menu{gap:6px;}
       .fincx-caret{font-size:10px;opacity:.7;}
-      .fincx-body{margin:0 -28px;padding:22px 28px 60px;background:#FBFAF6;min-height:60vh;}
+      .fincx-body{margin:0 -28px;padding:20px 28px 28px;background:#F3F4F6;min-height:60vh;}
       /* Largura máxima de 1560px, centralizada, no cabeçalho E no corpo. Sem isto, em
          tela larga a descrição da tabela absorve toda a sobra e as colunas se espalham —
          a página renderizava a 1932px. Cabeçalho e corpo usam o mesmo container para não
@@ -30927,15 +31082,13 @@ async function renderFinanceiroCascata(el, activeTab){
       <div class="fincx-l1">
         <span class="fincx-eyebrow">FINANCEIRO · ${escHtml(hojeStr.toUpperCase())}</span>
         <div class="fincx-l1-r">
-          ${FIN_TABS_COM_PERIODO.includes(activeTab) ? `<div class="fincx-nav">
+          ${activeTab === 'receitasjudiciais' ? `<div class="fincx-nav">
             <button class="fincx-nav-seta" title="Anterior" onclick="_finPeriodoPasso(-1)">&lsaquo;</button>
             <button class="fincx-nav-lbl" id="fincx-periodo-lbl" onclick="_finPeriodoAbrirMenu(event)">${escHtml(_finPeriodoRotulo())}</button>
             <button class="fincx-nav-seta" title="Próximo" onclick="_finPeriodoPasso(1)">&rsaquo;</button>
           </div>` : ''}
           <span id="fincx-sync"></span>
-          <button class="fincx-btn-novo ghost" onclick="_finBuscaAbrir()" title="Buscar contato, valor, parcela, categoria (⌘K)">${ico('search',13)} Buscar <span style="font-family:'JetBrains Mono',monospace;font-size:9.5px;opacity:.7;margin-left:4px;">⌘K</span></button>
           <button class="fincx-btn-novo ghost" onclick="importarBoletosAsaas('dry')" title="Cadastra os boletos ativos do Asaas como lançamentos (prévia → cria 1 → cria todos)">${ico('sync',13)} Importar boletos Asaas</button>
-          <button class="fincx-btn-novo ghost" onclick="abrirNovaCobrancaAsaasGlobal()">${ico('plus',13)} Nova cobrança</button>
           <button class="fincx-btn-novo" onclick="abrirNovoLancamento()">${ico('plus',13)} Novo lançamento</button>
         </div>
       </div>
@@ -30945,12 +31098,12 @@ async function renderFinanceiroCascata(el, activeTab){
       </div>
       <div class="fincx-l3">
         ${FIN_CASCATA_UI_TABS.map(t=>`<div class="fincx-tab ${t.id===activeTab?'active':''}" ${t.acao?'data-acao="1"':''} onclick="_finCascataIrPara('${t.id}')">
-          <span>${t.label}</span>${t.cnt?`<span class="fincx-cnt" id="fincx-cnt-${t.id}">${window._finCnt[t.id] != null ? window._finCnt[t.id] : '—'}</span>`:''}
+          <span>${t.label}</span>${t.cnt?`<span class="fincx-cnt" id="fincx-cnt-${t.id}">${window._finCnt[t.id] != null ? window._finCnt[t.id] : '—'}</span>`:''}${t.badge?`<span class="fincx-badge" id="fincx-badge-${t.id}" hidden>—</span>`:''}
         </div>`).join('')}
         ${FIN_MENUS.map(m=>{
           const dentro = FIN_MENU_DE[activeTab] && FIN_MENU_DE[activeTab].menu===m.id;
           return `<div class="fincx-tab fincx-tab-menu ${dentro?'active':''}" onclick="_finMenuAbrir(event,'${m.id}')">
-            <span>${escHtml(m.label)}</span>${dentro?`<span class="fincx-cnt" style="background:rgba(201,169,97,.22);color:#E2C98A;">${escHtml(FIN_MENU_DE[activeTab].label)}</span>`:''}<span class="fincx-caret">&#9662;</span>
+            <span>${escHtml(m.label)}</span>${m.legado?'<span class="fincx-legado">LEGADO</span>':''}${dentro?`<span class="fincx-cnt" style="background:rgba(201,169,97,.22);color:#E2C98A;">${escHtml(FIN_MENU_DE[activeTab].label)}</span>`:''}<span class="fincx-caret">&#9662;</span>
           </div>`;
         }).join('')}
       </div>
@@ -30959,24 +31112,24 @@ async function renderFinanceiroCascata(el, activeTab){
   `;
   _finAtalhosInstalar();
   renderFinTab(activeTab);
+  _finRepassesAbertos().then(r=>{
+    const e = document.getElementById('fincx-badge-lancamentos'); if(!e) return;
+    e.textContent = r.n; e.hidden = !r.n;
+  }).catch(e=>console.warn('badge de repasses:', e));
   // Subtítulo do cabeçalho: a frase-resumo do handoff. Sai do MESMO _finCaixaAgg() que
   // desenha a aba Caixa (cacheado, então não custa uma segunda rodada de consultas) —
   // se saísse de outra conta, o topo e o corpo poderiam discordar na mesma tela.
   // O resumo do topo lê o MESMO número do cronograma que o card "A repassar agora".
   // Antes ele contava a fila de fin_operacao pelo valor_capital — coluna que o webhook
   // parou de escrever na #589 — e por isso dizia "4 repasses parados" com 16 na lista.
-  Promise.all([_finCaixaAgg(), _finRepasseAgg().catch(()=>null)]).then(([A,R])=>{
+  // Subtítulo: sai do MESMO _finCaixaV2Agg() que desenha a aba Caixa (cacheado) — se
+  // saísse de outra conta, topo e corpo poderiam discordar na mesma tela.
+  _finCaixaV2Agg().then(A=>{
     const el = document.getElementById('fincx-header-sub'); if(!el) return;
-    const partes = [];
-    if(A.meta > 0 && A.falta > 0) partes.push(`Faltam ${fmtR(A.falta)} para a meta com ${A.diasUteis} ${A.diasUteis===1?'dia útil':'dias úteis'}`);
-    else if(A.meta > 0) partes.push('Meta do mês batida');
-    if(A.atrasoN) partes.push(`${A.atrasoN} ${A.atrasoN===1?'lançamento em atraso':'lançamentos em atraso'}`);
-    const nRep = R ? (R.nRepassar||0) : A.repasseN;
-    if(nRep) partes.push(`${nRep} ${nRep===1?'repasse a enviar':'repasses a enviar'}`);
-    el.textContent = partes.length ? partes.join(' · ') + '.' : 'Nada pendente no mês.';
+    el.textContent = _finCabecalhoResumo(A, activeTab);
   }).catch(()=>{
     const el = document.getElementById('fincx-header-sub');
-    if(el) el.textContent = 'não foi possível ler o resumo do mês';
+    if(el) el.textContent = 'não foi possível ler o resumo do período';
   });
   _finCascataMetricas().then(m=>{
     const set=(id,txt)=>{ const e=document.getElementById(id); if(e) e.textContent=txt; };
@@ -32577,7 +32730,7 @@ function _finMovToggleMais(){ _finLancCascataState.maisFiltros = !_finLancCascat
 function _finMovVerMais(){ _finLancCascataState.limite += FIN_MOV_PAGINA; _finLancCascataRender(); }
 function _finMovNFiltros(){
   const s = _finLancCascataState;
-  return s.fContas.length + (s.fTipo?1:0) + (s.fStatus?1:0) + (s.fCategoria?1:0) + (s.fCedente?1:0) + (s.fMin?1:0) + (s.fMax?1:0);
+  return s.fContas.length + (s.fCategoria?1:0) + (s.fCedente?1:0) + (s.fMin?1:0) + (s.fMax?1:0);
 }
 function _finMovLimparFiltros(){
   const s = _finLancCascataState;
@@ -32672,7 +32825,8 @@ async function _finLancCascataOrd(col){
   if(!FIN_LANC_ORD_COLS[col]) return;
   const o = _finLancCascataState.ord;
   const antes = _finLancOrdServidorAsc();
-  if(o.col===col) o.dir = o.dir==='asc' ? 'desc' : 'asc';
+  if(col === 'data' && o.col !== 'data'){ o.col = 'data'; o.dir = 'asc'; }   // "voltar à ordem por data"
+  else if(o.col===col) o.dir = o.dir==='asc' ? 'desc' : 'asc';
   else { o.col = col; o.dir = FIN_LANC_ORD_DESC_PRIMEIRO.has(col) ? 'desc' : 'asc'; }
   // Trocar a ordem muda QUAIS 60 linhas a página mostra. Manter a seleção deixava a
   // barra de lote anunciando "60 selecionados" sobre linhas que sumiram da tela — e o
@@ -32735,13 +32889,23 @@ async function _finLancCascataCarregar(){
 
   let opsByLanc = {};
   try{
-    const { data } = await sb.from('fin_operacao')
-      .select('id,valor_recebido,valor_capital,valor_honorario,repasse_status,credor_id,recebido_em,lancamento_receita_id,lancamento_despesa_id')
+    const OPSEL = 'id,valor_recebido,valor_capital,valor_honorario,repasse_status,repasse_asaas_transfer_id,repasse_comprovante_url,credor_id,recebido_em,lancamento_receita_id,lancamento_despesa_id';
+    const { data } = await sb.from('fin_operacao').select(OPSEL)
       .gte('recebido_em', ini).lte('recebido_em', fim).limit(2000);
-    const credIds=[...new Set((data||[]).map(o=>o.credor_id).filter(Boolean))];
+    const ops = data || [];
+    // Operações criadas pelo /api/repassar a partir de um lançamento (repasse importado)
+    // têm recebido_em NULO e não entram na janela acima: sem esta segunda leitura o
+    // "preparado"/"efetuado" delas ficava invisível e a linha seguia oferecendo Repassar.
+    const desp = rows.filter(r => r.tipo_movimento === 0).map(r => r.id);
+    const vistos = new Set(ops.map(o => o.id));
+    for(let i = 0; i < desp.length; i += 300){
+      const { data:d2 } = await sb.from('fin_operacao').select(OPSEL).in('lancamento_despesa_id', desp.slice(i, i+300)).limit(2000);
+      for(const o of (d2||[])) if(!vistos.has(o.id)){ vistos.add(o.id); ops.push(o); }
+    }
+    const credIds=[...new Set(ops.map(o=>o.credor_id).filter(Boolean))];
     let credMap={};
     if(credIds.length){ const {data:cs}=await sb.from('clientes').select('id,nome,nome_fantasia').in('id',credIds); (cs||[]).forEach(c=>credMap[c.id]=_finNomeCredor(c)); }
-    (data||[]).forEach(o=>{ o._credorNome=credMap[o.credor_id]||null; if(o.lancamento_receita_id) opsByLanc[o.lancamento_receita_id]=o; if(o.lancamento_despesa_id) opsByLanc[o.lancamento_despesa_id]=o; });
+    ops.forEach(o=>{ o._credorNome=credMap[o.credor_id]||null; if(o.lancamento_receita_id) opsByLanc[o.lancamento_receita_id]=o; if(o.lancamento_despesa_id) opsByLanc[o.lancamento_despesa_id]=o; });
   }catch(_){}
   // Carteira da linha, quando não há fin_operacao: de quem é esse dinheiro.
   //
@@ -32846,11 +33010,16 @@ function _finLancCascataFiltrados(visaoId){
     if(s.fTipo === 'in'  && l.tipo_movimento !== 1) return false;
     if(s.fTipo === 'out' && l.tipo_movimento !== 0) return false;
     if(s.fTipo === 'repasse' && !_finLancEhRepasse(l, ctx)) return false;
+    // 'repasses' (chip do handoff v2): toda saída de aquisição de dívidas / com credor,
+    // paga ou não — a situação é recorte à parte. 'repasse' (acima) é o legado "a
+    // repassar agora", que só acende com a entrada em caixa.
+    if(s.fTipo === 'repasses' && !_finMovEhRepasse(l, ctx)) return false;
     if(s.fTipo === 'fatprev' && !_finLancEhFaturamentoPrevisto(l, ctx)) return false;
     if(s.fStatus){
       const t = _finLancSit(l).t;
       const efetivado = t === 'PAGO' || t === 'CONCILIADO';
       if(s.fStatus === 'pago' && !efetivado) return false;
+      if(s.fStatus === 'conciliado' && t !== 'CONCILIADO') return false;
       if(s.fStatus === 'atrasado' && t !== 'ATRASADO') return false;
       if(s.fStatus === 'pendente' && (efetivado || t === 'ATRASADO')) return false;
     }
@@ -32888,7 +33057,7 @@ function _finLancCascataRender(){
   const todos = ctx.rows;
   const filtrados = _finLancCascataFiltrados();
 
-  // Totais do RODAPÉ refletem o filtro inteiro, não a página exibida (handoff).
+  // Totais do RODAPÉ refletem o filtro inteiro, não a página exibida (handoff §3.2).
   let ent = 0, sai = 0;
   filtrados.forEach(l => { const v = Math.abs(+l.valor||0); if(l.tipo_movimento===1) ent += v; else sai += v; });
   const nVencidos = _finMovVencidos().length;   // mesma função que o botão executa
@@ -32898,18 +33067,12 @@ function _finLancCascataRender(){
   // popover para centenas de linhas foi o que congelou o protótipo com 280 lançamentos.
   const pagina = ordenados.slice(0, s.limite);
   const restantes = Math.max(0, ordenados.length - pagina.length);
-  // Cabeçalho de dia some quando o filtro devolve menos de 4 linhas: com pouquíssimas
-  // linhas a faixa de dia vira mais ruído do que informação.
-  //
-  // Era 8 até 31/08/2026, e o corte alto fazia a MESMA tela mudar de estrutura conforme o
-  // filtro, sem dizer por quê: a Juliana Pinto Ribeiro (15 linhas) saía em cascata de dias
-  // e a Claudete Aparecida da Silva (7) saía corrida. Junto com o cabeçalho ia embora o
-  // saldo do dia — e a Claudete tem entrada e saída no MESMO 06/10, exatamente o caso em
-  // que esse número é o que se quer ler.
+  // Grupo por dia (handoff v2) quando a ordem é a de data e há pelo menos 4 linhas (corte
+  // de 31/08, teste F-21: com pouquíssimas linhas a faixa de dia vira mais ruído do que
+  // informação). Ordenar por outra coluna desfaz a cascata e vira lista corrida — agrupar
+  // por dia e ordenar por valor ao mesmo tempo faria o maior valor não aparecer no topo.
   const agrupado = s.ord.col === 'data' && pagina.length >= 4;
-  // Totais do dia saem do DIA INTEIRO do filtro, não da fatia paginada: com o corte dos
-  // 60 caindo no meio de um dia, o saldo daquele cabeçalho ficava errado e ainda mudava
-  // de valor ao clicar em "Mostrar mais".
+  // Totais do dia saem do DIA INTEIRO do filtro, não da fatia paginada.
   const totalDoDia = {};
   if(agrupado){
     for(const l of ordenados){
@@ -32929,87 +33092,86 @@ function _finLancCascataRender(){
   }
 
   const contas = (ctx.dim && ctx.dim.contas) || [];
-  // Só as categorias das linhas que a aba REALMENTE mostra. `catPorLanc` é montado antes
-  // do corte do judicial, então "Sisbajud" aparecia na lista e escolhê-la devolvia zero.
   const cats = [...new Set(ctx.rows.map(l => (ctx.catPorLanc||{})[l.id]).filter(Boolean).map(c => c.nome))]
     .sort((a,b)=>a.localeCompare(b,'pt-BR'));
   const cedentes = [...new Set(todos.map(l => _finLancCedente(l, ctx)).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'pt-BR'));
-  const salvas = _finMovVisoesSalvas();
   const nFiltros = _finMovNFiltros();
   const contador = `${filtrados.length} de ${todos.length} ${todos.length===1?'lançamento':'lançamentos'}`;
+  // Contador de cada chip = o que a lista devolve ao clicar nele, com os outros recortes
+  // vigentes (invariante 10 do handoff de 29/08; §6.3 do handoff v2).
+  const repN = _finMovContarChip('fTipo', 'repasses');
 
-  const chipF = (on) => `border-radius:20px;padding:6px 13px;font-size:12.5px;white-space:nowrap;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:7px;`
-    + (on ? 'font-weight:600;background:#0A1530;color:#fff;border:1px solid #0A1530;' : 'font-weight:400;background:#fff;color:#5A5F66;border:1px solid #E6E1D2;');
+  const chipF = (on) => `border-radius:20px;padding:6px 12px;font-size:12.5px;white-space:nowrap;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:7px;`
+    + (on ? 'font-weight:500;background:#0A1530;color:#EFEAD9;border:1px solid #0A1530;' : 'font-weight:500;background:#fff;color:#0A1530;border:1px solid rgba(10,21,48,.14);');
+  const chip = (on, label, fn, n) => `<button class="finmv-chip ${on?'on':''}" onclick="${fn}">${label}${n != null ? ` <span class="n">${n}</span>` : ''}</button>`;
 
   el.innerHTML = `
     <style>
       .finmv-wrap{max-width:1560px;margin:0 auto;display:flex;flex-direction:column;gap:12px;}
-      .finmv-h1{font-family:'Fraunces',Georgia,serif;font-size:26px;font-weight:500;letter-spacing:-.02em;color:#0A1530;}
-      .finmv-sub{font-size:13px;color:#5A5F66;margin-top:3px;}
-      .finmv-chips{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
-      .finmv-chip{display:flex;align-items:center;gap:7px;border-radius:20px;padding:6px 13px;font-size:12.5px;font-weight:500;background:#fff;border:1px solid #E6E1D2;color:#5A5F66;cursor:pointer;font-family:inherit;white-space:nowrap;}
+      .finmv-wrap > *{flex-shrink:0;}
+      .finmv-filtros{display:flex;align-items:center;gap:8px;flex-wrap:wrap;row-gap:10px;}
+      .finmv-lb{font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:rgba(10,21,48,.5);margin-right:2px;}
+      .finmv-div{width:1px;height:22px;background:rgba(10,21,48,.12);margin:0 6px;}
+      .finmv-right{margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+      .finmv-chip{display:flex;align-items:center;gap:7px;border-radius:20px;padding:6px 12px;font-size:12.5px;font-weight:500;background:#fff;border:1px solid rgba(10,21,48,.14);color:#0A1530;cursor:pointer;font-family:inherit;white-space:nowrap;}
       .finmv-chip .n{font-family:'JetBrains Mono',monospace;font-size:10px;color:#8A94A6;}
-      .finmv-chip.on{background:#0A1530;border-color:#0A1530;color:#fff;font-weight:600;}
+      .finmv-chip.on{background:#0A1530;border-color:#0A1530;color:#EFEAD9;}
       .finmv-chip.on .n{color:#C9A961;}
-      .finmv-chip.add{border:1px dashed #D8D2C5;color:#6B7683;}
-      .finmv-chip.add:hover{border-color:#9C7F40;color:#9C7F40;}
-      .finmv-chip .x{color:#A6AEBD;font-size:11px;}
-      .finmv-chip .x:hover{color:#A65A4A;}
-      .finmv-barra{display:flex;gap:9px;flex-wrap:wrap;align-items:center;}
-      .finmv-busca{position:relative;display:flex;align-items:center;}
-      .finmv-busca .lupa{position:absolute;left:11px;font-size:12px;color:#A6AEBD;pointer-events:none;}
-      .finmv-inp{width:280px;max-width:100%;background:#fff;border:1px solid #E6E1D2;border-radius:7px;padding:8px 11px 8px 27px;font-size:12.5px;font-family:inherit;color:#0A1530;outline:none;}
       .finmv-fbtn{display:flex;align-items:center;gap:7px;border-radius:7px;padding:8px 12px;font-size:12.5px;font-weight:500;color:#0A1530;cursor:pointer;font-family:inherit;white-space:nowrap;}
       .finmv-fbadge{font-family:'JetBrains Mono',monospace;font-size:9.5px;border-radius:9px;padding:1px 6px;background:#0A1530;color:#fff;}
-      .finmv-painel{position:absolute;top:38px;left:0;z-index:50;width:452px;background:#fff;border:1px solid #E6E1D2;border-radius:11px;box-shadow:0 20px 48px rgba(10,21,48,.18);padding:16px;display:flex;flex-direction:column;gap:14px;text-align:left;}
+      .finmv-painel{position:absolute;top:38px;right:0;z-index:50;width:452px;max-width:calc(100vw - 60px);background:#fff;border:1px solid #E6E1D2;border-radius:11px;box-shadow:0 20px 48px rgba(10,21,48,.18);padding:16px;display:flex;flex-direction:column;gap:14px;text-align:left;}
       .finmv-painel .sec{display:flex;flex-direction:column;gap:8px;}
       .finmv-painel .sec .tt{font-size:12px;font-weight:600;color:#0A1530;}
       .finmv-painel .ops{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+      .finmv-painel .finmv-inp{width:100%;background:#fff;border:1px solid #E6E1D2;border-radius:7px;padding:8px 11px;font-size:12.5px;font-family:inherit;color:#0A1530;outline:none;box-sizing:border-box;}
       .finmv-mais{align-self:flex-start;display:flex;align-items:center;gap:5px;background:transparent;border:none;padding:0;font-size:12.5px;font-weight:600;color:#15224A;cursor:pointer;font-family:inherit;}
       .finmv-mais:hover{color:#9C7F40;}
       .finmv-avancado{display:grid;grid-template-columns:1fr 1fr;gap:10px;background:#FBFAF6;border:1px solid #E6E1D2;border-radius:8px;padding:11px 12px;}
       .finmv-avancado label{display:flex;flex-direction:column;gap:5px;font-size:11px;color:#8A94A6;}
       .finmv-avancado select,.finmv-avancado input{width:100%;background:#fff;border:1px solid #E6E1D2;border-radius:7px;padding:7px 9px;font-size:12px;font-family:inherit;color:#0A1530;}
       .finmv-avancado input{font-family:'JetBrains Mono',monospace;font-size:11.5px;}
-      .finmv-cont{margin-left:auto;font-size:12px;color:#8A94A6;}
-      .finmv-sec{background:#fff;border:1px solid #E6E1D2;border-radius:10px;overflow:hidden;}
-      /* As 9 colunas somam 852px com gaps e padding. Abaixo disso a tabela ROLA DENTRO
-         do cartão — deixar a linha crescer empurraria a página inteira para scroll
-         horizontal, que é a regressão que #mainArea{min-width:0} existe para evitar. */
+      .finmv-cont{font-size:12.5px;color:#5A5F66;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+      .finmv-cont a{color:#15224A;font-weight:600;cursor:pointer;}
+      .finmv-sec{background:#fff;border:1px solid rgba(10,21,48,.10);border-radius:12px;overflow:hidden;}
+      /* As 8 colunas somam ≈816px com gaps e padding — cabe a 1180. Abaixo disso a tabela
+         ROLA DENTRO do cartão em vez de empurrar a página (#mainArea{min-width:0}). */
       .finmv-scroll{overflow-x:auto;}
-      .finmv-grid{display:grid;grid-template-columns:30px 38px 48px minmax(230px,2.3fr) minmax(130px,1fr) 132px 38px 44px 30px;gap:12px;align-items:center;padding:0 18px;min-width:852px;box-sizing:border-box;}
-      .finmv-thead{border-bottom:1px solid #E6E1D2;padding-top:8px;padding-bottom:8px;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:#A6AEBD;}
+      .finmv-grid{display:grid;grid-template-columns:30px 26px minmax(170px,1.6fr) minmax(96px,1fr) minmax(84px,.7fr) 112px 100px minmax(128px,auto);gap:10px;align-items:center;padding:10px 14px;min-width:816px;box-sizing:border-box;}
+      .finmv-thead{background:#F4F5F7;border-bottom:1px solid rgba(10,21,48,.08);font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:rgba(10,21,48,.5);padding-top:9px;padding-bottom:9px;}
       .finmv-th{display:flex;align-items:center;gap:4px;cursor:pointer;user-select:none;border-radius:4px;padding:3px 4px;margin:-3px -4px;}
       .finmv-th svg{opacity:.3;}
       .finmv-th:hover{color:#0A1530;} .finmv-th:hover svg{opacity:.7;}
       .finmv-th.on{color:#0A1530;} .finmv-th.on svg{opacity:.7;}
-      .finmv-th.num{justify-content:flex-end;} .finmv-th.mid{justify-content:center;}
-      .finmv-dia{display:flex;align-items:baseline;gap:8px;padding:14px 18px 6px;min-width:852px;box-sizing:border-box;}
-      .finmv-dia .dd{font-size:11.5px;font-weight:600;color:#0A1530;white-space:nowrap;}
-      .finmv-dia .dow{font-size:10.5px;color:#A6AEBD;}
-      .finmv-dia .rule{flex:1;height:1px;background:#F2EFE6;}
-      .finmv-dia .sld{font-family:'JetBrains Mono',monospace;font-size:10.5px;white-space:nowrap;}
-      .finmv-row{position:relative;border-top:1px solid #F7F4EC;cursor:pointer;padding-top:10px;padding-bottom:10px;}
-      .finmv-row:hover{background:#FBFAF6;}
-      .finmv-row.atraso{background:#FEFBEC;border-top-color:#F5EBCF;}
-      .finmv-row.atraso:hover{background:#FCF6E4;}
+      .finmv-th.num{justify-content:flex-end;}
+      .finmv-daygrp{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 14px;background:#FBF8EF;border-bottom:1px solid rgba(10,21,48,.08);font-family:'JetBrains Mono',monospace;font-size:10.5px;color:#97793A;letter-spacing:.05em;min-width:816px;box-sizing:border-box;}
+      .finmv-daygrp b{font-weight:600;white-space:nowrap;}
+      .finmv-row{position:relative;border-bottom:1px solid rgba(10,21,48,.08);cursor:pointer;font-size:13px;}
+      .finmv-row:hover{background:rgba(10,21,48,.04);}
+      .finmv-row.rep{background:#FBFAF6;}
       .finmv-row.sel{background:#F6F3EA;}
-      .finmv-row input[type=checkbox]{width:14px;height:14px;accent-color:#0A1530;cursor:pointer;}
-      .finmv-tipo{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;margin:0 auto;}
-      .finmv-data{font-family:'JetBrains Mono',monospace;font-size:11px;color:#A6AEBD;}
+      .finmv-row input[type=checkbox],.finmv-thead input[type=checkbox]{width:15px;height:15px;border-radius:4px;accent-color:#0A1530;cursor:pointer;}
       .finmv-d1{display:flex;align-items:baseline;gap:7px;min-width:0;}
-      .finmv-d1 .tx{font-size:13.5px;font-weight:500;letter-spacing:-.005em;color:#0A1530;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+      .finmv-d1 .tx{font-size:13px;font-weight:500;color:#0A1530;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
       .finmv-parc{font-family:'JetBrains Mono',monospace;font-size:10px;color:#A6AEBD;flex-shrink:0;white-space:nowrap;}
-      /* Marcador redondo no lugar da tag de texto: a tag dobrava a altura da linha. */
       .finmv-marca{display:flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;flex-shrink:0;font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:600;cursor:help;align-self:center;}
-      .finmv-d2{font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;display:block;}
-      .finmv-cat{font-size:11.5px;color:#8A94A6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-      .finmv-val{font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:600;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;letter-spacing:-.01em;}
-      .finmv-vextra{display:block;font-size:10.5px;font-weight:500;color:#9C7F40;letter-spacing:0;}
-      .finmv-cel{position:relative;display:flex;align-items:center;justify-content:center;}
-      .finmv-cbtn{background:transparent;border:none;padding:0;cursor:pointer;display:flex;}
-      /* Polegar: preenchimento claro com traço escuro. Sólido vira mancha na lista. */
-      .finmv-pol{display:flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:6px;flex-shrink:0;cursor:pointer;border:none;padding:0;background:transparent;}
+      .finmv-d2{font-size:11.5px;color:rgba(10,21,48,.5);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;display:block;}
+      .finmv-cat{min-width:0;overflow:hidden;}
+      .finmv-conta{font-size:12.5px;color:#0A1530;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;}
+      .finmv-conta:hover{color:#97793A;}
+      .finmv-val{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;}
+      .finmv-vextra{display:block;font-size:10.5px;font-weight:500;color:#9C7F40;}
+      .finmv-st{display:inline-block;font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.08em;border-radius:4px;padding:3px 7px;white-space:nowrap;text-transform:uppercase;}
+      .finmv-cel{position:relative;display:flex;align-items:center;}
+      .finmv-acao{justify-content:flex-end;gap:6px;flex-wrap:nowrap;}
+      .finmv-rep{display:inline-flex;align-items:center;gap:5px;background:#0A1530;color:#EFEAD9;border:none;border-radius:7px;padding:6px 10px;font-size:11.5px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;}
+      .finmv-rep:hover{background:#C9A961;color:#2A1A05;}
+      .finmv-gh{background:#fff;border:1px solid rgba(10,21,48,.14);border-radius:7px;padding:5px 9px;font-size:11.5px;font-weight:600;color:#0A1530;cursor:pointer;font-family:inherit;white-space:nowrap;}
+      .finmv-gh:hover{background:#FBFAF6;}
+      .finmv-lnk{background:transparent;border:none;padding:5px 4px;font-size:11.5px;font-weight:600;color:#15224A;cursor:pointer;font-family:inherit;white-space:nowrap;}
+      .finmv-lnk:hover{color:#97793A;}
+      .finmv-aguard{font-size:11.5px;color:#97793A;white-space:nowrap;}
+      .finmv-compr{font-size:11.5px;font-weight:600;color:#4A7A52;white-space:nowrap;text-decoration:none;}
+      .finmv-compr:hover{text-decoration:underline;}
       .finmv-kebab{background:transparent;border:none;border-radius:5px;color:#A6AEBD;font-size:14px;line-height:1;padding:3px 5px;cursor:pointer;font-family:inherit;}
       .finmv-kebab.on{background:#F2EFE6;}
       .finmv-pop{position:absolute;top:30px;right:-6px;z-index:45;background:#fff;border:1px solid #E6E1D2;border-radius:10px;box-shadow:0 18px 44px rgba(10,21,48,.2);padding:14px;display:flex;flex-direction:column;gap:11px;text-align:left;width:300px;cursor:default;}
@@ -33021,54 +33183,59 @@ function _finLancCascataRender(){
       .finmv-mi:hover{background:#FBFAF6;}
       .finmv-mi.sep{border-top:1px solid #F2EFE6;margin-top:4px;padding-top:8px;}
       .finmv-mi.del{color:#A65A4A;}
-      .finmv-conta-pop{position:absolute;top:28px;right:-6px;z-index:45;width:238px;background:#fff;border:1px solid #E6E1D2;border-radius:9px;box-shadow:0 16px 36px rgba(10,21,48,.18);padding:5px;display:flex;flex-direction:column;cursor:default;}
+      .finmv-conta-pop{position:absolute;top:24px;left:0;z-index:45;width:238px;background:#fff;border:1px solid #E6E1D2;border-radius:9px;box-shadow:0 16px 36px rgba(10,21,48,.18);padding:5px;display:flex;flex-direction:column;cursor:default;}
       .finmv-conta-pop .tt{font-size:10.5px;color:#A6AEBD;padding:6px 9px 4px;}
       .finmv-conta-it{display:flex;align-items:center;gap:9px;width:100%;min-width:0;background:transparent;border:none;border-radius:6px;padding:7px 9px;font-size:12.5px;font-family:inherit;text-align:left;color:#0A1530;cursor:pointer;}
       .finmv-conta-it:hover{background:#FBFAF6;}
       .finmv-conta-it .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0;}
       .finmv-mostrar{width:100%;background:#fff;border:none;border-top:1px solid #F2EFE6;padding:12px;font-size:12.5px;font-weight:600;color:#15224A;cursor:pointer;font-family:inherit;}
       .finmv-mostrar:hover{background:#FBFAF6;}
-      .finmv-foot{background:#F7F4EC;border-top:1px solid #E6E1D2;padding:11px 16px;display:flex;gap:18px;align-items:center;flex-wrap:wrap;font-size:11.5px;color:#5A5F66;}
-      .finmv-foot .lb{font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:#6B7683;}
+      .finmv-foot{background:#F7F4EC;border-top:1px solid rgba(10,21,48,.08);padding:11px 14px;display:flex;gap:14px;align-items:center;flex-wrap:wrap;font-size:12.5px;color:#5A5F66;}
       .finmv-foot b{font-family:'JetBrains Mono',monospace;font-weight:600;}
       .finmv-efet-lote{display:flex;align-items:center;gap:6px;background:#fff;border:1px solid #D8D2C5;border-radius:6px;padding:5px 10px;font-size:11.5px;font-weight:600;color:#0A1530;white-space:nowrap;cursor:pointer;font-family:inherit;}
       .finmv-efet-lote:hover{background:#FBFAF6;}
-      .finmv-lote{position:fixed;left:252px;right:24px;bottom:18px;z-index:60;background:#0A1530;border-radius:9px;box-shadow:0 8px 24px rgba(10,21,48,.28);padding:11px 14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
-      .finmv-lote .qt{font-family:'JetBrains Mono',monospace;font-size:11.5px;font-weight:600;color:#fff;}
+      /* O handoff pede sticky bottom:12px, mas #page-fin é overflow:auto e cresce com o
+         conteúdo: o sticky grudaria nele (mais alto que a janela) e a barra nunca apareceria.
+         Fixa à área útil, como a barra anterior — mesmo visual do handoff. */
+      .finmv-lote{position:fixed;left:252px;right:24px;bottom:12px;z-index:60;background:#0A1530;border-radius:12px;box-shadow:0 8px 24px rgba(10,21,48,.28);padding:11px 14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+      @media (max-width: 768px){ .finmv-lote{left:12px;right:12px;} }
+      .finmv-lote .qt{font-family:'JetBrains Mono',monospace;font-size:11.5px;font-weight:600;color:#EFEAD9;}
       .finmv-lote .tt{font-family:'JetBrains Mono',monospace;font-size:11.5px;color:#C9A961;}
-      .finmv-lb{border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.10);color:#fff;font-family:inherit;font-size:12px;font-weight:500;padding:6px 12px;border-radius:6px;cursor:pointer;white-space:nowrap;}
+      .finmv-lb{border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.10);color:#EFEAD9;font-family:inherit;font-size:12px;font-weight:500;padding:6px 12px;border-radius:6px;cursor:pointer;white-space:nowrap;}
       .finmv-lb:hover{background:rgba(255,255,255,.16);}
-      .finmv-lb.go{background:#5E7C58;border-color:#5E7C58;font-weight:600;} .finmv-lb.go:hover{background:#4F6A4A;}
+      .finmv-lb.go{background:#4A7A52;border-color:#4A7A52;font-weight:600;} .finmv-lb.go:hover{background:#3F6A47;}
       .finmv-lb.gh{background:transparent;border:none;color:#B4BCCC;margin-left:auto;} .finmv-lb.gh:hover{color:#fff;background:transparent;}
     </style>
     <div class="finmv-wrap" onclick="_finMovFecharPopovers(event)">
-      <div>
-        <div class="finmv-h1">Movimentações</div>
-        <div class="finmv-sub">${escHtml((ctx.periodoLabel||'').replace(/^./,c=>c.toUpperCase()))}${ctx.truncado?` · <span style="color:#A65A4A;font-weight:600;">lista cortada em ${FIN_LANC_LIMITE} — ${ctx.busca?'refine a busca ou estreite o período':'estreite o período'}</span>`:''}</div>
+      <div class="finmv-filtros">
+        <span class="finmv-lb">Tipo</span>
+        ${chip(!s.fTipo, 'Tudo', "_finMovSetFiltro('fTipo','')")}
+        ${chip(s.fTipo==='in', 'Entradas', "_finMovSetFiltro('fTipo','in')")}
+        ${chip(s.fTipo==='out', 'Saídas', "_finMovSetFiltro('fTipo','out')")}
+        ${chip(s.fTipo==='repasses', 'Repasses', "_finMovSetFiltro('fTipo','repasses')", repN)}
+        <span class="finmv-div"></span>
+        <span class="finmv-lb">Situação</span>
+        ${chip(!s.fStatus, 'Todos', "_finMovSetFiltro('fStatus','')")}
+        ${chip(s.fStatus==='pendente', 'Pendentes', "_finMovSetFiltro('fStatus','pendente')")}
+        ${chip(s.fStatus==='atrasado', 'Em atraso', "_finMovSetFiltro('fStatus','atrasado')")}
+        ${chip(s.fStatus==='conciliado', 'Conciliados', "_finMovSetFiltro('fStatus','conciliado')")}
+        <div class="finmv-right">
+          ${_finPeriodoNavHtml({ formato:'datas', align:'right' })}
+          <div style="position:relative;">
+            <button class="finmv-fbtn" style="background:${s.filtrosAbertos?'#F7F4EC':'#fff'};border:1px solid ${nFiltros?'#0A1530':'#E6E1D2'};" onclick="event.stopPropagation();_finMovTogglePainel()">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h18l-7 8v6l-4 2v-8z"></path></svg>
+              Filtrar${nFiltros?`<span class="finmv-fbadge">${nFiltros}</span>`:''}
+            </button>
+            ${s.filtrosAbertos ? _finMovPainelFiltrosHtml(contas, cats, cedentes, contador, chipF) : ''}
+          </div>
+        </div>
       </div>
 
-      <div class="finmv-chips">
-        ${FIN_MOV_VISOES.map(v=>{
-          const n = _finMovContadorVisao(v.id);
-          return `<button class="finmv-chip ${s.visao===v.id?'on':''}" onclick="_finMovSetVisao('${v.id}')">${v.label}<span class="n">${n}</span></button>`;
-        }).join('')}
-        ${salvas.map(v=>`<button class="finmv-chip ${s.visaoSalva===v.nome?'on':''}" onclick="_finMovAplicarVisaoSalva(${JSON.stringify(v.nome).replace(/"/g,'&quot;')})">${escHtml(v.nome)}<span class="x" onclick="event.stopPropagation();_finMovApagarVisaoSalva(${JSON.stringify(v.nome).replace(/"/g,'&quot;')})" title="apagar">✕</span></button>`).join('')}
-        <button class="finmv-chip add" onclick="_finMovSalvarVisao()">+ Salvar visão</button>
-      </div>
-
-      <div class="finmv-barra">
-        <div class="finmv-busca">
-          <span class="lupa">⌕</span>
-          <input class="finmv-inp" id="finmv-busca" type="search" value="${escHtml(s.busca)}" placeholder="Buscar nesta visão…" oninput="_finLancCascataBusca(this.value)">
-        </div>
-        <div style="position:relative;">
-          <button class="finmv-fbtn" style="background:${s.filtrosAbertos?'#F7F4EC':'#fff'};border:1px solid ${nFiltros?'#0A1530':'#E6E1D2'};" onclick="event.stopPropagation();_finMovTogglePainel()">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h18l-7 8v6l-4 2v-8z"></path></svg>
-            Filtrar${nFiltros?`<span class="finmv-fbadge">${nFiltros}</span>`:''}
-          </button>
-          ${s.filtrosAbertos ? _finMovPainelFiltrosHtml(contas, cats, cedentes, contador, chipF) : ''}
-        </div>
-        <span class="finmv-cont">${contador}</span>
+      <div class="finmv-cont">
+        <span>${contador}${s.busca ? ` · busca “${escHtml(s.busca)}” <a onclick="_finLancCascataBusca('')">limpar</a>` : ''}</span>
+        ${s.fTipo==='repasses' ? `<span style="color:#97793A;">· repasses ao credor saem daqui pelo botão <b>Repassar</b> — não existe mais aba separada</span>` : ''}
+        ${!agrupado ? `<span>· ordenado por ${escHtml((FIN_LANC_ORD_COLS[s.ord.col]||{}).label||'').toLowerCase()} <a onclick="_finLancCascataOrd('data')">voltar à ordem por data</a></span>` : ''}
+        ${ctx.truncado ? `<span style="color:#A65A4A;font-weight:600;">· lista cortada em ${FIN_LANC_LIMITE} — ${ctx.busca?'refine a busca ou estreite o período':'estreite o período'}</span>` : ''}
       </div>
 
       <section class="finmv-sec">
@@ -33076,17 +33243,15 @@ function _finLancCascataRender(){
           <div class="finmv-grid finmv-thead">${_finLancTheadHtml(pagina)}</div>
           ${pagina.length
             ? (agrupado ? porDia.map(g=>_finLancCascataDiaHtml(g, ctx)).join('') : pagina.map(l=>_finLancCascataRowHtml(l, ctx)).join(''))
-            : `<div style="padding:38px 16px;text-align:center;display:flex;flex-direction:column;gap:8px;align-items:center;">
-                 <span style="font-size:13px;color:#5A5F66;">Nenhum lançamento nesta visão com o filtro aplicado.</span>
-                 <span class="cx-link" onclick="_finMovLimparFiltros()">Limpar filtros</span></div>`}
+            : `<div style="padding:38px 16px;text-align:center;font-size:13px;color:#5A5F66;">Nenhum lançamento com esses filtros. <a style="color:#15224A;font-weight:600;cursor:pointer;" onclick="_finMovLimparFiltros()">Limpar filtros</a></div>`}
         </div>
         ${restantes ? `<button class="finmv-mostrar" onclick="_finMovVerMais()">Mostrar mais ${Math.min(FIN_MOV_PAGINA, restantes)} de ${restantes}</button>` : ''}
         <div class="finmv-foot">
-          <span class="lb">Totais do filtro</span>
-          <span>entradas <b style="color:#4C6647;">${fmtR(ent)}</b></span>
-          <span>saídas <b style="color:#7D3F33;">${fmtR(sai)}</b></span>
-          ${nVencidos ? `<button class="finmv-efet-lote" onclick="_finMovEfetivarVencidos()">Efetivar ${nVencidos} ${nVencidos===1?'vencido':'vencidos'}</button>` : ''}
-          <span style="margin-left:auto;">líquido <b style="color:${(ent-sai)>=0?'#4C6647':'#7D3F33'};">${fmtRs(ent-sai)}</b></span>
+          <span>Totais do filtro</span>
+          <span>· entradas <b style="color:#4A7A52;">+${fmtR(ent)}</b></span>
+          <span>· saídas <b style="color:#9B4A3F;">−${fmtR(sai)}</b></span>
+          <span>· líquido <b style="color:${(ent-sai)>=0?'#4A7A52':'#9B4A3F'};">${fmtRs(ent-sai)}</b></span>
+          ${nVencidos ? `<button class="finmv-efet-lote" style="margin-left:auto;" onclick="_finMovEfetivarVencidos()">Efetivar ${nVencidos} ${nVencidos===1?'vencido':'vencidos'}</button>` : ''}
         </div>
       </section>
       <div id="finlc-bulkbar"></div>
@@ -33097,16 +33262,352 @@ function _finLancCascataRender(){
 
 // Painel de filtros de 452px. Só é MONTADO quando está aberto — o mesmo motivo pelo qual
 // menu e seletor de conta só existem na linha aberta.
-function _finMovPainelFiltrosHtml(contas, cats, cedentes, contador, chipF){
+// ══════════════════════════════════════════════════════════════
+// MOVIMENTAÇÕES v2 — repasse na linha (handoff Financeiro v2, 05/09/2026)
+// ──────────────────────────────────────────────────────────────
+// A aba "Recebíveis e repasses" saiu; repassar ao credor é o botão Repassar da linha (e o
+// lote "Repassar N ao credor"). O que é repasse aqui é o MESMO critério do Fluxo de caixa
+// e do badge da aba (_finFluxoClassificaSaida: credor_id ou categoria "Aquisição de
+// dívidas de terceiro"; tarifa nunca é). O botão só existe em saída de aquisição em
+// aberto e sem transferência já disparada; o backend (/api/repassar) garante a
+// idempotência (claim pendente→preparado) e o teto de capital (409 teto_capital).
+function _finMovCatNome(l, ctx){
+  const c = ctx && ctx.catPorLanc && ctx.catPorLanc[l.id];
+  if(!c) return '';
+  return Array.isArray(c.nomes) && c.nomes.length ? c.nomes.join(' / ') : (c.nome || '');
+}
+function _finMovEhRepasse(l, ctx){
+  return l.tipo_movimento === 0 && _finFluxoClassificaSaida(l, _finMovCatNome(l, ctx)) === 'repasse';
+}
+function _finMovRepasseAberto(l, ctx){
+  if(!_finMovEhRepasse(l, ctx) || _finLancQuitado(l) || +l.status !== 0) return false;
+  const op = ctx.opsByLanc[l.id];
+  if(op && (op.repasse_asaas_transfer_id || op.repasse_status === 'preparado' || op.repasse_status === 'efetuado')) return false;
+  return true;
+}
+// Pílula de situação (handoff §3.2). Para saída de repasse: PENDENTE (em aberto),
+// PIX ENVIADO (preparado, aguardando o Asaas) e REPASSADO (efetuado). O resto é a
+// situação de sempre (_finLancSit), só com a paleta do handoff.
+const FIN_MOV_SIT_CORES = {
+  'PAGO':['#EEF0F4','#5A6472'], 'CONCILIADO':['#E9F0E9','#4A7A52'], 'ATRASADO':['#F6E9E7','#9B4A3F'],
+  'A RECEBER':['#E8EEF5','#3A6491'], 'A PAGAR':['#FBF3E1','#7A6428'], 'PENDENTE':['#FBF3E1','#7A6428'],
+  'PIX ENVIADO':['#E8EEF5','#3A6491'], 'REPASSADO':['#E9F0E9','#4A7A52'],
+};
+function _finMovSit(l, ctx){
+  const st = _finLancSit(l);
+  let t = st.t;
+  if(_finMovEhRepasse(l, ctx)){
+    const op = ctx.opsByLanc[l.id];
+    if(op && op.repasse_status === 'preparado' && !_finLancQuitado(l)) t = 'PIX ENVIADO';
+    else if(op && op.repasse_status === 'efetuado') t = 'REPASSADO';
+    else if(t === 'A PAGAR') t = 'PENDENTE';
+  }
+  const c = FIN_MOV_SIT_CORES[t] || FIN_MOV_SIT_CORES.PAGO;
+  return { t, bg:c[0], fg:c[1] };
+}
+// Contador de um chip com os OUTROS recortes vigentes — o mesmo caminho da lista.
+function _finMovContarChip(campo, valor){
   const s = _finLancCascataState;
-  const secao = (titulo, campo, opcoes) => `
-    <div class="sec">
-      <span class="tt">${titulo}</span>
-      <div class="ops">${opcoes.map(o=>`<button style="${chipF(s[campo]===o[0])}" onclick="event.stopPropagation();_finMovToggleChip('${campo}','${o[0]}')">${escHtml(o[1])}</button>`).join('')}</div>
+  const antes = s[campo];
+  s[campo] = valor;
+  try{ return _finLancCascataFiltrados().length; } finally { s[campo] = antes; }
+}
+
+// Toast escuro de 6s do handoff (radius 10). Sem "Desfazer": não existe desfazer de PIX,
+// e um botão que só fecha o toast prometeria o que não faz.
+function _finRepToast(msg, erro){
+  let c = document.getElementById('finrep-toasts');
+  if(!c){ c = document.createElement('div'); c.id = 'finrep-toasts'; c.style.cssText = 'position:fixed;right:24px;bottom:24px;z-index:12000;display:flex;flex-direction:column;gap:8px;'; document.body.appendChild(c); }
+  const t = document.createElement('div');
+  t.style.cssText = `background:${erro?'#7D3F33':'#0A1530'};color:#EFEAD9;border-radius:10px;padding:12px 16px;font-size:13px;box-shadow:0 8px 24px rgba(10,21,48,.28);max-width:420px;animation:toastIn .25s ease;display:flex;align-items:center;gap:10px;`;
+  t.innerHTML = `<span style="flex:1;">${escHtml(msg)}</span><button style="background:transparent;border:none;color:#C9A961;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;" onclick="this.parentNode.remove()">fechar</button>`;
+  c.appendChild(t);
+  setTimeout(()=>{ try{ t.remove(); }catch(_){} }, 6000);
+}
+
+// ── Modal "Repasse ao credor · PIX via Asaas" (handoff §3.3) ──────────────────────
+// Chama POST /api/repassar { lancamento_id, credor_id?, pix_key? }. Capital do caso e
+// "já repassado" espelham api/_repasse-ficha.js saldoDeCapital (o maior entre a ficha e
+// as saídas baixadas), para o modal recusar ANTES o que o servidor recusaria com 409.
+let _finRepState = null;
+function _finRepOverlay(){
+  let ov = document.getElementById('finrep-overlay');
+  if(!ov){ ov = document.createElement('div'); ov.id='finrep-overlay'; ov.className='overlay'; ov.style.zIndex = '1100'; document.body.appendChild(ov); }
+  return ov;
+}
+function _finRepFechar(){ const ov = document.getElementById('finrep-overlay'); if(ov) ov.classList.remove('open'); _finRepState = null; }
+async function _finRepAbrir(lancId, fila){
+  const sb = getSupabase();
+  const ov = _finRepOverlay();
+  ov.innerHTML = `<div class="modal" style="max-width:560px;"><div class="modal-body" style="text-align:center;color:#8A94A6;padding:40px;"><div class="mv2-spinner" style="margin:0 auto 10px;width:24px;height:24px;border-width:3px;"></div>Preparando o repasse…</div></div>`;
+  ov.classList.add('open');
+  try{
+    const { data:l, error } = await sb.from('fin_lancamento')
+      .select('id,descricao,valor,tipo_movimento,status,cobranca_id,credor_id,numero_parcela,total_parcelas,data_vencimento')
+      .eq('id', lancId).single();
+    if(error || !l) throw new Error((error && error.message) || 'lançamento não encontrado');
+    if(l.tipo_movimento !== 0 || +l.status !== 0) throw new Error('este lançamento não é uma saída em aberto');
+    let credorId = l.credor_id || null;
+    if(!credorId && l.cobranca_id){
+      try{ const { data:c } = await sb.from('cobrancas').select('cliente_id').eq('id', l.cobranca_id).maybeSingle(); credorId = (c && c.cliente_id) || null; }catch(_){}
+    }
+    let credor = null, credores = [];
+    if(credorId){
+      const { data:c } = await sb.from('clientes').select('id,nome,nome_fantasia,doc,chave_pix').eq('id', credorId).maybeSingle();
+      credor = c || null;
+    }
+    if(!credor){
+      const { data:cs } = await sb.from('clientes').select('id,nome,nome_fantasia,doc,chave_pix').order('nome').limit(500);
+      credores = cs || [];
+    }
+    // Devedor: o cadastrado prevalece (devedores e cobrancas compartilham o id); senão o
+    // nome que está na descrição, sem as anotações de trabalho.
+    let devedor = _finRepasseNomeDevedor(l.descricao);
+    if(l.cobranca_id){
+      try{ const { data:d } = await sb.from('devedores').select('nome').eq('id', l.cobranca_id).maybeSingle(); if(d && d.nome) devedor = d.nome; }catch(_){}
+    }
+    let parcela = l.numero_parcela || null, total = l.total_parcelas || null;
+    if(!parcela){ const m = String(l.descricao||'').match(/(\d+)\s*\/\s*(\d+)\s*$/); if(m){ parcela = +m[1]; total = +m[2]; } }
+    // Teto do caso — mesma conta de saldoDeCapital (api/_repasse-ficha.js).
+    let saldo = null;
+    if(l.cobranca_id){
+      try{
+        const { data:cob } = await sb.from('cobrancas').select('valor_capital,divida').eq('id', l.cobranca_id).maybeSingle();
+        const cap = cob ? (cob.valor_capital != null ? +cob.valor_capital : (cob.divida && cob.divida.valorCapital != null ? +cob.divida.valorCapital : null)) : null;
+        if(cap != null && cap > 0){
+          const [{ data:rps }, { data:lancs }] = await Promise.all([
+            sb.from('repasses_cliente').select('valor').eq('cobranca_id', l.cobranca_id),
+            sb.from('fin_lancamento').select('valor').eq('cobranca_id', l.cobranca_id).eq('tipo_movimento', 0).eq('status', 1),
+          ]);
+          const naFicha = (rps||[]).reduce((s2,r)=>s2+(+r.valor||0),0);
+          const noFin = (lancs||[]).reduce((s2,x)=>s2+Math.abs(+x.valor||0),0);
+          const enviado = Math.max(naFicha, noFin);
+          saldo = { capital: cap, enviado, resta: +(cap - enviado).toFixed(2) };
+        }
+      }catch(_){ saldo = null; }
+    }
+    _finRepState = { l, valor: Math.abs(+l.valor||0), credor, credores, credorId: credor ? credor.id : null,
+      pixKey: credor ? (credor.chave_pix || '') : '', pixEditada:false, devedor, parcela, total, saldo,
+      fila: Array.isArray(fila) ? fila.slice() : [], enviando:false };
+    _finRepRender();
+  }catch(e){
+    _finRepFechar();
+    showToast('Não deu para preparar o repasse: ' + (e.message||e), 'danger');
+  }
+}
+function _finRepDescricaoPix(){
+  const S = _finRepState; if(!S) return '';
+  // Espelho de descricaoPix (api/_repasse-msg.js): "<parcela> - <devedor>".
+  const nome = S.devedor || '';
+  return nome ? (S.parcela ? `${S.parcela} - ${nome}` : nome) : (S.parcela ? `Repasse Cobrasq - parcela ${S.parcela}` : 'Repasse Cobrasq');
+}
+function _finRepSetCredor(id){
+  const S = _finRepState; if(!S) return;
+  S.credorId = id;
+  const c = S.credores.find(x => String(x.id) === String(id));
+  if(c && !S.pixEditada) S.pixKey = c.chave_pix || '';
+  _finRepRender();
+}
+function _finRepSetPix(v){ const S = _finRepState; if(!S) return; S.pixKey = v; S.pixEditada = true; const ok = document.getElementById('finrep-ok'); if(ok) ok.disabled = !_finRepValido(); }
+function _finRepValido(){
+  const S = _finRepState; if(!S || S.enviando) return false;
+  if(!S.credorId) return false;
+  if(S.saldo && S.valor > S.saldo.resta + 0.005) return false;
+  return true;
+}
+function _finRepRender(){
+  const S = _finRepState; if(!S) return;
+  const ov = _finRepOverlay();
+  const fmtDoc = d => { const x = String(d||'').replace(/\D/g,''); if(x.length===14) return `CNPJ ${x.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/,'$1.$2.$3/$4-$5')}`; if(x.length===11) return `CPF ${x.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/,'$1.$2.$3-$4')}`; return d || ''; };
+  const sigla = n => { const p = String(n||'').replace(/[^\p{L}\s]/gu,'').trim().split(/\s+/); return ((p[0]||'')[0]||'' ) + ((p[1]||'')[0]||''); };
+  const credorSel = S.credor || S.credores.find(x => String(x.id) === String(S.credorId)) || null;
+  const nomeCred = credorSel ? _finNomeCredor(credorSel) : '';
+  const estoura = S.saldo && S.valor > S.saldo.resta + 0.005;
+  const pctJa = S.saldo && S.saldo.capital > 0 ? Math.min(100, S.saldo.enviado / S.saldo.capital * 100) : 0;
+  const pctEste = S.saldo && S.saldo.capital > 0 ? Math.max(0, Math.min(100 - pctJa, S.valor / S.saldo.capital * 100)) : 0;
+  const fonte = S.credor
+    ? (S.pixEditada ? '<span style="color:#97793A;">chave informada agora — fica salva no cadastro do cliente</span>'
+       : (S.credor.chave_pix ? '<span style="color:#4A7A52;">chave PIX do cadastro do cliente</span>' : '<span style="color:#97793A;">sem chave no cadastro — será usado o CPF/CNPJ do credor</span>'))
+    : (S.credorId ? (S.pixEditada ? '<span style="color:#97793A;">chave informada agora</span>' : (S.pixKey ? '<span style="color:#4A7A52;">chave PIX do cadastro do credor escolhido</span>' : '<span style="color:#97793A;">será a chave do credor escolhido (ou o CPF/CNPJ dele)</span>'))
+       : '<span style="color:#97793A;">será a chave do credor escolhido</span>');
+  ov.innerHTML = `
+    <style>
+      .finrep-eye{font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:#97793A;}
+      .finrep-t{font-family:'Fraunces',Georgia,serif;font-size:20px;font-weight:500;color:#0A1530;margin-top:4px;line-height:1.2;}
+      .finrep-lb{font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:rgba(10,21,48,.5);margin-bottom:6px;}
+      .finrep-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+      @media (max-width:560px){ .finrep-grid{grid-template-columns:1fr;} }
+      .finrep-val{font-family:'JetBrains Mono',monospace;font-size:24px;font-weight:600;color:#0A1530;white-space:nowrap;}
+      .finrep-sub{font-size:12px;color:#5A5F66;margin-top:4px;}
+      .finrep-box{background:#F4F5F7;border-radius:8px;padding:10px 12px;font-family:'JetBrains Mono',monospace;font-size:13px;color:#0A1530;word-break:break-word;}
+      .finrep-cred{display:flex;align-items:center;gap:10px;border:1px solid rgba(10,21,48,.10);border-radius:10px;padding:10px 12px;}
+      .finrep-av{width:32px;height:32px;border-radius:50%;background:#C9A961;color:#2A1A05;display:grid;place-items:center;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;flex-shrink:0;}
+      .finrep-aviso{background:#F6E9E7;border:1px solid #E7CFC7;color:#7D3F33;border-radius:8px;padding:10px 12px;font-size:12.5px;margin-bottom:8px;}
+      .finrep-lista{max-height:180px;overflow-y:auto;border:1px solid rgba(10,21,48,.10);border-radius:8px;}
+      .finrep-lista label{display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid #F2EFE6;font-size:12.5px;cursor:pointer;}
+      .finrep-lista label:hover{background:#FBFAF6;}
+      .finrep-inp{width:100%;box-sizing:border-box;border:1px solid rgba(10,21,48,.14);border-radius:8px;padding:10px 12px;font-family:'JetBrains Mono',monospace;font-size:13px;color:#0A1530;outline:none;}
+      .finrep-inp:focus{border-color:#0A1530;}
+      .finrep-cap{background:#FBFAF6;border:1px solid #E6E1D2;border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;font-size:13px;}
+      .finrep-cap .ln{display:flex;justify-content:space-between;gap:10px;}
+      .finrep-cap .ln b{font-family:'JetBrains Mono',monospace;font-weight:600;white-space:nowrap;}
+      .finrep-bar{height:8px;background:#EEF0F4;border-radius:4px;overflow:hidden;display:flex;margin-top:4px;}
+      .finrep-bar i{display:block;height:100%;}
+      .finrep-ok{background:#4A7A52;color:#fff;border:none;border-radius:8px;padding:10px 16px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;}
+      .finrep-ok:disabled{background:#EEF0F4;color:#8A94A6;cursor:not-allowed;}
+      .finrep-ghost{background:#fff;color:#0A1530;border:1px solid rgba(10,21,48,.14);border-radius:8px;padding:10px 16px;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;}
+    </style>
+    <div class="modal" style="max-width:560px;">
+      <div class="modal-header" style="align-items:flex-start;">
+        <div style="flex:1;min-width:0;">
+          <div class="finrep-eye">Repasse ao credor · PIX via Asaas</div>
+          <div class="finrep-t">${escHtml(_finDescCrua(S.l.descricao) || 'Repasse')}</div>
+        </div>
+        <button class="modal-close" onclick="_finRepFechar()">&#10005;</button>
+      </div>
+      <div class="modal-body" style="display:flex;flex-direction:column;gap:18px;">
+        <div class="finrep-grid">
+          <div>
+            <div class="finrep-lb">Valor do PIX</div>
+            <div class="finrep-val">${fmtR(S.valor)}</div>
+            <div class="finrep-sub">${S.parcela ? `parcela ${S.parcela}${S.total ? ' de ' + S.total : ''} · ` : ''}devedor ${escHtml(S.devedor || '—')}</div>
+          </div>
+          <div>
+            <div class="finrep-lb">Descrição no extrato do credor</div>
+            <div class="finrep-box">${escHtml(_finRepDescricaoPix())}</div>
+          </div>
+        </div>
+        <div>
+          <div class="finrep-lb">Credor</div>
+          ${S.credor ? `<div class="finrep-cred"><span class="finrep-av">${escHtml(sigla(nomeCred).toUpperCase())}</span><div style="min-width:0;"><div style="font-weight:600;font-size:13.5px;color:#0A1530;">${escHtml(nomeCred)}</div><div style="font-size:12px;color:#5A5F66;">${escHtml(fmtDoc(S.credor.doc))}</div></div></div>`
+          : `<div class="finrep-aviso">Lançamento sem credor vinculado — escolha abaixo. A escolha vale para as outras parcelas em aberto deste devedor.</div>
+             <div class="finrep-lista">${S.credores.map(c => `<label><input type="radio" name="finrep-cred" ${String(c.id)===String(S.credorId)?'checked':''} onchange="_finRepSetCredor('${c.id}')"><span style="flex:1;min-width:0;"><span style="display:block;font-weight:600;color:#0A1530;">${escHtml(_finNomeCredor(c)||'—')}</span><span style="font-size:11.5px;color:#5A5F66;">${escHtml(fmtDoc(c.doc))}</span></span></label>`).join('') || '<div style="padding:12px;font-size:12.5px;color:#8A94A6;">Nenhum cliente cadastrado.</div>'}</div>`}
+        </div>
+        <div>
+          <div class="finrep-lb">Chave PIX</div>
+          <input class="finrep-inp" value="${escHtml(S.pixKey||'')}" placeholder="CPF/CNPJ, e-mail, telefone ou chave aleatória" oninput="_finRepSetPix(this.value)">
+          <div class="finrep-sub" style="text-align:right;">${fonte}</div>
+        </div>
+        ${S.saldo ? `<div class="finrep-cap">
+          <div class="ln"><span>Capital do caso</span><b>${fmtR(S.saldo.capital)}</b></div>
+          <div class="ln"><span>Já repassado</span><b>${fmtR(S.saldo.enviado)}</b></div>
+          <div class="ln" style="font-weight:600;"><span>Resta após este PIX</span><b style="color:${estoura?'#9B4A3F':'#0A1530'};">${fmtRs(S.saldo.resta - S.valor)}</b></div>
+          <div class="finrep-bar"><i style="width:${pctJa.toFixed(1)}%;background:#4A7A52;"></i><i style="width:${pctEste.toFixed(1)}%;background:#C9A961;"></i></div>
+          ${estoura ? `<div style="color:#9B4A3F;font-weight:600;font-size:12.5px;">Este repasse passa do teto em ${fmtR(S.valor - S.saldo.resta)} — o servidor recusaria (teto do capital do caso).</div>` : ''}
+        </div>` : `<div style="font-size:12px;color:#8A94A6;">Sem cobrança vinculada ou sem capital definido no caso: não há teto conhecido para este repasse.</div>`}
+        <div style="font-size:12px;color:#5A5F66;line-height:1.5;">Ao confirmar: PIX sai pelo Asaas, esta saída é baixada como paga, o comprovante do banco vai ao credor por WhatsApp e fica anexado na ficha do caso.${S.fila.length ? ` Depois deste, ${S.fila.length === 1 ? 'vem mais 1 repasse' : 'vêm mais ' + S.fila.length + ' repasses'} da seleção.` : ''}</div>
+      </div>
+      <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:10px;">
+        <button class="finrep-ghost" onclick="_finRepFechar()">Cancelar</button>
+        <button class="finrep-ok" id="finrep-ok" ${_finRepValido()?'':'disabled'} onclick="_finRepConfirmar()">Confirmar PIX de ${fmtR(S.valor)}</button>
+      </div>
     </div>`;
+  ov.classList.add('open');
+}
+async function _finRepConfirmar(){
+  const S = _finRepState; if(!S || !_finRepValido()) return;
+  S.enviando = true;
+  const ok = document.getElementById('finrep-ok'); if(ok){ ok.disabled = true; ok.textContent = 'Enviando PIX…'; }
+  const body = { lancamento_id: S.l.id };
+  if(!S.l.credor_id && S.credorId) body.credor_id = S.credorId;
+  const pix = String(S.pixKey||'').trim();
+  if(pix && (S.pixEditada || !(S.credor && S.credor.chave_pix === pix))) body.pix_key = pix;
+  const fila = S.fila.slice();
+  try{
+    const res = await fetch('/api/repassar', { method:'POST', headers:{ ...(await authHeaders()), 'Content-Type':'application/json' }, body: JSON.stringify(body) });
+    const j = await res.json().catch(()=>({}));
+    if(!res.ok){
+      if(j.teto_capital) throw new Error(j.error || 'passa do teto de capital do caso');
+      throw new Error(j.error || ('HTTP ' + res.status));
+    }
+    if(j.skipped) _finRepToast(`Nada enviado: ${j.skipped}.`);
+    else if(j.repasse_status === 'efetuado') _finRepToast(`PIX de ${fmtR(S.valor)} enviado · comprovante indo ao credor por WhatsApp.`);
+    else if(j.repasse_status === 'preparado') _finRepToast(`PIX de ${fmtR(S.valor)} enviado · Asaas ainda processando; a linha vira REPASSADO quando confirmar.`);
+    else if(j.liberado) _finRepToast(`A transferência anterior ${j.motivo ? '(' + j.motivo + ') ' : ''}foi liberada — clique em Repassar de novo.`);
+    else _finRepToast('Repasse registrado.');
+    _finRepFechar();
+    _finFinanceiroInvalidaCaches();
+    if(fila.length){
+      // Lote: o próximo abre depois que a lista recarregou, para a linha anterior já
+      // aparecer com a situação nova.
+      await renderFinLancamentosCascata(document.getElementById('fin-content'));
+      _finRepAbrir(fila[0], fila.slice(1));
+    } else {
+      renderFinTab('lancamentos');
+    }
+  }catch(e){
+    S.enviando = false;
+    _finRepToast('Erro no repasse: ' + (e.message||e), true);
+    if(ok){ ok.disabled = !_finRepValido(); ok.textContent = 'Confirmar PIX de ' + fmtR(S.valor); }
+  }
+}
+// Lote "Repassar N ao credor": abre o modal para o primeiro repasse em aberto da seleção;
+// ao confirmar, segue para o próximo.
+function _finRepLote(){
+  const ctx = window._finLancCascataCtx; if(!ctx) return;
+  const sel = _finLancCascataState.sel;
+  const ids = ctx.rows.filter(l => sel.has(l.id) && _finMovRepasseAberto(l, ctx)).map(l => l.id);
+  if(!ids.length){ showToast('Nenhum repasse em aberto na seleção.', 'warning'); return; }
+  _finRepAbrir(ids[0], ids.slice(1));
+}
+
+// ── Lote "Alterar categoria" ──────────────────────────────────────────────────────
+// Troca o rateio inteiro das linhas selecionadas por UMA categoria (mesma gravação do
+// editor de série). Avisa quando alguma linha tem rateio em mais de uma categoria.
+function _finLoteCategoriaAbrir(){
+  const linhas = _finLoteSelecionados();
+  if(!linhas.length){ showToast('Nada selecionado.', 'danger'); return; }
+  const ctx = window._finLancCascataCtx || {};
+  const cats = ((ctx.dim && ctx.dim.categorias) || []).filter(c => c.ativa !== false);
+  const ov = _finLoteAbrirOverlay();
+  const tipos = new Set(linhas.map(l => l.tipo_movimento));
+  const lista = cats.filter(c => tipos.size !== 1 || c.tipo_movimento == null || c.tipo_movimento === [...tipos][0]);
+  ov.innerHTML = `<div class="modal modal-sm">
+    <div class="modal-header"><span class="modal-title">Alterar categoria de ${linhas.length} ${linhas.length===1?'lançamento':'lançamentos'}</span><button class="modal-close" onclick="closeModal('finlote-overlay')">&#10005;</button></div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:10px;">
+      <select id="finlote-cat" style="width:100%;border:1px solid var(--border);border-radius:8px;padding:9px 10px;font-family:inherit;font-size:13px;">
+        <option value="">Escolha a categoria…</option>
+        ${lista.map(c => `<option value="${c.id}">${escHtml(c.descricao||'')}</option>`).join('')}
+      </select>
+      <div style="font-size:11.5px;color:var(--text-3);">A categoria escolhida substitui o rateio inteiro de cada linha selecionada.</div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('finlote-overlay')">Cancelar</button><button class="btn btn-primary" onclick="_finLoteCategoriaConfirmar()">Aplicar</button></div>
+  </div>`;
+  window._finLoteCtx = { linhas };
+  openModal('finlote-overlay');
+}
+async function _finLoteCategoriaConfirmar(){
+  const sel = document.getElementById('finlote-cat');
+  const catId = sel && sel.value; if(!catId){ showToast('Escolha a categoria.', 'warning'); return; }
+  const linhas = ((window._finLoteCtx || {}).linhas) || [];
+  if(!linhas.length) return;
+  const sb = getSupabase();
+  try{
+    const ids = linhas.map(l => l.id);
+    const { data:atual } = await sb.from('fin_lancamento_categoria').select('lancamento_id').in('lancamento_id', ids).limit(4000);
+    const porLanc = {}; (atual||[]).forEach(r => { porLanc[r.lancamento_id] = (porLanc[r.lancamento_id]||0) + 1; });
+    const comRateio = Object.values(porLanc).filter(n => n > 1).length;
+    if(comRateio && !confirm(`${comRateio} lançamento(s) têm rateio em mais de uma categoria. Trocar substitui o rateio inteiro. Continuar?`)) return;
+    await sb.from('fin_lancamento_categoria').delete().in('lancamento_id', ids);
+    const rows = linhas.map(l => ({ lancamento_id: l.id, categoria_id: catId, valor: Math.abs(+l.valor||0) }));
+    const { error } = await sb.from('fin_lancamento_categoria').insert(rows);
+    if(error) throw error;
+    closeModal('finlote-overlay');
+    _finFinanceiroInvalidaCaches();
+    showToast(`Categoria alterada em ${rows.length} ${rows.length===1?'lançamento':'lançamentos'}.`, 'success');
+    renderFinTab('lancamentos');
+  }catch(e){ showToast('Erro ao alterar categoria: ' + (e.message||e), 'danger'); }
+}
+function _finMovPainelFiltrosHtml(contas, cats, cedentes, contador, chipF){
+  // Painel do botão Filtrar (handoff v2): tipo e situação viraram chips na linha, então aqui
+  // ficam a busca no servidor (varre o período inteiro, além do teto de FIN_LANC_LIMITE),
+  // contas e os filtros avançados (categoria, cedente, faixa de valor).
+  const s = _finLancCascataState;
   return `<div class="finmv-painel" onclick="event.stopPropagation()">
-    ${secao('Tipo','fTipo',[['in','Entradas'],['out','Saídas'],['repasse','Repasses'],['fatprev','Faturamento previsto']])}
-    ${secao('Status','fStatus',[['pago','Efetivado'],['pendente','Pendente'],['atrasado','Atrasado']])}
+    <div class="sec">
+      <span class="tt">Buscar na descrição</span>
+      <input class="finmv-inp" id="finmv-busca" type="search" value="${escHtml(s.busca)}" placeholder="nome, parcela, anotação… (Enter)" onchange="_finLancCascataBusca(this.value)">
+    </div>
     <div class="sec">
       <span class="tt">Contas e carteiras</span>
       <div class="ops">${contas.map(c=>`<button style="${chipF(s.fContas.indexOf(String(c.id))>=0)}" onclick="event.stopPropagation();_finMovToggleConta('${c.id}')">${_finContaAvatar(c,16)}${escHtml(c.descricao||'—')}</button>`).join('') || '<span style="font-size:11.5px;color:#A6AEBD;">Nenhuma conta cadastrada.</span>'}</div>
@@ -33148,8 +33649,10 @@ function _finMovFecharPopovers(ev){
 // Cabeçalho: as 9 colunas do handoff. Checkbox do cabeçalho marca/desmarca todas as
 // linhas VISÍVEIS (a página exibida), não a lista inteira.
 function _finLancTheadHtml(pagina){
+  // Cabeçalho das 8 colunas do handoff v2: ☐ · · DESCRIÇÃO · CATEGORIA · CONTA · VALOR ·
+  // SITUAÇÃO · AÇÃO. O checkbox marca/desmarca as linhas VISÍVEIS (a página exibida),
+  // que já respeitam o filtro.
   const { col, dir } = _finLancCascataState.ord;
-  // Ícone de ordenação no padrão do Controlle: Lucide arrow-up-down, opacity .3 → .7.
   const setinha = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m21 16-4 4-4-4"/><path d="M17 20V4"/><path d="m3 8 4-4 4 4"/><path d="M7 4v16"/></svg>`;
   const th = (k, cls) => {
     const on = col===k;
@@ -33157,15 +33660,14 @@ function _finLancTheadHtml(pagina){
   };
   const vis = pagina||[];
   const todas = vis.length > 0 && vis.every(l => _finLancCascataState.sel.has(l.id));
-  return `<span><input type="checkbox" style="width:14px;height:14px;accent-color:#0A1530;cursor:pointer;" ${todas?'checked':''} onclick="_finMovToggleTodos(this.checked)" title="Marcar todas as linhas visíveis"></span>`
-       + `<span style="text-align:center;">Tipo</span>`
-       + th('data')
+  return `<span><input type="checkbox" ${todas?'checked':''} onclick="_finMovToggleTodos(this.checked)" title="Marcar todas as linhas visíveis"></span>`
+       + `<span></span>`
        + th('descricao')
        + th('categoria')
+       + `<span>Conta</span>`
        + th('valor','num')
-       + `<span style="text-align:center;">Conta</span>`
-       + `<span style="text-align:center;">Pago</span>`
-       + `<span></span>`;
+       + th('situacao')
+       + `<span style="text-align:right;">Ação</span>`;
 }
 function _finMovToggleTodos(marcar){
   const sel = _finLancCascataState.sel;
@@ -33175,21 +33677,22 @@ function _finMovToggleTodos(marcar){
 }
 // Cabeçalho de dia sem caixa: "1 de agosto · sáb", linha fina até o saldo do dia.
 function _finLancCascataDiaHtml(g, ctx){
-  const DOW = ['dom','seg','ter','qua','qui','sex','sáb'];
+  // Grupo por dia (handoff v2): "HOJE · SÁB 05/09" com o total do dia à direita. O total
+  // é do dia INTEIRO do filtro, mesmo quando a paginação corta o dia ao meio.
+  const DOW = ['DOM','SEG','TER','QUA','QUI','SEX','SÁB'];
   const d = g.data;
   const dt = d ? new Date(d+'T00:00:00') : null;
-  const longa = dt ? `${dt.getDate()} de ${_FIN_MESES[dt.getMonth()]}` : '—';
-  const dow = dt ? DOW[dt.getDay()] : '';
+  const h = isoLocal(new Date());
+  const ontem = (() => { const x = new Date(); x.setDate(x.getDate()-1); return isoLocal(x); })();
+  const amanha = (() => { const x = new Date(); x.setDate(x.getDate()+1); return isoLocal(x); })();
+  const pre = d === h ? 'HOJE · ' : (d === ontem ? 'ONTEM · ' : (d === amanha ? 'AMANHÃ · ' : ''));
+  const rot = dt ? `${pre}${DOW[dt.getDay()]} ${d.slice(8,10)}/${d.slice(5,7)}` : '—';
   const tot = g.tot || { e:0, s:0, n:g.itens.length };
   const saldo = tot.e - tot.s;
-  // Quando a página corta o dia ao meio, o saldo continua sendo o do dia inteiro e a
-  // faixa diz quantas linhas ainda faltam — em vez de mostrar um número parcial mudo.
   const faltam = Math.max(0, tot.n - g.itens.length);
-  return `<div class="finmv-dia">
-      <span class="dd">${longa}</span><span class="dow">${dow}</span>
-      ${faltam ? `<span class="dow" title="o saldo é do dia inteiro; o resto aparece em “Mostrar mais”">+${faltam} nesta data</span>` : ''}
-      <span class="rule"></span>
-      <span class="sld" style="color:${saldo>=0?'#4C6647':'#A65A4A'};">${saldo>=0?'+':''}${fmtRs(saldo)}</span>
+  return `<div class="finmv-daygrp">
+      <span>${rot}${faltam ? ` <span style="color:#A6AEBD;" title="o total é do dia inteiro; o resto aparece em “Mostrar mais”">+${faltam} nesta data</span>` : ''}</span>
+      <b style="color:${saldo>=0?'#4A7A52':'#9B4A3F'};">${saldo>=0?'+':''}${fmtRs(saldo)}</b>
     </div>${g.itens.map(l=>_finLancCascataRowHtml(l, ctx)).join('')}`;
 }
 function _finLancCascataRowHtml(l, ctx){
@@ -33202,56 +33705,58 @@ function _finLancCascataRowHtml(l, ctx){
   const atrasado = st.t === 'ATRASADO';
   const conta = ((ctx.dim && ctx.dim.contas) || []).find(c => String(c.id) === String(l.conta_id));
   const cat = ctx.catPorLanc && ctx.catPorLanc[l.id];
-
-  // Linha 2 da descrição: quem está do outro lado, sem repetir o que a linha 1 já diz.
-  // Receita própria e despesa operacional não têm segunda linha (handoff).
-  const cedente = _finLancCedente(l, ctx);
-  // "repasse a X" só vale para saída que É repasse. A tarifa do Asaas sai da conta da
-  // COBRASQ e pertence ao caso, não ao cedente — dizer "repasse a Injetcar" num débito de
-  // R$ 1,99 afirma um pagamento que não existe. Ela usa a mesma forma da receita: de qual
-  // carteira é o caso.
-  const sub = cedente
-    ? ((isEnt || _finEhTarifa(l)) ? `carteira de ${escHtml(cedente)}` : `repasse a ${escHtml(cedente)}`)
-    : '';
-
-  // Marcador circular ao lado do título. Divergência tem precedência: é a que trava o
-  // repasse. Substituem as tags de texto, que dobravam a altura da linha.
   const op = ctx.opsByLanc[l.id];
+  const repasse = _finMovEhRepasse(l, ctx);
+  const repAberto = _finMovRepasseAberto(l, ctx);
+  const sit = _finMovSit(l, ctx);
+
+  // Linha 2 da descrição: quem está do outro lado + a data que importa (vence / pago).
+  const cedente = _finLancCedente(l, ctx);
+  const sub = cedente ? ((isEnt || _finEhTarifa(l)) ? `carteira de ${escHtml(cedente)}` : `repasse a ${escHtml(cedente)}`) : '';
+  const dm = v => v ? v.slice(8,10) + '/' + v.slice(5,7) : '';
+  const hojeIso = isoLocal(new Date());
+  const quando = efetivado
+    ? (l.data_pagamento ? `pago em ${dm(l.data_pagamento)}` : '')
+    : (l.data_vencimento ? (l.data_vencimento === hojeIso ? 'vence hoje' : (atrasado ? `venceu ${dm(l.data_vencimento)}` : `vence ${dm(l.data_vencimento)}`)) : '');
+  const sub2 = [sub, quando].filter(Boolean).join(' · ');
+
+  // Marcador circular: divergência (trava o repasse) tem precedência sobre "a repassar".
   let marca = '';
   if(_finLancEhDivergencia(l, ctx)) marca = `<span class="finmv-marca" style="background:#FBEAE7;color:#7D3F33;" title="A parcela foi recebida mas a divisão entre COBRASQ e cedente não foi calculada. Nada pode ser repassado até resolver.">!</span>`;
-  else if(_finLancEhRepasse(l, ctx) && !(op && op.repasse_status === 'efetuado')) marca = `<span class="finmv-marca" style="background:#FBF3E1;color:#7A6428;" title="A repassar${cedente?' a '+escHtml(cedente):''}">↗</span>`;
+  else if(_finLancEhRepasse(l, ctx) && !(op && op.repasse_status === 'efetuado')) marca = `<span class="finmv-marca" style="background:#FBF3E1;color:#7A6428;" title="A repassar${cedente?' a '+escHtml(cedente):''} — a entrada já caiu">↗</span>`;
 
-  // Dois estados do badge de tipo (padrão do Controlle): efetivado preenche o círculo,
-  // previsto fica só com o anel.
-  const tom = isEnt ? '#D9F6E3' : '#FBEAE7';
-  const cor = isEnt ? '#4C6647' : '#A65A4A';
-  const path = isEnt ? 'M7 7h10v10M7 17 17 7' : 'M17 7 7 17M17 17H7V7';
-  const seta = `<span class="finmv-tipo" style="${efetivado?`background:${tom};`:`background:transparent;box-shadow:inset 0 0 0 2px ${tom};`}color:${cor};" title="${isEnt?'Receita':'Despesa'} ${efetivado?'efetivada':'prevista'}"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="${path}"/></svg></span>`;
+  // AÇÃO (handoff v2 §3.2): Repassar só em saída de aquisição em aberto sem transfer;
+  // "aguardando Asaas" enquanto o PIX está preparado; Comprovante quando efetuado;
+  // Confirmar (ghost) para A PAGAR / A RECEBER que não é repasse; sempre Abrir.
+  const acoes = [];
+  if(repAberto) acoes.push(`<button class="finmv-rep" onclick="event.stopPropagation();_finRepAbrir(${l.id})" title="Repassar ao credor por PIX (Asaas)"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3l4 4-4 4"/><path d="M21 7H7"/><path d="M7 21l-4-4 4-4"/><path d="M3 17h14"/></svg>Repassar</button>`);
+  else if(repasse && op && op.repasse_status === 'preparado' && !efetivado) acoes.push(`<span class="finmv-aguard" title="PIX disparado; o Asaas ainda não confirmou">aguardando Asaas ◔</span>`);
+  if(op && op.repasse_status === 'efetuado' && op.repasse_comprovante_url) acoes.push(`<a class="finmv-compr" href="${escHtml(op.repasse_comprovante_url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Comprovante ↗</a>`);
+  if(!efetivado && !repasse) acoes.push(`<button class="finmv-gh" onclick="event.stopPropagation();_finMovClicarPolegar(${l.id})" title="${isEnt?'Confirmar recebimento':'Confirmar pagamento'} · ${fmtR(Math.abs(+l.valor||0))}">Confirmar</button>`);
+  acoes.push(`<button class="finmv-lnk" onclick="event.stopPropagation();_finLancAbrirDrawer(${l.id})">Abrir</button>`);
 
-  return `<div class="finmv-grid finmv-row ${sel?'sel':''} ${atrasado?'atraso':''}" data-lanc="${l.id}" onclick="_finLancAbrirDrawer(${l.id})">
+  return `<div class="finmv-grid finmv-row ${sel?'sel':''} ${repAberto?'rep':''}" data-lanc="${l.id}" onclick="_finLancAbrirDrawer(${l.id})">
       <span><input type="checkbox" ${sel?'checked':''} onclick="event.stopPropagation();_finLancCascataToggleSel(${l.id})"></span>
-      ${seta}
-      <span class="finmv-data">${(l.data_competencia||'').slice(8,10)}/${(l.data_competencia||'').slice(5,7)}</span>
+      <span class="fin-ti ${isEnt?'rec':'des'}" title="${isEnt?'Entrada':'Saída'}">${isEnt?'↓':'↑'}</span>
       <span style="min-width:0;">
         <span class="finmv-d1">
           <span class="tx" title="${escHtml(l.descricao||'')}">${escHtml(_finMovDescSemParcela(l))}</span>
           ${l.numero_parcela && l.total_parcelas ? `<span class="finmv-parc" title="parcela ${l.numero_parcela}/${l.total_parcelas} deste acordo">${l.numero_parcela}/${l.total_parcelas}</span>` : ''}
           ${marca}
         </span>
-        ${sub ? `<span class="finmv-d2" style="color:#9C7F40;">${sub}</span>` : ''}
+        ${sub2 ? `<span class="finmv-d2">${sub2}</span>` : ''}
       </span>
-      <span class="finmv-cat" title="${cat?escHtml(cat.nome):''}">${cat ? escHtml(cat.nome)+(cat.extras?` <span style="color:#C3C9D4;">+${cat.extras}</span>`:'') : '<span style="color:#C9C3B4;">sem categoria</span>'}</span>
-      <span class="finmv-val" style="color:${isEnt?'#4C6647':'#0A1530'};" title="${vc.extra ? `face ${fmtR(vc.face)} + ${fmtR(Math.abs(vc.extra))} de ${vc.extra>0?'acréscimo':'desconto'}` : ''}">${isEnt?'+':'−'} ${fmtR(vc.v)}${vc.extra ? `<span class="finmv-vextra" title="face da parcela: ${fmtR(vc.face)}">${vc.extra>0?'+':'−'}${fmtR(Math.abs(vc.extra))}</span>` : ''}</span>
-      <span class="finmv-cel">
-        <button class="finmv-cbtn" onclick="event.stopPropagation();_finMovAbrirPopConta(${l.id})" title="${escHtml((conta&&conta.descricao)||'sem conta')} — clique para mover">${_finContaAvatar(conta, 20)}</button>
+      <span class="finmv-cat">${cat ? `<span class="fin-catpill" title="${escHtml(cat.nome)}" style="max-width:100%;overflow:hidden;text-overflow:ellipsis;display:inline-block;">${escHtml(cat.nome)}${cat.extras?` <span style="color:#C3C9D4;">+${cat.extras}</span>`:''}</span>` : '<span style="color:#C9C3B4;font-size:11.5px;">sem categoria</span>'}</span>
+      <span class="finmv-cel" style="min-width:0;">
+        <span class="finmv-conta" title="${escHtml((conta&&conta.descricao)||'sem conta')} — clique para mover" onclick="event.stopPropagation();_finMovAbrirPopConta(${l.id})">${escHtml((conta&&conta.descricao)||'—')}</span>
         ${s.popConta === l.id ? _finMovPopContaHtml(l, ctx) : ''}
       </span>
-      <span class="finmv-cel">
-        ${_finMovPolegarHtml(l, st, efetivado, atrasado)}
+      <span class="finmv-val" style="color:${isEnt?'#4A7A52':'#9B4A3F'};" title="${vc.extra ? `face ${fmtR(vc.face)} + ${fmtR(Math.abs(vc.extra))} de ${vc.extra>0?'acréscimo':'desconto'}` : ''}">${isEnt?'+':'−'}${fmtR(vc.v)}${vc.extra ? `<span class="finmv-vextra" title="face da parcela: ${fmtR(vc.face)}">${vc.extra>0?'+':'−'}${fmtR(Math.abs(vc.extra))}</span>` : ''}</span>
+      <span><span class="finmv-st" style="background:${sit.bg};color:${sit.fg};">${sit.t}</span></span>
+      <span class="finmv-cel finmv-acao">
+        ${acoes.join('')}
+        <button class="finmv-kebab ${s.menu===l.id?'on':''}" onclick="event.stopPropagation();_finMovAbrirMenu(${l.id})" title="Mais ações">⋮</button>
         ${s.popEfet === l.id ? _finMovPopEfetivarHtml(l, ctx) : ''}
-      </span>
-      <span class="finmv-cel">
-        <button class="finmv-kebab ${s.menu===l.id?'on':''}" onclick="event.stopPropagation();_finMovAbrirMenu(${l.id})" title="Ações rápidas">⋮</button>
         ${s.menu === l.id ? _finMovMenuHtml(l) : ''}
       </span>
     </div>`;
@@ -33643,15 +34148,17 @@ function _finLancCascataRenderBulkbar(){
   if(!n){ bar.innerHTML=''; return; }
   // Total assinado da seleção: entrada soma, saída subtrai — é o que o lote vai mexer.
   const ctx = window._finLancCascataCtx || { rows: [] };
-  const total = ctx.rows.filter(l => sel.has(l.id))
-    .reduce((a,l) => a + (l.tipo_movimento===1 ? 1 : -1) * Math.abs(+l.valor||0), 0);
+  const linhas = ctx.rows.filter(l => sel.has(l.id));
+  const total = linhas.reduce((a,l) => a + (l.tipo_movimento===1 ? 1 : -1) * Math.abs(+l.valor||0), 0);
+  // "Repassar N ao credor" só quando há repasse em aberto na seleção (handoff v2 §3.2).
+  const nRep = linhas.filter(l => _finMovRepasseAberto(l, ctx)).length;
   bar.innerHTML = `<div class="finmv-lote">
-    <span class="qt">${n} ${n===1?'lançamento selecionado':'lançamentos selecionados'}</span>
-    <span class="tt">${fmtRs(total)}</span>
-    <button class="finmv-lb go" onclick="_finLancCascataLote('pagar')">Confirmar pagamento</button>
-    <button class="finmv-lb" onclick="_finLancCascataLote('conciliar')">Conciliar</button>
-    <button class="finmv-lb" onclick="_finLoteEditarAbrirModal()">Editar nome e vencimento</button>
-    <button class="finmv-lb" onclick="_finLancSerieAbrirModal()">Excluir esta e as próximas</button>
+    <span class="qt">${n} ${n===1?'selecionado':'selecionados'}</span>
+    <span class="tt">soma ${fmtRs(total)}</span>
+    ${nRep ? `<button class="finmv-lb go" onclick="_finRepLote()">Repassar ${nRep} ao credor</button>` : ''}
+    <button class="finmv-lb" onclick="_finLancCascataLote('pagar')">Confirmar pagamento</button>
+    <button class="finmv-lb" onclick="_finLoteCategoriaAbrir()">Alterar categoria</button>
+    <button class="finmv-lb" onclick="_finLoteEditarAbrirModal()">Reagendar</button>
     <button class="finmv-lb" onclick="_finLancCascataLote('excluir')">Excluir</button>
     <button class="finmv-lb gh" onclick="_finLancCascataState.sel.clear();_finLancCascataRender();">Limpar seleção ✕</button>
   </div>`;
@@ -37313,333 +37820,486 @@ async function _finCaixaAgg(force){
 // na tela — caixa livre — com a derivação visível ao lado.
 //
 // TODO número vem de _finCaixaAgg(). Nada aqui recalcula nada.
+// ══════════════════════════════════════════════════════════════
+// CAIXA v2 — agregador do período (handoff Financeiro v2, 05/09/2026)
+// ──────────────────────────────────────────────────────────────
+// Regras fechadas com o gestor (docs/design_handoff_financeiro_v2/README.md §0):
+//   caixa livre   = saldo de TODAS as contas − saídas "Aquisição de dívidas de terceiro"
+//                   em aberto (é "hoje", sem período);
+//   em custódia   = essas mesmas saídas em aberto;
+//   lucro líquido = entradas do período (pagas + a receber) − aquisição de dívidas do
+//                   período (pagas + a pagar);
+//   meta          = DB.config.metaLucro (mensal, editável no card), proporcional fora do mês;
+//   acordos       = assinados no período (valor acordado, ticket) e descumpridos (≥1 parcela
+//                   vencida sem pagamento dentro do período, % sobre os ativos);
+//   vencidas      = contas a pagar (saída não-repasse) e a receber com vencimento < hoje,
+//                   independentes do período; "vence hoje" só quando não há vencida.
+// O período é o de _finCascataPeriodoBounds() — o mesmo de Movimentações. Judicial ainda
+// não liberado (Sisbajud/penhora) fica fora de tudo, como no resto do módulo.
+// _finCaixaAgg (a versão de 27/08) continua existindo para o teste F-07; nada aqui a lê.
+let _finCaixaV2Cache = { at:0, key:'', v:null };
+async function _finCaixaV2Agg(force){
+  const b = _finCascataPeriodoBounds();
+  const key = b.ini + '|' + b.fim;
+  if(!force && _finCaixaV2Cache.v && _finCaixaV2Cache.key === key && (Date.now() - _finCaixaV2Cache.at) < 30000) return _finCaixaV2Cache.v;
+  const sb = getSupabase();
+  const hoje = isoLocal(new Date());
+  const SEL = 'id,descricao,valor,valor_pago,tipo_movimento,status,data_pagamento,data_vencimento,data_competencia,conciliado,conta_id,cobranca_id,credor_id,numero_parcela,total_parcelas,judicial_liberado_em';
+  async function paginadoV2(build){
+    const out = []; let from = 0;
+    for(;;){
+      const { data, error } = await build(sb.from('fin_lancamento').select(SEL)).order('id',{ascending:true}).range(from, from+999);
+      if(error) throw error;
+      out.push(...(data||[]));
+      if(!data || data.length < 1000 || from >= 20000) break;
+      from += 1000;
+    }
+    return out;
+  }
+  // Janela de acordos com offset explícito (data_assinatura é timestamptz e o servidor
+  // roda em UTC — comparar como texto puxava a janela 3h; ver _finCaixaAgg).
+  const off = (() => { const m = -new Date().getTimezoneOffset();
+    const sg = m >= 0 ? '+' : '-', a = Math.abs(m);
+    return `${sg}${String(Math.floor(a/60)).padStart(2,'0')}:${String(a%60).padStart(2,'0')}`; })();
+  const fimMais1 = (() => { const d = _finDeISO(b.fim); d.setDate(d.getDate()+1); return isoLocal(d); })();
+
+  const [dim, saldos, perRows, abertos, rep, acordosPer, ativosN] = await Promise.all([
+    finApi.loadDimensoes(),
+    sb.rpc('fin_saldos_realizados').then(r => r.data || []).catch(() => []),
+    paginadoV2(q => q.gte('data_competencia', b.ini).lte('data_competencia', b.fim)),
+    // Tudo em aberto que já venceu ou vence hoje — vencidas e "vence hoje" não dependem
+    // do período.
+    paginadoV2(q => q.eq('status', 0).not('data_vencimento','is',null).lte('data_vencimento', hoje)),
+    _finRepassesAbertos(force),
+    (async () => { try{
+      const { data } = await sb.from('acordos').select('id,valor_total,status,data_assinatura')
+        .gte('data_assinatura', `${b.ini}T00:00:00${off}`).lt('data_assinatura', `${fimMais1}T00:00:00${off}`).limit(2000);
+      return (data||[]).filter(a => String(a.status||'').toLowerCase() !== 'cancelado');
+    }catch(_){ return []; } })(),
+    (async () => { try{
+      const { count } = await sb.from('acordos').select('id', { count:'exact', head:true }).eq('status','ativo');
+      return +count || 0;
+    }catch(_){ return 0; } })(),
+  ]);
+
+  // Categoria de cada linha (rateio inteiro) — classifica repasse e judicial de uma vez.
+  const ids = [...new Set([...perRows.map(r => r.id), ...abertos.map(r => r.id)])];
+  const catPorLanc = await _finCatNomePorLanc(ids);
+  const ehJudPendente = l => l.tipo_movimento === 1 && !l.judicial_liberado_em && FIN_FLUXO_RX_JUDICIAL.test(catPorLanc[l.id] || '');
+  const ehRepasse = l => l.tipo_movimento === 0 && _finFluxoClassificaSaida(l, catPorLanc[l.id] || '') === 'repasse';
+  const pago = l => l.status === 1 || l.status === 2 || !!l.data_pagamento;
+  const val = l => Math.abs(+l.valor || 0);
+  const circulado = l => Math.abs(+((pago(l) && l.valor_pago != null) ? l.valor_pago : l.valor) || 0);
+  const soma = arr => +arr.reduce((s, l) => s + val(l), 0).toFixed(2);
+
+  // ── Contas e caixa livre (hoje) ────────────────────────────────────────────────
+  const saldosByConta = {}; for(const r of saldos) saldosByConta[r.conta_id] = r;
+  const contas = (dim.contas || []).map(c => ({ conta:c, saldo: _finSaldoDaConta(c, saldosByConta) }));
+  const saldoTotal = +contas.reduce((s, x) => s + x.saldo, 0).toFixed(2);
+  const custodia = rep.total;
+  const caixaLivre = +(saldoTotal - custodia).toFixed(2);
+
+  // ── Lucro líquido do período ───────────────────────────────────────────────────
+  const rows = perRows.filter(l => !ehJudPendente(l));
+  const ent = rows.filter(l => l.tipo_movimento === 1);
+  const aq = rows.filter(ehRepasse);
+  const entPagas = +ent.filter(pago).reduce((s,l) => s + circulado(l), 0).toFixed(2);
+  const entPrev = soma(ent.filter(l => !pago(l)));
+  const aqPagas = +aq.filter(pago).reduce((s,l) => s + circulado(l), 0).toFixed(2);
+  const aqPrev = soma(aq.filter(l => !pago(l)));
+  const entradas = +(entPagas + entPrev).toFixed(2);
+  const aquisicao = +(aqPagas + aqPrev).toFixed(2);
+  const lucro = +(entradas - aquisicao).toFixed(2);
+
+  // ── Meta (mensal, proporcional fora do mês) ────────────────────────────────────
+  const metaMensal = (DB.config && DB.config.metaLucro != null && isFinite(+DB.config.metaLucro)) ? +DB.config.metaLucro : 40000;
+  const meta = +_finMetaPeriodo(metaMensal, b).toFixed(2);
+  const falta = lucro < 0 ? meta : Math.max(0, +(meta - lucro).toFixed(2));
+  const excedente = lucro >= meta ? +(lucro - meta).toFixed(2) : 0;
+
+  // ── Acordos realizados ─────────────────────────────────────────────────────────
+  const acTotal = +acordosPer.reduce((s, a) => s + (+a.valor_total || 0), 0).toFixed(2);
+  const acordos = { n: acordosPer.length, total: acTotal, ticket: acordosPer.length ? +(acTotal / acordosPer.length).toFixed(2) : 0 };
+
+  // ── Acordos descumpridos: parcela (entrada) vencida e não paga dentro do período ──
+  const parcVenc = abertos.filter(l => l.tipo_movimento === 1 && !ehJudPendente(l)
+    && l.data_vencimento < hoje && l.data_vencimento >= b.ini && l.data_vencimento <= b.fim);
+  const porAcordo = {};
+  for(const l of parcVenc){
+    const k = l.cobranca_id ? 'cob:' + l.cobranca_id : 'nome:' + _finRepasseNomeDevedor(l.descricao).toLowerCase();
+    const g = porAcordo[k] || (porAcordo[k] = { cobrancaId: l.cobranca_id || null, nome: _finRepasseNomeDevedor(l.descricao), valor:0, n:0 });
+    g.valor += val(l); g.n++;
+  }
+  const descGrupos = Object.values(porAcordo);
+  try{
+    const cobIds = descGrupos.map(g => g.cobrancaId).filter(Boolean);
+    if(cobIds.length){
+      // devedores e cobrancas compartilham o id (1:1) — o nome cadastrado prevalece.
+      const { data } = await sb.from('devedores').select('id,nome').in('id', cobIds);
+      const nm = Object.fromEntries((data||[]).map(d => [d.id, d.nome]));
+      descGrupos.forEach(g => { if(g.cobrancaId && nm[g.cobrancaId]) g.nome = nm[g.cobrancaId]; });
+    }
+  }catch(_){ /* fica o nome da descrição */ }
+  descGrupos.sort((a, b2) => b2.valor - a.valor);
+  const descumpridos = { n: descGrupos.length, valor: +descGrupos.reduce((s,g) => s + g.valor, 0).toFixed(2),
+    nomes: descGrupos.map(g => g.nome).filter(Boolean), ativos: ativosN,
+    pct: ativosN > 0 ? Math.round(descGrupos.length / ativosN * 100) : 0 };
+
+  // ── Vencidas (independem do período) e "vence hoje" ────────────────────────────
+  const contaNome = id => { const c = (dim.contas||[]).find(x => String(x.id) === String(id)); return c ? c.descricao : ''; };
+  const item = l => ({ id:l.id, descricao:l.descricao, valor: val(l), vence: String(l.data_vencimento||'').slice(0,10),
+    dias: Math.max(0, Math.round((_finDeISO(hoje) - _finDeISO(String(l.data_vencimento||'').slice(0,10))) / 86400000)),
+    conta: contaNome(l.conta_id), contaId: l.conta_id, tipo: l.tipo_movimento });
+  const ordem = (a, c) => a.vence < c.vence ? -1 : (a.vence > c.vence ? 1 : a.id - c.id);
+  const vencPagar = abertos.filter(l => l.tipo_movimento === 0 && !ehRepasse(l) && l.data_vencimento < hoje).map(item).sort(ordem);
+  const vencReceber = abertos.filter(l => l.tipo_movimento === 1 && !ehJudPendente(l) && l.data_vencimento < hoje).map(item).sort(ordem);
+  const hojePagar = abertos.filter(l => l.tipo_movimento === 0 && !ehRepasse(l) && l.data_vencimento === hoje).map(item);
+  const hojeReceber = abertos.filter(l => l.tipo_movimento === 1 && !ehJudPendente(l) && l.data_vencimento === hoje).map(item);
+  const repVencidosN = rep.itens.filter(l => String(l.data_vencimento||'').slice(0,10) < hoje).length;
+
+  const v = {
+    b, hoje, contas, saldoTotal, custodia, caixaLivre, repassesN: rep.n, repVencidosN,
+    entradas, entPagas, entPrev, aquisicao, aqPagas, aqPrev, lucro,
+    metaMensal, meta, falta, excedente,
+    acordos, descumpridos,
+    vencPagar, vencReceber, vencPagarT: +vencPagar.reduce((s,i)=>s+i.valor,0).toFixed(2), vencReceberT: +vencReceber.reduce((s,i)=>s+i.valor,0).toFixed(2),
+    hojePagar, hojeReceber,
+    // para a ponte: repasses previstos do período e ids das entradas pendentes
+    aqPrevItens: aq.filter(l => !pago(l)).map(l => ({ id:l.id, valor: val(l) })),
+  };
+  _finCaixaV2Cache = { at: Date.now(), key, v };
+  return v;
+}
+
+// Ponte "Do lucro líquido à sobra" (handoff §2.5). Parte do lucro líquido do card com a
+// realização aplicada ao que ainda não caiu (pagas 100% + previstas × realização − repasses
+// devidos − repasses contingentes × realização) e tem SÓ quatro linhas: vencidos anteriores,
+// parcela do mês do backlog, recorrências não lançadas e DAS. As linhas "Já liquidado" e
+// "Realização" da ponte do Fluxo de caixa (_finFluxoPonte, teste F-29) saem daqui de
+// propósito — realização e DAS viram chips de premissa no cabeçalho. Os números vêm da
+// MESMA base do Fluxo de caixa (_finFluxoCarregarBase), para as duas abas não discordarem.
+// Fora do mês inteiro, backlog e recorrências entram proporcionais aos dias do período.
+function _finFluxoPonteLucro(base, proj, p, A){
+  p = Object.assign({}, FIN_FLUXO_PREMISSAS_PADRAO, p || {});
+  const real = Math.max(0, Math.min(1, +p.realizacao || 0));
+  const b = A.b, hoje = A.hoje;
+  const cont = new Set((base.itens||[]).filter(i => i.tipo === 'repasse' && i.contingente).map(i => i.id));
+  let aqPrevFixo = 0, aqPrevCont = 0;
+  for(const it of (A.aqPrevItens||[])){ if(cont.has(it.id)) aqPrevCont += it.valor; else aqPrevFixo += it.valor; }
+  const inicio = A.entPagas + A.entPrev * real - A.aqPagas - aqPrevFixo - aqPrevCont * real;
+
+  const mesKey = b.ini.slice(0,7);
+  const m = (base.meses||[]).find(x => x.key === mesKey) || {};
+  const diasMes = new Date(+b.ini.slice(0,4), +b.ini.slice(5,7), 0).getDate();
+  const diasPer = Math.round((_finDeISO(b.fim) - _finDeISO(b.ini)) / 86400000) + 1;
+  const frac = b.modo === 'mes' ? 1 : Math.max(0, Math.min(1, diasPer / diasMes));
+  const temHoje = hoje >= b.ini && hoje <= b.fim;
+  // O lucro do card JÁ contém o que venceu DENTRO do período (é lançamento do período).
+  // As linhas 1 e 2 trazem só o que vem de ANTES dele: entradas vencidas em meses
+  // anteriores (menos os repasses contingentes delas, com realização) e a parcela do mês
+  // do backlog — repasses vencidos antes do período com o devedor já pago, quitados em
+  // `backlogMeses` como na projeção. Sem este corte, uma parcela vencida no dia 1 entrava
+  // no lucro do card e de novo aqui.
+  const itens = (base.itens||[]).filter(i => i.vencido && String(i.vence||'') < b.ini);
+  const vencEnt = itens.filter(i => i.tipo === 'entrada' && !i.judicial).reduce((s,i) => s + i.valor, 0);
+  const vencCont = itens.filter(i => i.tipo === 'repasse' && i.contingente).reduce((s,i) => s + i.valor, 0);
+  const backlogAntes = itens.filter(i => i.tipo === 'repasse' && !i.contingente).reduce((s,i) => s + i.valor, 0);
+  const nb = Math.max(1, Math.round(+p.backlogMeses || 1));
+  const linhas = [
+    { k:'vencidos', label:'Vencidos de meses anteriores puxados para este mês', v: temHoje ? real * (vencEnt - vencCont) : 0 },
+    { k:'backlog', label:'Parcela do mês dos repasses vencidos com devedor já pago', v: temHoje ? -(backlogAntes / nb) * frac : 0 },
+    { k:'recorrencias', label:'Recorrências que ainda não viraram lançamento', v: -((+m.recorrencias||0) + (+m.dividasRecorrentes||0)) * frac },
+    { k:'das', label:`DAS de ${(+p.dasPct*100).toFixed(1).replace('.',',')}% sobre a receita própria`, v: -Math.max(0, inicio) * (+p.dasPct||0) },
+  ];
+  const fim = inicio + linhas.reduce((s, l) => s + l.v, 0);
+  return { inicio, linhas, fim, real, dasPct: +p.dasPct || 0 };
+}
+
+// Cor e sigla do avatar das contas (handoff §2.2). Nome da conta primeiro, depois o
+// catálogo de bancos; o que sobrar fica cinza.
+const FIN_CX_CORES = [
+  [/asaas/i, '#1E6FE8'], [/btg/i, '#0A1530'], [/censec/i, '#5A6472'], [/conta inicial/i, '#4A7A52'],
+  [/nubank/i, '#7B2CBF'], [/registro civil|cart[óo]rio/i, '#97793A'], [/tribunal|\btj\b/i, '#3A6491'],
+];
+function _finCxContaCor(c){
+  const nome = String((c && c.descricao) || '');
+  for(const [rx, cor] of FIN_CX_CORES) if(rx.test(nome)) return cor;
+  const b = (window.BANK_CATALOG||{})[(c && c.logo_key) || ''];
+  return (b && b.cor) || '#5A6472';
+}
+function _finCxContaSigla(c){
+  const nome = String((c && c.descricao) || '').trim();
+  const b = (window.BANK_CATALOG||{})[(c && c.logo_key) || ''];
+  if(b && /^[A-Z0-9]{1,3}$/.test(b.iniciais || '')) return b.iniciais;
+  const p = nome.replace(/[—–-].*$/, '').split(/\s+/).filter(Boolean);
+  if(p.length >= 2) return (p[0][0] + p[1][0]).toUpperCase();
+  return nome.slice(0, 2).toUpperCase() || '—';
+}
+function _finCxContaTipo(c){
+  const t = String((c && c.tipo) || '');
+  if(/corrente/i.test(t)) return 'Conta corrente';
+  if(/poup/i.test(t)) return 'Poupança';
+  if(/caixa|dinheiro|f[ií]sic/i.test(t)) return 'Caixa físico';
+  if(/judicial|cust/i.test(t)) return 'Custódia judicial';
+  if(/invest|aplica/i.test(t)) return 'Investimento';
+  return t ? t.charAt(0).toUpperCase() + t.slice(1) : ((c && c.banco_nome) || '—');
+}
+
+// ══════════════════════════════════════════════════════════════
+// ABA CAIXA  (id 'visao') — layout "2b · três blocos" (handoff Financeiro v2, 05/09/2026)
+// ──────────────────────────────────────────────────────────────
+// Seletor de período centralizado → contas bancárias → quatro indicadores do período →
+// vencidas (só quando há) → ponte do lucro à sobra → aviso "vence hoje" (só quando não há
+// vencida). Saíram: os alertas do topo, o card "Meta de setembro" de 4 números, os 5 KPIs,
+// "Resultado por categoria", "Inadimplência", a lista "Contas" antiga e "Decidir agora".
+// TODO número vem de _finCaixaV2Agg(). Nada aqui recalcula nada.
 async function renderFinVisao(el){
   el.innerHTML = `<div style="text-align:center;padding:40px;color:#8A94A6;">
     <div class="mv2-spinner" style="margin:0 auto 10px;width:26px;height:26px;border-width:3px;"></div>
-    Carregando o caixa do mês…
+    Carregando o caixa…
   </div>`;
-
-  const _sb = getSupabase();
-  const _now = new Date();
-  const _y = _now.getFullYear(), _m = _now.getMonth()+1;
-  // _serie12m() abaixo depende de _sb, _y, _m e _mesFim. Sem eles a função lança
-  // ReferenceError, que o `.catch(()=>null)` do chamador engole — e "Últimos 12 meses"
-  // some da tela sem erro nenhum no console. Foi o que aconteceu na primeira versão.
-  // (_mesIni e _hoje existiam aqui e não eram usados por ninguém.)
-  const _p2 = n => String(n).padStart(2,'0');
-  const _mesFim = `${_y}-${_p2(_m)}-${_p2(new Date(_y, _m, 0).getDate())}`;
-
-  async function _serie12m(){
-    if(!_sb) return null;
-    const ini12 = isoLocal(new Date(_y, _m-12, 1));
-    const meses=[]; for(let k=11;k>=0;k--){ const d=new Date(_y,_m-1-k,1); meses.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`); }
-    const mesesLabel = meses.map(mk=>{ const a=mk.split('-'); const d=new Date(+a[0],+a[1]-1,1); return d.toLocaleDateString('pt-BR',{month:'short'}).replace('.','')+'/'+a[0].slice(2); });
-    const idx=Object.fromEntries(meses.map((m,i)=>[m,i]));
-    const fat=Array(12).fill(0), desp=Array(12).fill(0), jm=Array(12).fill(0), cli=meses.map(()=>new Set());
-    let from=0;
-    for(;;){
-      const { data } = await _sb.from('fin_lancamento').select('data_competencia,valor,tipo_movimento,juros,multa,contato_id')
-        .gte('data_competencia',ini12).lte('data_competencia',_mesFim).order('data_competencia',{ascending:true}).range(from,from+999);
-      if(!data || !data.length) break;
-      for(const r of data){
-        const i=idx[(r.data_competencia||'').slice(0,7)]; if(i==null) continue;
-        const v=Math.abs(+r.valor||0);
-        if(r.tipo_movimento===1){ fat[i]+=v; if(r.contato_id) cli[i].add(r.contato_id); } else desp[i]+=v;
-        jm[i]+=Math.abs(+r.juros||0)+Math.abs(+r.multa||0);
-      }
-      if(data.length<1000) break; from+=1000;
-    }
-    return { meses, mesesLabel, fat, ebitda:fat.map((f,i)=>f-desp[i]), jm, ticket:fat.map((f,i)=>cli[i].size?f/cli[i].size:0) };
-  }
-
-  let A, dim, inad, serie;
-  try{
-    [A, dim, inad, serie] = await Promise.all([
-      _finCaixaAgg(),
-      finApi.loadDimensoes(),
-      _loadInadimplentes().catch(()=>({ devList: [], charges: [], oldestAll: null })),
-      _serie12m().catch(()=>null),
-    ]);
-  }catch(e){
+  let A, base = null, ponte = null, prem = null;
+  try{ A = await _finCaixaV2Agg(); }
+  catch(e){
     el.innerHTML = `<div style="text-align:center;padding:30px;color:var(--danger);">
       Erro ao carregar o caixa: ${escHtml(e.message||String(e))}
       <div style="margin-top:12px;"><button class="btn btn-ghost btn-sm" onclick="renderFinTab('visao')">↻ Tentar novamente</button></div>
     </div>`;
     return;
   }
+  // A ponte é auxiliar: sem ela a aba funciona igual (e o erro fica no console).
+  try{
+    base = await _finFluxoCarregarBase();
+    prem = _finFluxoPremissas();
+    const proj = finFluxoProjetar(base, _finFluxoPremissasDoModo(prem));
+    ponte = _finFluxoPonteLucro(base, proj, prem, A);
+  }catch(e){ console.warn('ponte do caixa:', e); }
 
-  // Saldo por conta para a lista "Contas" — mesma precedência do resto do módulo:
-  // saldo bancário declarado > saldo realizado do razão > saldo inicial.
-  const saldosByConta = {};
-  try{ const { data } = await _sb.rpc('fin_saldos_realizados'); for(const r of (data||[])) saldosByConta[r.conta_id] = r; }catch(_){}
-  const _saldoConta = c => _finSaldoDaConta(c, saldosByConta);
-
+  const b = A.b;
   const plural = (n, s, p) => n === 1 ? s : (p || s+'s');
-  const pct1 = v => v.toFixed(1).replace('.', ',');
+  const dm = s => s ? s.slice(8,10) + '/' + s.slice(5,7) : '—';
+  const temVencidas = A.vencPagar.length > 0 || A.vencReceber.length > 0;
+  const pctMeta = A.meta > 0 ? Math.max(0, Math.min(100, A.lucro / A.meta * 100)) : 0;
+  const metaBatida = A.meta > 0 && A.lucro >= A.meta;
+  const metaInput = A.metaMensal.toLocaleString('pt-BR', { minimumFractionDigits:2, maximumFractionDigits:2 });
+  const faltaLabel = A.lucro < 0 ? '= falta fechar (lucro negativo no período)'
+    : (metaBatida ? '= meta batida, excedente'
+      : (b.modo === 'mes' ? '= falta fechar' : `= falta fechar (meta proporcional ${fmtR(A.meta)})`));
+  const faltaValor = metaBatida ? A.excedente : A.falta;
+  const contasN = A.contas.length;
+  const D = A.descumpridos;
+  const nomesDesc = D.nomes.slice(0,3).join(', ') + (D.nomes.length > 3 ? ` +${D.nomes.length-3}` : '');
 
-  // ── 1. Faixas de alerta — cada uma só existe se houver o que ela anuncia ──────────
-  // Alerta deixou de ser bloco colorido: uma tira branca, com barrinha de 5px indicando a
-  // urgência e a ação em link de texto. Bloco vermelho de largura inteira gritava todo dia
-  // e virou paisagem — é a mesma razão pela qual nenhum card tem borda colorida.
-  const faixas = [];
-  if(A.atrasoN > 0) faixas.push(`<div class="fxa">
-    <span class="fxa-bar" style="background:#A65A4A;"></span>
-    <span class="fxa-tx"><strong>${A.atrasoN} ${plural(A.atrasoN,'lançamento')} em atraso</strong> <span class="fxa-sec">${plural(A.atrasoN,'soma','somam')} ${fmtR(A.atrasoT)}${A.atrasoInN?` — ${A.atrasoInN} ${A.atrasoInN===1?'é uma entrada que já deveria ter caído':'são entradas que já deveriam ter caído'}.`:'.'}</span></span>
-    <button class="fxa-btn" onclick="_finIrMovimentacoes('atrasados')">Ver os atrasados →</button>
-  </div>`);
-  if(A.fila.length && A.fila[0].dias >= 1) faixas.push(`<div class="fxa">
-    <span class="fxa-bar" style="background:#C9A961;"></span>
-    <span class="fxa-tx">Repasse ao cedente <strong>${escHtml(A.fila[0].nome||'—')}</strong> <span class="fxa-sec">parado há ${A.fila[0].dias} ${plural(A.fila[0].dias,'dia')} — ${fmtR(A.fila[0].capital)} em ${A.fila[0].n} ${plural(A.fila[0].n,'parcela')} ${plural(A.fila[0].n,'recebida')}.</span></span>
-    <button class="fxa-btn" onclick="setFinTab('credores')">Repassar agora →</button>
-  </div>`);
-
-  // ── 2. Meta: barra empilhada recuperado + acordado a receber ──────────────────────
-  const pctRec = A.meta > 0 ? Math.min(100, A.receita/A.meta*100) : 0;
-  const pctEnt = A.meta > 0 ? Math.max(0, Math.min(100-pctRec, A.aEntrarT/A.meta*100)) : 0;
-  const semCob = Math.max(0, +(A.meta - A.receita - A.aEntrarT).toFixed(2));
-
-  // ── 3. Resultado por categoria ────────────────────────────────────────────────────
-  const todasCats = !!window._finCaixaTodasCats;
-  const catsVis = todasCats ? A.cats : A.cats.slice(0, 8);
-  const maxCat = Math.max(1, ...A.cats.map(c => Math.abs(c.valor)));
-
-  // ── 4. Contas ─────────────────────────────────────────────────────────────────────
-  const contasGeral = (dim.contas||[]).filter(c => c.incluir_no_saldo_geral !== false);
-
-  const _m12 = (rot, vals) => {
-    const v = (vals||[]).map(x => +x||0);
-    const cur = v.length ? v[v.length-1] : 0, prev = v.length > 1 ? v[v.length-2] : null;
-    let varTxt = '', varCor = '#8A94A6';
-    if(prev != null && Math.abs(prev) > 0.005){
-      const p = (cur-prev)/Math.abs(prev)*100;
-      varTxt = `${p >= 0 ? '+' : '−'}${Math.abs(p).toFixed(0)}% vs mês anterior`;
-      varCor = p >= 0 ? '#4C6647' : '#8A94A6';
-    }
-    return `<div><div class="cx-m12-lb">${rot}</div><div class="cx-m12-v">${fmtRs(cur)}</div><div class="cx-m12-var" style="color:${varCor};">${varTxt}</div></div>`;
-  };
+  const vencCard = (titulo, itens, total, btn, fn, vazio) => `<div class="cx2-venc">
+    <div class="cx2-venc-h">
+      <div><div class="cx2-venc-t">${titulo}</div><div class="cx2-venc-n">${itens.length} ${plural(itens.length,'conta')}</div></div>
+      <div class="cx2-venc-tot">${itens.length ? fmtR(total) : ''}</div>
+    </div>
+    ${itens.length ? itens.slice(0, 8).map(i => `<div class="cx2-venc-row">
+      <div style="min-width:0;"><div class="cx2-venc-d" title="${escHtml(i.descricao||'')}">${escHtml(_finDescCrua(i.descricao) || '—')}</div>
+        <div class="cx2-venc-s">venceu ${dm(i.vence)} · há ${i.dias} ${plural(i.dias,'dia')}${i.conta ? ' · ' + escHtml(i.conta) : ''}</div></div>
+      <div class="cx2-venc-v">${fmtR(i.valor)}</div>
+      <button class="cx2-ghost" onclick="${fn}(${i.id})">${btn}</button>
+    </div>`).join('') + (itens.length > 8 ? `<div class="cx2-venc-mais" onclick="_finIrMovimentacoes('atrasados')">+${itens.length-8} ${plural(itens.length-8,'outra')} · ver em Movimentações →</div>` : '')
+    : `<div class="cx2-venc-vazio">${vazio}</div>`}
+  </div>`;
 
   el.innerHTML = `
     <style>
-      .cx-wrap{display:flex;flex-direction:column;gap:16px;}
-      .cx-alertas{background:#fff;border:1px solid #E6E1D2;border-radius:10px;display:flex;flex-direction:column;}
-      .cx-alertas .fxa + .fxa{border-top:1px solid #F2EFE6;}
-      .fxa{display:flex;align-items:center;gap:10px;padding:11px 16px;}
-      .fxa-bar{width:5px;height:26px;border-radius:3px;flex-shrink:0;}
-      .fxa-tx{font-size:13px;color:#0A1530;}
-      .fxa-tx strong{font-weight:600;}
-      .fxa-sec{color:#6B7683;}
-      .fxa-btn{margin-left:auto;white-space:nowrap;background:transparent;border:none;padding:0;font-family:inherit;font-size:12.5px;font-weight:600;color:#15224A;cursor:pointer;}
-      .fxa-btn:hover{color:#9C7F40;}
-      .cx-par{display:grid;grid-template-columns:minmax(250px,1.02fr) minmax(0,1.98fr);gap:12px;align-items:stretch;}
-      .cx-livre{background:#0A1530;border-radius:9px;padding:16px;display:flex;flex-direction:column;gap:10px;color:#fff;min-width:0;}
-      .cx-lb{font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:#8A94A6;}
-      .cx-livre-v{font-family:'JetBrains Mono',monospace;font-size:27px;font-weight:600;letter-spacing:-.02em;white-space:nowrap;}
-      .cx-deriv{border-top:1px solid rgba(255,255,255,.10);padding-top:9px;font-size:11.5px;color:#B4BCCC;display:flex;flex-direction:column;gap:4px;}
-      .cx-deriv > div{display:flex;justify-content:space-between;gap:10px;}
-      .cx-deriv b{font-family:'JetBrains Mono',monospace;font-weight:500;white-space:nowrap;}
-      .cx-frase{margin-top:auto;font-size:11px;color:#8A94A6;line-height:1.45;}
-      .cx-meta{background:#fff;border:1px solid #E6E1D2;border-radius:9px;padding:16px;display:flex;flex-direction:column;gap:13px;min-width:0;}
-      .cx-meta-h{display:flex;align-items:center;gap:9px;flex-wrap:wrap;}
-      .cx-link{font-size:12px;font-weight:600;color:#15224A;cursor:pointer;}
-      .cx-link:hover{color:#9C7F40;}
-      /* 4 filhos: 2×2 ou 4×1, nunca 3+1. Mesma razão da grade acima — o auto-fit fechava
-         em 3 colunas nas larguras mais comuns (1440 e 1512) e deixava um órfão. */
-      .cx-metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;}
-      @media (min-width: 1780px){ .cx-metrics{grid-template-columns:repeat(4,minmax(0,1fr));} }
-      .cx-metrics .lb{font-size:11px;color:#8A94A6;}
-      .cx-metrics .vl{font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:600;white-space:nowrap;margin-top:2px;}
-      .cx-metrics .nt{font-size:10.5px;color:#6B7683;margin-top:2px;}
-      .cx-trilho{margin-top:auto;height:12px;background:#F2EFE6;border-radius:6px;overflow:hidden;display:flex;}
-      .cx-leg{display:flex;align-items:center;gap:14px;font-size:11px;color:#5A5F66;flex-wrap:wrap;}
-      .cx-leg i{width:9px;height:9px;border-radius:2px;display:inline-block;margin-right:5px;}
-      /* 5 filhos: as únicas quebras sem órfão são 5 e 3+2 (nunca 4+1). O auto-fit não
-         sabe disso, então a quebra é declarada por media query, medida na largura útil
-         real (viewport − 228px de sidebar − 56px de padding). Abaixo de 1408px de área
-         útil não cabem 5 colunas, então cai direto para 3+2 — que é o que o handoff pede. */
-      .cx-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:stretch;}
-      .cx-kpis > *:nth-child(4),.cx-kpis > *:nth-child(5){grid-column:span 1;}
-      @media (max-width: 1131px){ .cx-kpis{grid-template-columns:repeat(2,minmax(0,1fr));} }
-      @media (max-width: 795px){  .cx-kpis{grid-template-columns:minmax(0,1fr);} }
-      @media (min-width: 1692px){ .cx-kpis{grid-template-columns:repeat(5,minmax(0,1fr));} }
-      .cx-kpi{background:#fff;border:1px solid #E6E1D2;border-radius:9px;padding:15px;display:flex;flex-direction:column;gap:8px;text-align:left;min-width:0;}
-      .cx-kpi.click{cursor:pointer;}
-      /* Nenhuma borda colorida e nenhum rótulo colorido: verde e vermelho ficam só no
-         dinheiro que já andou. Era a borda vermelha que dava a cara de sistema antigo. */
-      .cx-kpi.click:hover{background:#FBFAF6;}
-      .cx-kpi .vl{font-family:'JetBrains Mono',monospace;font-size:21px;font-weight:600;white-space:nowrap;}
-      .cx-kpi .dt{font-size:11px;color:#5A5F66;margin-top:auto;display:flex;flex-direction:column;gap:2px;}
-      .cx-kpi .dt .sb{display:flex;justify-content:space-between;gap:8px;}
-      .cx-cols{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(300px,1fr);gap:16px;align-items:start;}
-      .cx-col{display:flex;flex-direction:column;gap:16px;min-width:0;}
-      .cx-sec{background:#fff;border:1px solid #E6E1D2;border-radius:9px;overflow:hidden;}
-      .cx-sec-h{padding:14px 16px 12px;border-bottom:1px solid #F2EFE6;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;}
-      .cx-h2{font-family:'Fraunces',Georgia,serif;font-size:16px;font-weight:500;color:#0A1530;}
-      .cx-nota{font-size:11.5px;color:#8A94A6;}
-      .cx-catrow{display:flex;align-items:center;gap:9px;}
-      .cx-catnome{width:210px;flex-shrink:0;font-size:12.5px;color:#5A5F66;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-      .cx-cattrilho{flex:1;min-width:0;height:8px;background:#F2EFE6;border-radius:4px;display:flex;}
-      .cx-catval{width:104px;flex-shrink:0;text-align:right;font-family:'JetBrains Mono',monospace;font-size:12px;white-space:nowrap;}
-      .cx-conta{display:flex;align-items:center;gap:9px;padding:10px 16px;border-bottom:1px solid #F7F4EC;}
-      .cx-conta:hover{background:#FBFAF6;}
-      .cx-conta .nm{flex:1;min-width:0;font-size:12.5px;color:#0A1530;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-      .cx-conta .sd{font-family:'JetBrains Mono',monospace;font-size:12px;white-space:nowrap;}
-      .cx-staled{background:#FBF3E1;border:1px solid #DFC992;color:#7A6428;font-family:'JetBrains Mono',monospace;font-size:9px;border-radius:4px;padding:1px 5px;white-space:nowrap;flex-shrink:0;}
-      .cx-m12{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:14px 16px 16px;}
-      .cx-m12-lb{font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:#8A94A6;}
-      .cx-m12-v{font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:600;color:#0A1530;margin-top:3px;white-space:nowrap;}
-      .cx-m12-var{font-size:10.5px;margin-top:1px;}
-      .cx-btn2{border:1px solid #D8D2C5;background:#fff;color:#0A1530;font-family:inherit;font-size:12px;font-weight:500;padding:7px 12px;border-radius:6px;cursor:pointer;align-self:flex-start;}
-      .cx-btn2:hover{background:#FBFAF6;}
+      .cx2-wrap{display:flex;flex-direction:column;gap:16px;}
+      .cx2-wrap > *{flex-shrink:0;}
+      .cx2-sel{display:flex;justify-content:center;}
+      .cx2-lb{font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:rgba(10,21,48,.6);}
+      .cx2-sec-h{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;}
+      .cx2-link{font-size:12px;font-weight:600;color:#15224A;cursor:pointer;white-space:nowrap;}
+      .cx2-link:hover{color:#97793A;}
+      .cx2-contas{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;}
+      .cx2-conta{background:#fff;border:1px solid rgba(10,21,48,.10);border-radius:10px;padding:12px 14px;min-width:0;display:flex;flex-direction:column;gap:6px;}
+      .cx2-conta .l1{display:flex;align-items:center;gap:8px;min-width:0;}
+      .cx2-conta .av{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;color:#fff;font-family:'JetBrains Mono',monospace;font-size:8px;font-weight:700;flex-shrink:0;}
+      .cx2-conta .nm{font-size:12px;font-weight:600;color:#0A1530;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+      .cx2-conta .sd{font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:600;color:#0A1530;white-space:nowrap;}
+      .cx2-conta .tp{font-size:11px;color:#5A5F66;}
+      .cx2-conta.total{background:#0A1530;border-color:#0A1530;color:#EFEAD9;}
+      .cx2-conta.total .lb{font-family:'JetBrains Mono',monospace;font-size:8.5px;letter-spacing:.16em;text-transform:uppercase;color:#C9A961;}
+      .cx2-conta.total .sd{color:#EFEAD9;}
+      .cx2-conta.total .tp{color:rgba(239,234,217,.6);}
+      /* 4 filhos: 4×1 ou 2×2, nunca 3+1 — o auto-fit fechava em 3 colunas a 1180px e
+         deixava um órfão. 4 colunas precisam de 1008px úteis (≈1292px de janela). */
+      .cx2-ind{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;}
+      @media (max-width: 1292px){ .cx2-ind{grid-template-columns:repeat(2,minmax(0,1fr));} }
+      @media (max-width: 700px){ .cx2-ind{grid-template-columns:minmax(0,1fr);} }
+      .cx2-card{background:#fff;border:1px solid rgba(10,21,48,.10);border-radius:12px;padding:20px 22px;display:flex;flex-direction:column;gap:8px;min-width:0;}
+      .cx2-card.dark{background:#0A1530;border-color:#0A1530;color:#EFEAD9;}
+      .cx2-card.dark .cx2-lb{color:#C9A961;}
+      .cx2-card.alerta{border-color:#E7CFC7;}
+      .cx2-card .vl{font-family:'JetBrains Mono',monospace;font-size:26px;font-weight:600;white-space:nowrap;letter-spacing:-.01em;line-height:1.1;}
+      .cx2-card .vl-row{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;}
+      .cx2-card .suf{font-size:13px;color:#5A5F66;}
+      .cx2-card .ln{display:flex;justify-content:space-between;gap:10px;font-size:12px;color:rgba(10,21,48,.65);}
+      .cx2-card.dark .ln{color:rgba(239,234,217,.7);}
+      .cx2-card .ln b{font-family:'JetBrains Mono',monospace;font-weight:600;white-space:nowrap;}
+      .cx2-card .top{display:flex;justify-content:space-between;align-items:baseline;gap:8px;}
+      .cx2-card .top .r{font-size:11px;color:rgba(10,21,48,.55);white-space:nowrap;}
+      .cx2-meta-row{display:flex;align-items:baseline;gap:6px;}
+      .cx2-meta-pre{font-family:'JetBrains Mono',monospace;font-size:16px;color:#8A94A6;}
+      .cx2-meta-inp{font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:600;color:#0A1530;border:none;border-bottom:1.5px dashed rgba(10,21,48,.25);background:transparent;outline:none;padding:0 0 2px;width:100%;min-width:0;max-width:200px;}
+      .cx2-meta-inp:focus{border-bottom-color:#C9A961;}
+      .cx2-bar{height:8px;background:#EEF0F4;border-radius:4px;overflow:hidden;}
+      .cx2-bar i{display:block;height:100%;background:#C9A961;}
+      .cx2-bar i.ok{background:#4A7A52;}
+      .cx2-vencs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;}
+      @media (max-width: 900px){ .cx2-vencs{grid-template-columns:1fr;} }
+      .cx2-venc{background:#fff;border:1px solid #E7CFC7;border-radius:12px;overflow:hidden;}
+      .cx2-venc-h{background:#FBEAE7;padding:12px 18px;display:flex;align-items:center;justify-content:space-between;gap:10px;}
+      .cx2-venc-t{font-family:'Fraunces',Georgia,serif;font-size:16px;font-weight:500;color:#7D3F33;}
+      .cx2-venc-n{font-size:12px;color:#7D3F33;opacity:.8;}
+      .cx2-venc-tot{font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:600;color:#9B4A3F;white-space:nowrap;}
+      .cx2-venc-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:12px;align-items:center;padding:10px 18px;border-top:1px solid #F2EFE6;font-size:13px;}
+      .cx2-venc-d{font-weight:600;color:#0A1530;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+      .cx2-venc-s{font-size:11.5px;color:#9B4A3F;margin-top:1px;}
+      .cx2-venc-v{font-family:'JetBrains Mono',monospace;font-weight:600;color:#9B4A3F;white-space:nowrap;}
+      .cx2-ghost{background:#fff;border:1px solid rgba(10,21,48,.14);border-radius:6px;padding:5px 10px;font-size:11.5px;font-weight:600;color:#0A1530;cursor:pointer;font-family:inherit;white-space:nowrap;}
+      .cx2-ghost:hover{background:#FBFAF6;}
+      .cx2-venc-vazio{padding:16px 18px;font-size:12.5px;color:#5A5F66;}
+      .cx2-venc-mais{padding:10px 18px;font-size:12px;font-weight:600;color:#15224A;cursor:pointer;border-top:1px solid #F2EFE6;}
+      .cx2-ponte{flex-shrink:0;}
+      .cx2-ponte .fx-sec-h{align-items:center;}
+      .cx2-chip{display:inline-flex;align-items:center;gap:5px;border:1px solid rgba(10,21,48,.14);border-radius:20px;padding:4px 10px;font-size:11.5px;color:#0A1530;white-space:nowrap;}
+      .cx2-chip b{font-family:'JetBrains Mono',monospace;font-weight:600;}
+      .cx2-ponte-btn{background:#0A1530;color:#EFEAD9;border:none;border-radius:7px;padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;}
+      .cx2-ponte-btn:hover{background:#15224A;}
+      .cx2-ponte-l{display:flex;justify-content:space-between;gap:12px;padding:11px 18px;border-top:1px solid #F2EFE6;font-size:14px;}
+      .cx2-ponte-l.h{font-weight:700;border-top:none;}
+      .cx2-ponte-l.f{font-weight:700;background:#FBFAF6;}
+      .cx2-ponte-l b{font-family:'JetBrains Mono',monospace;font-weight:600;white-space:nowrap;}
+      .cx2-ponte-nota{padding:0 18px 12px;font-size:12px;color:#6B7683;}
+      .cx2-aviso{display:flex;align-items:center;gap:10px;background:#FBF3E1;border:1px solid #DFC992;border-radius:10px;padding:12px 18px;font-size:13px;color:#7A6428;}
+      .cx2-aviso .dot{width:8px;height:8px;border-radius:50%;background:#C9A961;flex-shrink:0;}
     </style>
-    <div class="cx-wrap">
-      ${faixas.length ? `<div class="cx-alertas">${faixas.join('')}</div>` : ''}
+    <div class="cx2-wrap">
+      <div class="cx2-sel">${_finPeriodoNavHtml({ align:'center' })}</div>
 
-      <div class="cx-par">
-        <div class="cx-livre">
-          <div class="cx-lb">Caixa livre da COBRASQ</div>
-          <div class="cx-livre-v" style="color:${A.caixaLivre < 0 ? '#E8A79A' : '#fff'};">${fmtRs(A.caixaLivre)}</div>
-          <div class="cx-deriv">
-            <div><span>saldo geral · ${A.contasCount} ${plural(A.contasCount,'conta')}</span><b style="color:#fff;">${fmtR(A.saldoGeral)}</b></div>
-            <div><span>− dinheiro de terceiros</span><b style="color:#E8A79A;">${fmtR(A.terceiros)}</b></div>
-          </div>
-          <div class="cx-frase">${A.caixaLivre < 0
-            ? `Você está usando ${fmtR(Math.abs(A.caixaLivre))} de dinheiro que é de cedente. ${A.repasseN === 1 ? 'Priorize o repasse pendente.' : `Priorize os ${A.repasseN} repasses.`}`
-            : (A.repasseN === 0
-                ? `Não há repasse pendente — o caixa livre é o saldo geral.`
-                : `Sobram ${fmtR(A.caixaLivre)} depois de honrar ${A.repasseN === 1 ? 'o repasse pendente' : `os ${A.repasseN} repasses pendentes`}.`)}${
-            (A.stale||[]).length ? `<br><span style="color:#E2C98A;">Base com saldo declarado vencido em ${A.stale.length} ${plural(A.stale.length,'conta')} — conferir no banco.</span>` : ''}</div>
+      <div>
+        <div class="cx2-sec-h">
+          <span class="cx2-lb">Contas bancárias · ${contasN} ${contasN === 1 ? 'ativa' : 'ativas'}</span>
+          <span class="cx2-link" onclick="setFinTab('conciliacao')">Conciliar extrato →</span>
         </div>
-
-        <div class="cx-meta">
-          <div class="cx-meta-h">
-            <span class="cx-lb" style="color:#8A94A6;">Meta de ${escHtml(A.mesLabel)}</span>
-            <span style="font-size:11px;color:#8A94A6;white-space:nowrap;">${A.diasUteis} ${plural(A.diasUteis,'dia útil restante','dias úteis restantes')}</span>
-            <span class="cx-link" style="margin-left:auto;" onclick="_finCaixaAjustarMeta()">Ajustar meta</span>
+        <div class="cx2-contas">
+          <div class="cx2-conta total">
+            <div class="lb">Saldo total</div>
+            <div class="sd">${fmtR(A.saldoTotal)}</div>
+            <div class="tp">soma das ${contasN} ${plural(contasN,'conta')}</div>
           </div>
-          <div class="cx-metrics">
-            <div><div class="lb">Recuperado no mês</div><div class="vl" style="color:#4C6647;">${fmtR(A.receita)}</div><div class="nt">${A.meta > 0 ? pct1(A.receita/A.meta*100)+'% da meta' : 'sem meta definida'}</div></div>
-            <div><div class="lb">A entrar até ${A.mesFim.slice(8,10)}/${A.mesFim.slice(5,7)}</div><div class="vl" style="color:#9C7F40;">${fmtR(A.aEntrarT)}</div><div class="nt">${A.aEntrarN} ${plural(A.aEntrarN,'parcela')} de acordos ativos</div></div>
-            <div><div class="lb">Meta do mês</div><div class="vl" style="color:#0A1530;">${fmtR(A.meta)}</div><div class="nt">falta ${fmtR(A.falta)}</div></div>
-            <div><div class="lb">Fechar por dia útil</div><div class="vl" style="color:#9C7F40;">${fmtR(A.porDiaUtil)}</div><div class="nt">para bater a meta</div></div>
-          </div>
-          <div class="cx-trilho">
-            <div style="width:${pctRec.toFixed(1)}%;background:#5E7C58;"></div>
-            <div style="width:${pctEnt.toFixed(1)}%;background:#C3CFBF;"></div>
-          </div>
-          <div class="cx-leg">
-            <span><i style="background:#5E7C58;"></i>recuperado</span>
-            <span><i style="background:#C3CFBF;"></i>acordado a receber</span>
-            <span style="margin-left:auto;text-align:right;"><strong style="font-weight:600;">${pct1(pctRec+pctEnt)}% da meta comprometido</strong> · ${semCob > 0 ? fmtR(semCob)+' ainda sem cobertura' : 'meta coberta pelos acordos ativos'}</span>
-          </div>
+          ${A.contas.map(({ conta:c, saldo }) => `<div class="cx2-conta">
+            <div class="l1"><span class="av" style="background:${_finCxContaCor(c)};">${escHtml(_finCxContaSigla(c))}</span><span class="nm" title="${escHtml(c.descricao||'')}">${escHtml(c.descricao||'—')}</span></div>
+            <div class="sd" style="color:${saldo < 0 ? '#9B4A3F' : '#0A1530'};">${fmtR(saldo)}</div>
+            <div class="tp">${escHtml(_finCxContaTipo(c))}</div>
+          </div>`).join('')}
         </div>
       </div>
 
-      <div class="cx-kpis">
-        <div class="cx-kpi click" onclick="_finIrMovimentacoes('atrasados')">
-          <div class="cx-lb">Em atraso</div>
-          <div class="vl" style="color:#A65A4A;">${fmtR(A.atrasoT)}</div>
-          <div class="dt"><span class="sb"><span>a receber · ${A.atrasoInN}</span><span>${fmtR(A.atrasoInT)}</span></span><span class="sb"><span>a pagar · ${A.atrasoOutN}</span><span>${fmtR(A.atrasoOutT)}</span></span></div>
+      <div class="cx2-ind">
+        <div class="cx2-card dark">
+          <div class="cx2-lb">Lucro líquido · ${escHtml(b.curto)}</div>
+          <div class="vl" style="color:${A.lucro < 0 ? '#E2B4AA' : '#EFEAD9'};">${fmtRs(A.lucro)}</div>
+          <div class="ln"><span>entradas (recebidas + a receber)</span><b style="color:#BFD4B9;">${fmtR(A.entradas)}</b></div>
+          <div class="ln"><span>− aquisição de dívidas (pagas + a pagar)</span><b style="color:#E2B4AA;">${fmtR(A.aquisicao)}</b></div>
         </div>
-        <div class="cx-kpi click" onclick="_finIrMovimentacoes('tudo')">
-          <div class="cx-lb">Receita a entrar</div>
-          <div class="vl" style="color:#0A1530;">${fmtR(A.aEntrarT)}</div>
-          <div class="dt"><span>${A.aEntrarN} ${plural(A.aEntrarN,'parcela')} até ${A.mesFim.slice(8,10)}/${A.mesFim.slice(5,7)}</span><span style="color:#8A94A6;">${fmtR(A.semanaRecT)} ${A.semanaRecN===1?'vence':'vencem'} esta semana</span></div>
-        </div>
-        <div class="cx-kpi">
-          <div class="cx-lb">Resultado realizado</div>
-          <div class="vl" style="color:${A.resultado >= 0 ? '#4C6647' : '#A65A4A'};">${fmtRs(A.resultado)}</div>
-          <div class="dt"><span class="sb"><span>recebido</span><span style="color:#4C6647;">${fmtR(A.receita)}</span></span><span class="sb"><span>pago</span><span style="color:#7D3F33;">${fmtR(A.despesa)}</span></span></div>
-        </div>
-        <div class="cx-kpi click" onclick="setFinTab('credores')">
-          <div class="cx-lb">A repassar ao cedente</div>
-          <div class="vl" style="color:#0A1530;">${fmtR(A.terceiros)}</div>
-          <div class="dt"><span>${A.repasseN} ${plural(A.repasseN,'repasse')}${A.repasseN?` · o mais antigo há ${A.repasseMaisAntigo} ${plural(A.repasseMaisAntigo,'dia')}`:''}</span><span style="color:#8A94A6;">custódia · sai do caixa quando você repassar</span></div>
-        </div>
-        <div class="cx-kpi">
-          <div class="cx-lb">Acordos de ${escHtml(A.mesLabel)}</div>
-          <div style="display:flex;align-items:baseline;gap:7px;">
-            <span class="vl" style="color:#0A1530;">${A.assinadosN}</span>
-            <span style="font-size:11px;color:#6B7683;">${plural(A.assinadosN,'assinado')}</span>
+
+        <div class="cx2-card">
+          <div class="top"><span class="cx2-lb">Meta de lucro · ${escHtml(b.curto)}</span><span class="r">meta mensal</span></div>
+          <div class="cx2-meta-row"><span class="cx2-meta-pre">R$</span>
+            <input class="cx2-meta-inp" value="${escHtml(metaInput)}" title="Meta mensal de lucro — Enter ou sair do campo salva" onkeydown="if(event.key==='Enter'){this.blur();}" onblur="_finCaixaSetMetaLucro(this.value)">
           </div>
-          <div class="dt">
-            <span>${A.parcelasN} ${plural(A.parcelasN,'parcela')} ${plural(A.parcelasN,'lançada')} · ticket ${fmtR(A.ticket)}</span>
-            <span style="color:${A.semConferirN?'#A65A4A':'#8A94A6'};">${A.semConferirN ? `${A.semConferirN} ${plural(A.semConferirN,'assinado')} ainda sem conferir` : 'todos conferidos'}</span>
-          </div>
+          <div class="cx2-bar"><i class="${metaBatida ? 'ok' : ''}" style="width:${pctMeta.toFixed(1)}%;"></i></div>
+          <div class="ln"><span>− lucro já garantido (recebido + a receber)</span><b style="color:#4A7A52;">${fmtR(A.lucro)}</b></div>
+          <div class="ln" style="font-weight:600;color:#0A1530;"><span>${escHtml(faltaLabel)}</span><b style="color:${metaBatida ? '#4A7A52' : '#9B4A3F'};">${fmtR(faltaValor)}</b></div>
+        </div>
+
+        <div class="cx2-card">
+          <div class="cx2-lb">Acordos realizados · ${escHtml(b.curto)}</div>
+          <div class="vl-row"><span class="vl">${A.acordos.n}</span><span class="suf">${plural(A.acordos.n,'acordo assinado','acordos assinados')}</span></div>
+          <div class="ln"><span>valor acordado</span><b>${fmtR(A.acordos.total)}</b></div>
+          <div class="ln"><span>ticket médio</span><b>${fmtR(A.acordos.ticket)}</b></div>
+        </div>
+
+        <div class="cx2-card ${D.n > 0 ? 'alerta' : ''}">
+          <div class="cx2-lb">Acordos descumpridos · ${escHtml(b.curto)}</div>
+          <div class="vl-row"><span class="vl" style="color:${D.n > 0 ? '#9B4A3F' : '#0A1530'};">${D.n}</span><span class="suf">${plural(D.n,'acordo com parcela vencida','acordos com parcela vencida')}</span></div>
+          <div class="ln"><span>parcelas vencidas sem pagamento</span><b style="color:#9B4A3F;">${fmtR(D.valor)}</b></div>
+          <div class="ln"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escHtml(D.nomes.join(', '))}">${D.n ? escHtml(nomesDesc) : 'nenhum no período'}</span><b>${D.ativos ? `${D.pct}% de ${D.ativos} ativos` : ''}</b></div>
         </div>
       </div>
 
-      <div class="cx-cols">
-        <div class="cx-col">
-          <section class="cx-sec">
-            <div class="cx-sec-h">
-              <h2 class="cx-h2">Resultado por categoria</h2>
-              <span class="cx-nota">só o que entrou e saiu de fato · repasse ao cedente fica de fora (é dinheiro de terceiro)</span>
-              ${A.cats.length > 8 ? `<span class="cx-link" style="margin-left:auto;" onclick="window._finCaixaTodasCats=${todasCats?'false':'true'};renderFinTab('visao')">${todasCats ? 'ver só as principais' : 'ver todas as '+A.cats.length}</span>` : ''}
-            </div>
-            <div style="padding:14px 16px 16px;display:flex;flex-direction:column;gap:9px;">
-              ${catsVis.length ? catsVis.map(c=>{
-                const rec = c.valor >= 0, w = Math.max(2, Math.round(Math.abs(c.valor)/maxCat*100));
-                return `<div class="cx-catrow">
-                  <span class="cx-catnome" title="${escHtml(c.nome)}">${escHtml(c.nome)}</span>
-                  <span class="cx-cattrilho" style="justify-content:${rec?'flex-start':'flex-end'};"><i style="width:${w}%;background:${rec?'#7E9878':'#D9C0B9'};border-radius:4px;"></i></span>
-                  <span class="cx-catval" style="color:${rec?'#4C6647':'#7D3F33'};">${rec?'':'−'}${fmtR(Math.abs(c.valor))}</span>
-                </div>`; }).join('')
-                : `<div style="font-size:12.5px;color:#8A94A6;">Nada liquidado neste mês ainda.</div>`}
-              <div style="border-top:1px solid #F2EFE6;padding-top:11px;display:flex;align-items:baseline;">
-                <span style="font-size:12.5px;font-weight:600;color:#0A1530;">Resultado realizado</span>
-                <span style="margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;color:${A.resultado >= 0 ? '#4C6647' : '#7D3F33'};">${fmtRs(A.resultado)}</span>
-              </div>
-            </div>
-          </section>
+      ${temVencidas ? `<div class="cx2-vencs">
+        ${vencCard('Contas a pagar vencidas', A.vencPagar, A.vencPagarT, 'Pagar', '_finCaixaPagar', 'Nenhuma conta a pagar vencida.')}
+        ${vencCard('Contas a receber vencidas', A.vencReceber, A.vencReceberT, 'Cobrar', '_finCaixaCobrar', 'Nenhuma conta a receber vencida.')}
+      </div>` : ''}
 
-          <section style="background:#fff;border:1px solid #E6E1D2;border-radius:9px;padding:16px;display:flex;flex-direction:column;gap:11px;">
-            <div style="display:flex;align-items:baseline;gap:9px;">
-              <h2 class="cx-h2">Inadimplência</h2>
-            </div>
-            <!-- Sem selo de origem: o valor é a entrada atrasada de TODAS as contas, não
-                 só do Asaas. O selo dizia "ASAAS" ao lado de um número que já somava o
-                 razão inteiro. Judicial pendente fica de fora — esperar não é atraso. -->
-            <div style="font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:600;color:#A65A4A;white-space:nowrap;">${fmtR(A.atrasoInT)}</div>
-            <!-- Valor E contagem saem da MESMA fonte (o razão). Antes o valor era do razão
-                 e o "N devedores" vinha do Asaas: sem chave configurada a tela dizia
-                 "R$ 9.400,00 · 0 devedores", e quem paga fora do Asaas entrava no valor e
-                 sumia da contagem. -->
-            <div style="font-size:12px;color:#5A5F66;">${A.atrasoInN} ${plural(A.atrasoInN,'parcela vencida','parcelas vencidas')} · todas as contas, exceto judicial${
-              (inad.devList||[]).length ? ` · ${(inad.devList||[]).length} ${plural((inad.devList||[]).length,'devedor','devedores')} no Asaas` : ''}</div>
-            <button class="cx-btn2" onclick="setFinTab('asaas')">Disparar régua de cobrança</button>
-          </section>
+      ${ponte ? `<section class="fx-sec cx2-ponte">
+        <div class="fx-sec-h">
+          <h2 class="fx-h2" style="font-size:17px;">Do lucro líquido à sobra de ${escHtml(b.ponte)}</h2>
+          <span style="margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <span class="cx2-chip">Realização <b>${Math.round(ponte.real*100)}%</b></span>
+            <span class="cx2-chip">DAS <b>${(ponte.dasPct*100).toFixed(1).replace('.',',')}%</b></span>
+            <button class="cx2-ponte-btn" onclick="_finCaixaAjustarPremissas()">Ajustar premissas</button>
+          </span>
         </div>
+        <div class="cx2-ponte-nota" style="padding-top:10px;">Parte do lucro líquido do card acima (entradas − aquisição de dívidas de terceiro, já com ${Math.round(ponte.real*100)}% de realização sobre o que ainda não caiu) e chega ao que sobra para retirar.</div>
+        <div class="cx2-ponte-l h"><span>Lucro líquido de ${escHtml(b.ponte)} com realização de ${Math.round(ponte.real*100)}%</span><b>${fmtRs(ponte.inicio)}</b></div>
+        ${ponte.linhas.map(l => `<div class="cx2-ponte-l"><span>${escHtml(l.label)}</span><b style="color:${l.v < -0.005 ? '#7D3F33' : (l.v > 0.005 ? '#4A7A52' : '#0A1530')};">${fmtRs(l.v)}</b></div>`).join('')}
+        <div class="cx2-ponte-l f"><span>Sobra antes da retirada</span><b>${fmtRs(ponte.fim)}</b></div>
+      </section>` : ''}
 
-        <div class="cx-col">
-          <section class="cx-sec">
-            <div class="cx-sec-h">
-              <h2 class="cx-h2">Contas</h2>
-              <span style="margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;color:#0A1530;">${fmtR(A.saldoGeral)}</span>
-            </div>
-            ${contasGeral.length ? contasGeral.map(c=>{
-              const sd = _saldoConta(c), dias = _finSaldoIdadeDias(c);
-              return `<div class="cx-conta">
-                ${window.bankLogoHtml(c.logo_key||'outros', 22)}
-                <span class="nm" title="${escHtml(c.descricao||'')}">${escHtml(c.descricao||'—')}</span>
-                ${dias != null && dias >= FIN_SALDO_STALE_DIAS ? `<span class="cx-staled" title="saldo declarado ${_finSaldoIdadeTexto(dias)} — conferir no extrato" onclick="setFinTab('conciliacao')" style="cursor:pointer;">${dias}D</span>` : ''}
-                <span class="sd" style="color:${sd > 0 ? '#0A1530' : (sd < 0 ? '#A65A4A' : '#A6AEBD')};">${fmtRs(sd)}</span>
-              </div>`; }).join('')
-              : `<div style="padding:16px;font-size:12.5px;color:#8A94A6;">Nenhuma conta no saldo geral.</div>`}
-          </section>
-
-          ${serie ? `<section class="cx-sec">
-            <div class="cx-sec-h"><h2 class="cx-h2">Últimos 12 meses</h2></div>
-            <div class="cx-m12">
-              ${_m12('EBITDA', serie.ebitda)}
-              ${_m12('Faturamento', serie.fat)}
-              ${_m12('Ticket médio', serie.ticket)}
-              ${_m12('Juros e multas', serie.jm)}
-            </div>
-          </section>` : ''}
-        </div>
-      </div>
+      ${!temVencidas ? `<div class="cx2-aviso"><span class="dot"></span><span>Nada vencido.${
+        (A.hojePagar.length || A.hojeReceber.length)
+          ? (A.hojePagar.length ? ` ${A.hojePagar.length} conta(s) a pagar vence(m) hoje · ${fmtR(A.hojePagar.reduce((s,i)=>s+i.valor,0))} · ${escHtml(A.hojePagar.map(i => _finDescCrua(i.descricao)).slice(0,3).join(', '))}${A.hojePagar.length > 3 ? '…' : ''}.` : '')
+            + (A.hojeReceber.length ? ` ${A.hojeReceber.length} conta(s) a receber vence(m) hoje · ${fmtR(A.hojeReceber.reduce((s,i)=>s+i.valor,0))} · ${escHtml(A.hojeReceber.map(i => _finDescCrua(i.descricao)).slice(0,3).join(', '))}${A.hojeReceber.length > 3 ? '…' : ''}.` : '')
+          : ' Nada vence hoje.'}</span></div>` : ''}
     </div>
   `;
+}
+
+// Meta mensal de lucro — editável no card, gravada no blob (DB.config.metaLucro). Aceita
+// "40.000,00", "40000" e "40.000". Vazio ou inválido não grava: o campo volta ao valor atual.
+function _finCaixaSetMetaLucro(v){
+  const n = (typeof parseValorBR === 'function' ? parseValorBR(v) : parseFloat(String(v).replace(/\./g,'').replace(',','.')));
+  const atual = (DB.config && DB.config.metaLucro != null) ? +DB.config.metaLucro : 40000;
+  if(!(n >= 0) || Math.abs(n - atual) < 0.005){ renderFinTab('visao'); return; }
+  DB.config.metaLucro = +n.toFixed(2);
+  try{ save(); }catch(_){}
+  _finCaixaV2Cache = { at:0, key:'', v:null };   // a meta mora no agregado do período
+  showToast('Meta de lucro atualizada: ' + fmtR(n) + ' por mês.', 'success');
+  renderFinTab('visao');
+}
+// "Pagar" no card de vencidas: baixa a conta hoje, na conta dela. Confirma antes — é a
+// mesma ação do polegar de Movimentações, sem o popover.
+async function _finCaixaPagar(id){
+  const A = _finCaixaV2Cache.v; const it = A && A.vencPagar.find(i => i.id === id);
+  if(!it) return;
+  if(!confirm(`Marcar "${_finDescCrua(it.descricao)}" (${fmtR(it.valor)}) como paga hoje${it.conta ? ' na conta ' + it.conta : ''}?`)) return;
+  try{
+    await finApi.pagarLancamento(id, { dataPagamento: isoLocal(new Date()), contaId: it.contaId || null });
+    _finFinanceiroInvalidaCaches();
+    showToast('Pagamento confirmado.', 'success');
+    renderFinTab('visao');
+  }catch(e){ showToast('Erro: ' + (e.message||e), 'danger'); }
+}
+// "Cobrar": abre a ficha do lançamento (recibo, nota, recebimento parcial, WhatsApp da
+// régua ficam lá) — cobrar é decisão de gente, não um clique.
+function _finCaixaCobrar(id){ _finLancAbrirDrawer(id); }
+// "Ajustar premissas": o painel de premissas já existe em Fluxo de caixa (detalhe aberto).
+function _finCaixaAjustarPremissas(){
+  window._finFluxoDetalhe = true;
+  setFinTab('fluxocaixa');
+  let tent = 0;
+  const ir = () => {
+    const h = [...document.querySelectorAll('#page-fin .fx-h2')].find(x => x.textContent.trim() === 'Premissas');
+    if(h){ h.scrollIntoView({ behavior:'smooth', block:'start' }); return; }
+    if(++tent < 20) setTimeout(ir, 250);
+  };
+  setTimeout(ir, 300);
 }
 
 // Atalho "Ajustar meta" do card de meta — a meta mora no blob (DB.config.metaMensal),
@@ -37656,16 +38316,19 @@ function _finCaixaAjustarMeta(){
 }
 // Ir para Movimentações já numa visão salva, limpando busca e seleção (handoff:
 // "Ver os atrasados →" e os KPIs clicáveis levam para a lista já filtrada).
-function _finIrMovimentacoes(visao){
+function _finIrMovimentacoes(visao, patch){
   const s = _finLancCascataState;
   s.visao = visao || 'tudo';
   s.busca = '';
   // Chegar de outra aba com filtro de painel grudado já fez a lista parecer vazia sem
   // explicação: quem vem de um KPI quer o recorte daquele KPI, não o da última visita.
   _finMovZerarFiltros(s);
+  // `patch` = chips que a tela de origem quer acesos (ex.: { fTipo:'repasses' }).
+  if(patch) Object.assign(s, patch);
   s.filtrosAbertos = false; s.maisFiltros = false;
   _finMovReset();
-  setFinTab('lancamentos');
+  window._finTab = 'lancamentos';
+  renderFinanceiro();
 }
 
 async function _carregarResumoAsaasVisao(){
