@@ -29999,7 +29999,8 @@ const FIN_MENU_DE = (()=>{ const m={}; for(const menu of FIN_MENUS) for(const g 
 // Abas cujo conteúdo é recortado pelo seletor de período da faixa escura. Nas demais o
 // seletor não faz nada, então nem é desenhado — antes ele aparecia em todas e ficava
 // inerte, e na Judicial chegava a mostrar um mês diferente do da lista logo abaixo.
-const FIN_TABS_COM_PERIODO = ['lancamentos','receitasjudiciais'];
+const FIN_TABS_COM_PERIODO = ['visao','lancamentos','receitasjudiciais'];
+const FIN_PERIODO_KEY = 'cobrasq_fin_periodo_v2';
 // Idade do saldo bancário DECLARADO (fin_conta.bank_balance + bank_balance_at). Toda
 // tela de saldo prefere esse número ao razão, porque ele é o conferido contra o extrato
 // — mas nada o atualiza sozinho desde que a sync do Controlle foi desligada. Um valor
@@ -30606,38 +30607,69 @@ const _finBR = s => { const p = String(s).split('-'); return p[2]+'/'+p[1]+'/'+p
 
 function _finPeriodoEstado(){
   if(!window._finPeriodo){
+    // Um estado só para Caixa e Movimentações (handoff Financeiro v2): trocar o período
+    // numa aba vale na outra. Fica no localStorage — preferência de quem usa, não dado da
+    // empresa. "Hoje" e "Esta semana" voltam ancorados no dia de hoje, porque é isso que
+    // os nomes prometem; mês e período personalizado voltam como ficaram, e o rótulo
+    // anuncia qual é (filtro que persiste tem que se anunciar na tela).
     const h = new Date();
-    window._finPeriodo = { modo:'mes', ref:isoLocal(new Date(h.getFullYear(), h.getMonth(), 1)), ini:null, fim:null };
+    const padrao = { modo:'mes', ref:isoLocal(new Date(h.getFullYear(), h.getMonth(), 1)), ini:null, fim:null };
+    let s = null;
+    try{ s = JSON.parse(localStorage.getItem(FIN_PERIODO_KEY) || 'null'); }catch(_){}
+    if(s && ['dia','semana','mes','custom'].includes(s.modo)){
+      if(s.modo === 'dia' || s.modo === 'semana') s.ref = isoLocal(h);
+      if(s.modo === 'custom' && !(/^\d{4}-\d{2}-\d{2}$/.test(s.ini||'') && /^\d{4}-\d{2}-\d{2}$/.test(s.fim||''))) s = null;
+      if(s && s.modo === 'mes' && !/^\d{4}-\d{2}-\d{2}$/.test(s.ref||'')) s = null;
+    } else s = null;
+    window._finPeriodo = s ? { modo:s.modo, ref:s.ref || padrao.ref, ini:s.ini || null, fim:s.fim || null } : padrao;
   }
   return window._finPeriodo;
 }
 
 // { ini, fim, label } — ini/fim em 'AAAA-MM-DD'.
 function _finCascataPeriodoBounds(){
+  // Devolve a janela e os quatro jeitos de nomeá-la que as telas usam:
+  //   label  → o rótulo do seletor centralizado do Caixa ("Hoje", "Esta semana",
+  //            "Setembro de 2026", "01/09 – 15/09");
+  //   datas  → a faixa de datas do seletor de Movimentações ("01/09/2026 — 30/09/2026");
+  //   nome   → o complemento do H1 ("setembro de 2026", "hoje", "31/08 — 06/09");
+  //   curto  → o sufixo dos cards ("MÊS", "HOJE", "SEMANA", "PERÍODO");
+  //   ponte  → o mês do título da ponte ("set/26", "31/08 — 06/09").
   const p = _finPeriodoEstado();
+  const h = isoLocal(new Date());
+  const dm = s => s.slice(8,10) + '/' + s.slice(5,7);
+  const mesCurto = d => d.toLocaleDateString('pt-BR',{month:'short'}).replace('.','') + '/' + String(d.getFullYear()).slice(2);
   if(p.modo==='custom' && p.ini && p.fim){
-    return { ini:p.ini, fim:p.fim, label:_finBR(p.ini)+' — '+_finBR(p.fim) };
+    const faixa = dm(p.ini) + ' – ' + dm(p.fim);
+    return { ini:p.ini, fim:p.fim, modo:'custom', label:faixa, datas:_finBR(p.ini)+' — '+_finBR(p.fim), nome:faixa, curto:'PERÍODO', ponte:dm(p.ini)+' — '+dm(p.fim) };
   }
   const r = _finDeISO(p.ref);
   if(p.modo==='dia'){
-    return { ini:isoLocal(r), fim:isoLocal(r), label:r.getDate()+' de '+_FIN_MESES[r.getMonth()]+' de '+r.getFullYear() };
+    const iso = isoLocal(r), ehHoje = iso === h;
+    return { ini:iso, fim:iso, modo:'dia', label: ehHoje ? 'Hoje' : _finBR(iso), datas:_finBR(iso), nome: ehHoje ? 'hoje' : _finBR(iso), curto:'HOJE', ponte:dm(iso) };
   }
   if(p.modo==='semana'){
     const ini = new Date(r); ini.setDate(r.getDate()-r.getDay());          // domingo
     const fim = new Date(ini); fim.setDate(ini.getDate()+6);               // sábado
-    return { ini:isoLocal(ini), fim:isoLocal(fim), label:'Semana de '+_finBR(isoLocal(ini)) };
+    const a = isoLocal(ini), b = isoLocal(fim), atual = h >= a && h <= b;
+    return { ini:a, fim:b, modo:'semana', label: atual ? 'Esta semana' : dm(a)+' – '+dm(b), datas:_finBR(a)+' — '+_finBR(b), nome:dm(a)+' — '+dm(b), curto:'SEMANA', ponte:dm(a)+' — '+dm(b) };
   }
   const ini = new Date(r.getFullYear(), r.getMonth(), 1);
   const fim = new Date(r.getFullYear(), r.getMonth()+1, 0);
-  const nome = _FIN_MESES[ini.getMonth()];
-  return { ini:isoLocal(ini), fim:isoLocal(fim), label: nome.charAt(0).toUpperCase()+nome.slice(1)+' de '+ini.getFullYear() };
+  const nome = _FIN_MESES[ini.getMonth()] + ' de ' + ini.getFullYear();
+  return { ini:isoLocal(ini), fim:isoLocal(fim), modo:'mes', label: nome.charAt(0).toUpperCase()+nome.slice(1), datas:_finBR(isoLocal(ini))+' — '+_finBR(isoLocal(fim)), nome, curto:'MÊS', ponte:mesCurto(ini) };
 }
 
 function _finPeriodoRotulo(){ return _finCascataPeriodoBounds().label; }
 
 function _finPeriodoAplicar(){
+  try{ localStorage.setItem(FIN_PERIODO_KEY, JSON.stringify(_finPeriodoEstado())); }catch(_){}
+  const b = _finCascataPeriodoBounds();
   const lbl = document.getElementById('fincx-periodo-lbl');
-  if(lbl) lbl.textContent = _finPeriodoRotulo();
+  if(lbl) lbl.textContent = lbl.dataset.formato === 'datas' ? b.datas : b.label;
+  // O H1 de Movimentações carrega o período ("Movimentações · setembro de 2026").
+  const h1 = document.querySelector('#page-fin .fincx-h1');
+  if(h1) h1.textContent = _finTituloAba(window._finTab);
   // O contador de Movimentações é recortado pelo período. Sem apagá-lo aqui, mudar de mês
   // estando na aba Judicial deixava o chip exibindo a contagem do mês anterior.
   try{ FIN_TABS_COM_PERIODO.forEach(t => { delete window._finCnt[t]; const e = document.getElementById('fincx-cnt-'+t); if(e) e.textContent='—'; }); }catch(_){}
@@ -30723,16 +30755,21 @@ function _finPeriodoClickFora(e){
   if(pop && !pop.contains(e.target) && !e.target.closest('.fincx-nav')) _finPeriodoFecharMenu();
 }
 
-function _finPeriodoAbrirMenu(ev){
+function _finPeriodoAbrirMenu(ev, opts){
+  // Painel do seletor (handoff Financeiro v2, §2.1): atalhos Hoje · Esta semana · Este mês,
+  // "ir para um mês" e período personalizado. O MESMO painel serve o seletor centralizado
+  // do Caixa e o da linha de filtros de Movimentações (`opts.align:'right'`).
+  opts = opts || {};
   if(document.getElementById('fincx-pop')){ _finPeriodoFecharMenu(); return; }
   const p = _finPeriodoEstado(), b = _finCascataPeriodoBounds();
-  const mesRef = (p.modo==='mes' ? p.ref : isoLocal(new Date())).slice(0,7);
+  const hojeIso = isoLocal(new Date());
+  const mesRef = (p.modo==='mes' ? p.ref : hojeIso).slice(0,7);
   const pop = document.createElement('div');
-  pop.id='fincx-pop'; pop.className='fincx-pop';
+  pop.id='fincx-pop'; pop.className='fincx-pop fincx-pop-periodo';
   pop.innerHTML = `
     <button class="fincx-pop-it ${p.modo==='dia'?'on':''}" onclick="_finPeriodoSetModo('dia')">Hoje</button>
     <button class="fincx-pop-it ${p.modo==='semana'?'on':''}" onclick="_finPeriodoSetModo('semana')">Esta semana</button>
-    <button class="fincx-pop-it ${(p.modo==='mes'&&mesRef===isoLocal(new Date()).slice(0,7))?'on':''}" onclick="_finPeriodoSetModo('mes')">Este mês</button>
+    <button class="fincx-pop-it ${(p.modo==='mes'&&mesRef===hojeIso.slice(0,7))?'on':''}" onclick="_finPeriodoSetModo('mes')">Este mês</button>
     <div class="fincx-pop-sep"></div>
     <div class="fincx-pop-lb">Ir para um mês</div>
     <div class="fincx-pop-row">
@@ -30749,8 +30786,40 @@ function _finPeriodoAbrirMenu(ev){
   document.body.appendChild(pop);
   const r = (ev.currentTarget||ev.target).getBoundingClientRect();
   pop.style.top = (r.bottom+6)+'px';
-  pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - pop.offsetWidth - 8))+'px';
+  const w = pop.offsetWidth;
+  const left = opts.align === 'right' ? r.right - w : (opts.align === 'center' ? r.left + r.width/2 - w/2 : r.left);
+  pop.style.left = Math.max(8, Math.min(left, window.innerWidth - w - 8))+'px';
   setTimeout(()=>document.addEventListener('mousedown', _finPeriodoClickFora, true), 0);
+}
+
+// Seletor `‹ rótulo ›` que Caixa (centralizado, rótulo por nome) e Movimentações (à
+// direita, faixa de datas em mono) reaproveitam — a mesma casca .fincx-nav do topo.
+function _finPeriodoNavHtml(opts){
+  opts = opts || {};
+  const b = _finCascataPeriodoBounds();
+  const datas = opts.formato === 'datas';
+  const lbl = datas ? b.datas : b.label;
+  const st = datas
+    ? "font-family:'JetBrains Mono',monospace;font-size:12.5px;font-weight:500;min-width:0;padding:4px 10px;"
+    : "font-size:14px;font-weight:600;min-width:190px;padding:7px 12px;";
+  return `<div class="fincx-nav" style="${datas ? 'height:28px;' : ''}${opts.style||''}">
+    <button class="fincx-nav-seta" title="Anterior" onclick="_finPeriodoPasso(-1)">&lsaquo;</button>
+    <button class="fincx-nav-lbl" id="fincx-periodo-lbl" data-formato="${datas?'datas':'nome'}" style="${st}" onclick="_finPeriodoAbrirMenu(event,{align:'${escHtml(opts.align||'left')}'})">${escHtml(lbl)}</button>
+    <button class="fincx-nav-seta" title="Próximo" onclick="_finPeriodoPasso(1)">&rsaquo;</button>
+  </div>`;
+}
+
+// Meta do período a partir da meta MENSAL (regra fechada com o gestor, handoff §0):
+// dia = meta/22 · semana = meta/4,33 · personalizado = meta × meses arredondados quando o
+// intervalo tem ≥ 28 dias, senão meta × dias/30,4.
+function _finMetaPeriodo(metaMensal, b){
+  metaMensal = +metaMensal || 0;
+  b = b || _finCascataPeriodoBounds();
+  if(b.modo === 'mes') return metaMensal;
+  if(b.modo === 'dia') return metaMensal / 22;
+  if(b.modo === 'semana') return metaMensal / 4.33;
+  const dias = Math.round((_finDeISO(b.fim) - _finDeISO(b.ini)) / 86400000) + 1;
+  return dias >= 28 ? metaMensal * Math.max(1, Math.round(dias / 30.4)) : metaMensal * dias / 30.4;
 }
 
 
@@ -30914,6 +30983,10 @@ async function _finRepassesAbertos(force){
   return v;
 }
 function _finTituloAba(tab){
+  // Caixa é "Caixa" (o período mora no seletor do corpo); Movimentações leva o período
+  // no título ("Movimentações · setembro de 2026"); o resto continua "<aba> de <mês>".
+  if(tab === 'visao') return 'Caixa';
+  if(tab === 'lancamentos') return 'Movimentações · ' + _finCascataPeriodoBounds().nome;
   const mes = new Date().toLocaleDateString('pt-BR', { month:'long' });
   const t = (FIN_CASCATA_UI_TABS.find(x=>x.id===tab) || {}).label
          || (FIN_MENU_DE[tab] && FIN_MENU_DE[tab].label) || 'Financeiro';
@@ -30952,6 +31025,14 @@ async function renderFinanceiroCascata(el, activeTab){
       .fincx-pop-row{display:flex;gap:7px;align-items:center;padding:3px 11px 7px;}
       .fincx-pop-row input{flex:1;min-width:0;border:1px solid #DDD7C8;border-radius:6px;padding:6px 8px;font-family:inherit;font-size:12.5px;color:#0A1530;background:#fff;}
       .fincx-pop-ok{background:#0A1530;color:#fff;border:none;border-radius:6px;padding:7px 13px;font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer;}
+      .fincx-pop-periodo{width:340px;border-radius:16px;box-shadow:0 8px 32px rgba(10,21,48,.14);padding:12px;border-color:#E6E1D2;}
+      .fincx-pop-periodo .fincx-pop-it{font-size:15px;font-weight:500;padding:12px 16px;border-radius:9px;}
+      .fincx-pop-periodo .fincx-pop-it.on{background:#0A1530;color:#EFEAD9;}
+      .fincx-pop-periodo .fincx-pop-lb{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.12em;color:rgba(10,21,48,.5);padding:8px 4px 6px;}
+      .fincx-pop-periodo .fincx-pop-sep{margin:8px 0;}
+      .fincx-pop-periodo .fincx-pop-row{padding:3px 0 7px;}
+      .fincx-pop-periodo .fincx-pop-row input{padding:10px 12px;border:1.5px solid rgba(10,21,48,.14);border-radius:9px;font-size:14px;}
+      .fincx-pop-periodo .fincx-pop-ok{border-radius:9px;padding:10px 16px;font-size:13px;}
       .fincx-btn-novo{background:#0A1530;color:#fff;border:none;padding:7px 13px;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;font-family:inherit;}
       .fincx-btn-novo:hover{background:#15224A;}
       .fincx-btn-novo.ghost{background:#fff;color:#0A1530;border:1px solid #D8D2C5;font-weight:500;}
