@@ -30609,15 +30609,16 @@ function _finPeriodoEstado(){
   if(!window._finPeriodo){
     // Um estado só para Caixa e Movimentações (handoff Financeiro v2): trocar o período
     // numa aba vale na outra. Fica no localStorage — preferência de quem usa, não dado da
-    // empresa. "Hoje" e "Esta semana" voltam ancorados no dia de hoje, porque é isso que
-    // os nomes prometem; mês e período personalizado voltam como ficaram, e o rótulo
-    // anuncia qual é (filtro que persiste tem que se anunciar na tela).
+    // empresa. "Hoje", "Esta semana" e o mês voltam ancorados no dia de hoje, porque é
+    // isso que os nomes prometem (um mês salvo fazia o Caixa abrir em setembro no dia 1º
+    // de outubro); só o período personalizado volta como ficou, e o rótulo anuncia qual é.
     const h = new Date();
     const padrao = { modo:'mes', ref:isoLocal(new Date(h.getFullYear(), h.getMonth(), 1)), ini:null, fim:null };
     let s = null;
     try{ s = JSON.parse(localStorage.getItem(FIN_PERIODO_KEY) || 'null'); }catch(_){}
     if(s && ['dia','semana','mes','custom'].includes(s.modo)){
       if(s.modo === 'dia' || s.modo === 'semana') s.ref = isoLocal(h);
+      if(s.modo === 'mes') s.ref = padrao.ref;
       if(s.modo === 'custom' && !(/^\d{4}-\d{2}-\d{2}$/.test(s.ini||'') && /^\d{4}-\d{2}-\d{2}$/.test(s.fim||''))) s = null;
       if(s && s.modo === 'mes' && !/^\d{4}-\d{2}-\d{2}$/.test(s.ref||'')) s = null;
     } else s = null;
@@ -32731,7 +32732,9 @@ function _finMovToggleMais(){ _finLancCascataState.maisFiltros = !_finLancCascat
 function _finMovVerMais(){ _finLancCascataState.limite += FIN_MOV_PAGINA; _finLancCascataRender(); }
 function _finMovNFiltros(){
   const s = _finLancCascataState;
-  return s.fContas.length + (s.fCategoria?1:0) + (s.fCedente?1:0) + (s.fMin?1:0) + (s.fMax?1:0);
+  const tipoSemChip = s.fTipo && !['in','out','repasses'].includes(s.fTipo);
+  return s.fContas.length + (s.fCategoria?1:0) + (s.fCedente?1:0) + (s.fMin?1:0) + (s.fMax?1:0)
+       + (s.visao && s.visao !== 'tudo' ? 1 : 0) + (tipoSemChip ? 1 : 0);
 }
 function _finMovLimparFiltros(){
   const s = _finLancCascataState;
@@ -33017,8 +33020,10 @@ function _finLancCascataFiltrados(visaoId){
     if(s.fTipo === 'repasses' && !_finMovEhRepasse(l, ctx)) return false;
     if(s.fTipo === 'fatprev' && !_finLancEhFaturamentoPrevisto(l, ctx)) return false;
     if(s.fStatus){
-      const t = _finLancSit(l).t;
-      const efetivado = t === 'PAGO' || t === 'CONCILIADO';
+      // A mesma pílula que a linha exibe: um repasse vencido com PIX já disparado é
+      // "PIX ENVIADO", não "ATRASADO" — antes entrava em "Em atraso" com outra pílula.
+      const t = _finMovSit(l, ctx).t;
+      const efetivado = t === 'PAGO' || t === 'CONCILIADO' || t === 'REPASSADO';
       if(s.fStatus === 'pago' && !efetivado) return false;
       if(s.fStatus === 'conciliado' && t !== 'CONCILIADO') return false;
       if(s.fStatus === 'atrasado' && t !== 'ATRASADO') return false;
@@ -33237,7 +33242,8 @@ function _finLancCascataRender(){
         <span>${contador}${s.busca ? ` · busca “${escHtml(s.busca)}” <a onclick="_finLancCascataBusca('')">limpar</a>` : ''}</span>
         ${s.fTipo==='repasses' ? `<span style="color:#97793A;">· repasses ao credor saem daqui pelo botão <b>Repassar</b> — não existe mais aba separada</span>` : ''}
         ${s.visao && s.visao !== 'tudo' ? `<span style="color:#97793A;">· só <b>${escHtml(((FIN_MOV_VISOES.find(v => v.id === s.visao) || {}).label || s.visao).toLowerCase())}</b> <a onclick="_finMovSetVisao('tudo')">ver tudo</a></span>` : ''}
-        ${!agrupado ? `<span>· ordenado por ${escHtml((FIN_LANC_ORD_COLS[s.ord.col]||{}).label||'').toLowerCase()} <a onclick="_finLancCascataOrd('data')">voltar à ordem por data</a></span>` : ''}
+        ${s.fTipo && !['in','out','repasses'].includes(s.fTipo) ? `<span style="color:#97793A;">· só <b>${escHtml(({ fatprev:'faturamento previsto', repasse:'a repassar agora' })[s.fTipo] || s.fTipo)}</b> <a onclick="_finMovSetFiltro('fTipo','')">ver tudo</a></span>` : ''}
+        ${s.ord.col !== 'data' ? `<span>· ordenado por ${escHtml((FIN_LANC_ORD_COLS[s.ord.col]||{}).label||'').toLowerCase()} <a onclick="_finLancCascataOrd('data')">voltar à ordem por data</a></span>` : ''}
         ${ctx.truncado ? `<span style="color:#A65A4A;font-weight:600;">· lista cortada em ${FIN_LANC_LIMITE} — ${ctx.busca?'refine a busca ou estreite o período':'estreite o período'}</span>` : ''}
       </div>
 
@@ -33614,6 +33620,20 @@ function _finMovPainelFiltrosHtml(contas, cats, cedentes, contador, chipF){
     <div class="sec">
       <span class="tt">Contas e carteiras</span>
       <div class="ops">${contas.map(c=>`<button style="${chipF(s.fContas.indexOf(String(c.id))>=0)}" onclick="event.stopPropagation();_finMovToggleConta('${c.id}')">${_finContaAvatar(c,16)}${escHtml(c.descricao||'—')}</button>`).join('') || '<span style="font-size:11.5px;color:#A6AEBD;">Nenhuma conta cadastrada.</span>'}</div>
+    </div>
+    <div class="sec">
+      <span class="tt">Mais recortes</span>
+      <div class="ops">
+        ${FIN_MOV_VISOES.filter(v => v.id !== 'tudo' && v.id !== 'atrasados').map(v => `<button style="${chipF(s.visao===v.id)}" onclick="event.stopPropagation();_finMovSetVisao(_finLancCascataState.visao==='${v.id}'?'tudo':'${v.id}')">${escHtml(v.label)}</button>`).join('')}
+        <button style="${chipF(s.fTipo==='fatprev')}" onclick="event.stopPropagation();_finMovToggleChip('fTipo','fatprev')" title="Entradas previstas de acordos ativos que ainda não viraram recebimento">Faturamento previsto</button>
+      </div>
+    </div>
+    <div class="sec">
+      <span class="tt">Visões salvas</span>
+      <div class="ops">
+        ${_finMovVisoesSalvas().map(v=>`<button style="${chipF(s.visaoSalva===v.nome)}" onclick="event.stopPropagation();_finMovAplicarVisaoSalva(${JSON.stringify(v.nome).replace(/"/g,'&quot;')})">${escHtml(v.nome)} <span style="opacity:.6;font-size:11px;" onclick="event.stopPropagation();_finMovApagarVisaoSalva(${JSON.stringify(v.nome).replace(/"/g,'&quot;')})" title="apagar">✕</span></button>`).join('')}
+        <button style="${chipF(false)}border-style:dashed;" onclick="event.stopPropagation();_finMovSalvarVisao()">+ Salvar visão</button>
+      </div>
     </div>
     <div class="sec" style="position:relative;">
       <button class="finmv-mais" onclick="event.stopPropagation();_finMovToggleMais()">Mais filtros ${s.maisFiltros?'⌃':'⌄'}</button>
@@ -37914,7 +37934,7 @@ async function _finCaixaV2Agg(force){
   // ── Meta (mensal, proporcional fora do mês) ────────────────────────────────────
   const metaMensal = (DB.config && DB.config.metaLucro != null && isFinite(+DB.config.metaLucro)) ? +DB.config.metaLucro : 40000;
   const meta = +_finMetaPeriodo(metaMensal, b).toFixed(2);
-  const falta = lucro < 0 ? meta : Math.max(0, +(meta - lucro).toFixed(2));
+  const falta = Math.max(0, +(meta - lucro).toFixed(2));   // lucro negativo aumenta o que falta
   const excedente = lucro >= meta ? +(lucro - meta).toFixed(2) : 0;
 
   // ── Acordos realizados ─────────────────────────────────────────────────────────
