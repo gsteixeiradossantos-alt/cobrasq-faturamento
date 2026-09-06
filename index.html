@@ -33756,7 +33756,9 @@ function _finLancCascataRowHtml(l, ctx){
   else if(repasse && op && op.repasse_status === 'preparado' && !efetivado) acoes.push(`<button class="finmv-aguard" onclick="event.stopPropagation();_repConferirTransfer('${escHtml(String(op.id))}')" title="PIX disparado; o Asaas ainda não confirmou. Clique para consultar: confirmado vira REPASSADO; recusado ou cancelado devolve o botão Repassar.">aguardando Asaas ◔</button>`);
   if(op && op.repasse_status === 'efetuado' && op.repasse_comprovante_url) acoes.push(`<a class="finmv-compr" href="${escHtml(op.repasse_comprovante_url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Comprovante ↗</a>`);
   if(!efetivado && !repasse) acoes.push(`<button class="finmv-gh" onclick="event.stopPropagation();_finMovClicarPolegar(${l.id})" title="${isEnt?'Confirmar recebimento':'Confirmar pagamento'} · ${fmtR(Math.abs(+l.valor||0))}">Confirmar</button>`);
-  acoes.push(`<button class="finmv-lnk" onclick="event.stopPropagation();_finLancAbrirDrawer(${l.id})">Abrir</button>`);
+  // O ⋮ (recebimento parcial, nota, recibo, duplicar, extrato, editar, excluir) volta em
+  // toda linha, entrada e saída — 05/09/2026, a pedido do gestor. "Abrir" saiu: o clique
+  // na linha e o "Editar" do menu já abrem a ficha.
 
   return `<div class="finmv-grid finmv-row ${sel?'sel':''} ${repAberto?'rep':''}" data-lanc="${l.id}" onclick="_finLancAbrirDrawer(${l.id})">
       <span><input type="checkbox" ${sel?'checked':''} onclick="event.stopPropagation();_finLancCascataToggleSel(${l.id})"></span>
@@ -33778,7 +33780,9 @@ function _finLancCascataRowHtml(l, ctx){
       <span><span class="finmv-st" style="background:${sit.bg};color:${sit.fg};">${sit.t}</span></span>
       <span class="finmv-cel finmv-acao">
         ${acoes.join('')}
+        <button class="finmv-kebab ${s.menu===l.id?'on':''}" onclick="event.stopPropagation();_finMovAbrirMenu(${l.id})" title="Mais ações">⋮</button>
         ${s.popEfet === l.id ? _finMovPopEfetivarHtml(l, ctx) : ''}
+        ${s.menu === l.id ? _finMovMenuHtml(l) : ''}
       </span>
     </div>`;
 }
